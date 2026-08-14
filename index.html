@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#153f3a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SSML Noter">
+  <title>SSML Noter</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="features.css">
+  <link rel="stylesheet" href="actions.css">
+  <link rel="stylesheet" href="selection.css">
+</head>
+<body>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+  <section id="login-view" class="login-view">
+    <div class="login-art" aria-hidden="true">
+      <div class="brand brand-light"><span class="brand-mark">S</span><span><strong>SSML</strong><small>Notearkiv</small></span></div>
+      <div class="art-copy"><p class="eyebrow">Samnanger Skulemusikklag</p><h1>Musikken samla.<br>Klart til neste øving.</h1><p>Eitt trygt og oversiktleg arkiv for alle notar, stemmer og utskrifter.</p></div>
+      <div class="music-lines"><span>♪</span><span>♩</span><span>♫</span></div>
+    </div>
+    <div class="login-panel">
+      <form id="login-form" class="login-card">
+        <div class="mobile-brand brand"><span class="brand-mark">S</span><span><strong>SSML</strong><small>Notearkiv</small></span></div>
+        <p class="eyebrow green">Velkomen tilbake</p>
+        <h2>Logg inn</h2>
+        <p class="muted">Bruk kontoen din i Samnanger Skulemusikklag.</p>
+        <label>E-post<input id="email" type="email" autocomplete="email" placeholder="namn@ssml.no" required></label>
+        <label>Passord<input id="password" type="password" autocomplete="current-password" placeholder="••••••••" required></label>
+        <button class="btn btn-primary btn-wide" type="submit">Logg inn <span>→</span></button>
+        <button id="demo-login" class="btn btn-ghost btn-wide" type="button">Prøv demo utan Firebase</button>
+        <p id="login-help" class="form-help">Firebase er ikkje konfigurert enno. Bruk demo for å sjå appen.</p>
+      </form>
+    </div>
+  </section>
+
+  <div id="app-shell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand brand-light"><span class="brand-mark">S</span><span><strong>SSML</strong><small>Notearkiv</small></span></div>
+      <nav aria-label="Hovudmeny">
+        <button class="nav-item active" data-view="home"><span>⌂</span> Oversikt</button>
+        <button class="nav-item" data-view="archive"><span>▤</span> Notearkiv</button>
+        <button class="nav-item" data-action="open-import"><span>＋</span> Importer notar</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="user-avatar">D</div><div><strong id="user-name">Demo-brukar</strong><small id="user-email">Lokal modus</small></div><button id="logout" title="Logg ut">↗</button></div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <button id="menu-button" class="icon-btn menu-button" aria-label="Opne meny">☰</button>
+        <div class="global-search"><span>⌕</span><input id="global-search" type="search" placeholder="Søk etter tittel, komponist eller arrangør …"><kbd>Ctrl K</kbd></div>
+        <button class="btn btn-primary desktop-import" data-action="open-import">＋ Importer notar</button>
+      </header>
+
+      <section id="home-view" class="view page-wrap">
+        <div class="welcome"><div><p class="eyebrow green">SSML Noter</p><h1>God dag! <span>👋</span></h1><p>Her er notearkivet til Samnanger Skulemusikklag.</p></div><button class="btn btn-primary" data-action="open-import">＋ Legg til ny song</button></div>
+        <div class="stats-grid">
+          <article class="stat-card"><span class="stat-icon green-bg">♫</span><div><strong id="song-count">0</strong><small>Songar i arkivet</small></div></article>
+          <article class="stat-card"><span class="stat-icon gold-bg">♬</span><div><strong id="part-count">0</strong><small>Stemmer totalt</small></div></article>
+          <article class="stat-card"><span class="stat-icon blue-bg">▧</span><div><strong id="pdf-count">0</strong><small>PDF-filer</small></div></article>
+        </div>
+        <div class="section-heading"><div><h2>Nyleg lagt til</h2><p>Dei siste notane i arkivet</p></div><button class="text-btn" data-view="archive">Sjå heile arkivet →</button></div>
+        <div id="recent-grid" class="song-grid"></div>
+      </section>
+
+      <section id="archive-view" class="view page-wrap hidden">
+        <div class="page-heading"><div><p class="eyebrow green">Samlinga</p><h1>Notearkiv</h1><p>Søk, filtrer og opne notar frå heile repertoaret.</p></div><button class="btn btn-primary" data-action="open-import">＋ Importer notar</button></div>
+        <div class="filter-bar"><div class="inline-search"><span>⌕</span><input id="archive-search" type="search" placeholder="Søk i arkivet …"></div><select id="archive-sort" aria-label="Sorter"><option value="newest">Nyaste først</option><option value="title">Tittel A–Å</option><option value="composer">Komponist A–Å</option></select></div>
+        <p id="result-count" class="result-count"></p>
+        <div id="archive-grid" class="song-grid"></div>
+      </section>
+
+      <section id="song-view" class="view page-wrap hidden">
+        <button class="back-btn" data-view="archive">← Tilbake til arkivet</button>
+        <div id="song-detail"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="import-dialog" class="modal">
+    <form id="import-form" method="dialog">
+      <header><div><p class="eyebrow green">Nytt i arkivet</p><h2>Importer notar</h2></div><button class="icon-btn" type="button" data-close-dialog aria-label="Lukk">×</button></header>
+      <div class="stepper"><span class="active">1 <small>Informasjon</small></span><i></i><span>2 <small>PDF-filer</small></span><i></i><span>3 <small>Kontroller</small></span></div>
+      <div class="form-grid">
+        <label class="full">Tittel (valfritt)<input id="song-title" placeholder="AI finn tittelen frå PDF-en"></label>
+        <label>Komponist<input id="composer" placeholder="Namn på komponist"></label>
+        <label>Arrangør<input id="arranger" placeholder="Namn på arrangør"></label>
+      </div>
+      <fieldset><legend>Korleis er notane organiserte?</legend><label class="radio-card"><input type="radio" name="pdf-mode" value="combined" checked><span><strong>Éi samla PDF</strong><small>Alle stemmer og sider i same fil</small></span></label><label class="radio-card"><input type="radio" name="pdf-mode" value="separate"><span><strong>Éi PDF per stemme</strong><small>Last opp fleire filer, til dømes Fløyte 1.pdf</small></span></label></fieldset>
+      <label id="drop-zone" class="drop-zone"><input id="pdf-files" type="file" accept="application/pdf,.pdf" multiple><span class="upload-icon">⇧</span><strong>Slepp PDF-filene her</strong><small>eller klikk for å velje filer · maks 50 MB per fil</small></label>
+      <div id="file-list" class="file-list"></div>
+      <aside class="info-note"><span>i</span><p><strong>Automatisk splitting kjem seinare</strong><br>For ei samla PDF blir fila no lagra som «Samla partitur». OCR og automatisk oppdeling i stemmer krev ei backend-teneste. Du kan framleis velje og skrive ut enkeltsider.</p></aside>
+      <footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button id="save-song" class="btn btn-primary" type="submit">Lagre i arkivet</button></footer>
+    </form>
+  </dialog>
+
+  <dialog id="print-dialog" class="modal small-modal">
+    <form id="print-form" method="dialog"><header><div><p class="eyebrow green">Klargjer</p><h2>Skriv ut notar</h2></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><div id="print-summary"></div><label>Sider<select id="page-choice"><option value="all">Alle sider</option></select></label><label>Antal kopiar<input id="copy-count" type="number" min="1" max="99" value="1"></label><footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button class="btn btn-primary" type="submit">Skriv ut</button></footer></form>
+  </dialog>
+
+  <dialog id="parts-dialog" class="modal">
+    <form id="parts-form" method="dialog"><header><div><p class="eyebrow green">Samla PDF</p><h2>Fordel sider på stemmer</h2></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><p class="muted">Skriv instrument/stemme og sidene som høyrer til. Døme: <strong>1–2, 5</strong>.</p><div id="part-editor-list" class="part-editor-list"></div><button id="add-part-row" class="btn btn-ghost" type="button">＋ Legg til stemme</button><footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button class="btn btn-primary" type="submit">Lagre stemmer</button></footer></form>
+  </dialog>
+
+  <dialog id="page-dialog" class="page-modal">
+    <header><div><strong id="page-modal-title">Note</strong><small id="page-modal-count"></small></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><div class="page-stage"><button id="previous-page" class="page-arrow" aria-label="Førre side">‹</button><canvas id="large-page-canvas"></canvas><button id="next-page" class="page-arrow" aria-label="Neste side">›</button></div><footer><button id="print-current-page" class="btn btn-primary" type="button">Skriv ut denne sida</button></footer>
+  </dialog>
+
+  <dialog id="ai-review-dialog" class="modal ai-review-modal">
+    <form id="ai-review-form" method="dialog"><header><div><p class="eyebrow green">Automatisk analyse</p><h2>Kontroller opplysningane</h2></div></header><div class="analysis-status"><span>✓</span><p><strong>PDF-en er analysert</strong><br><small>Kontroller forslaga før dei blir lagra i arkivet.</small></p></div><div class="form-grid"><label class="full">Songtittel<input id="review-title" required></label><label>Komponist<input id="review-composer"></label><label>Arrangør<input id="review-arranger"></label></div><div class="review-heading"><h3>Instrument og stemmer</h3><button id="review-add-part" class="text-btn" type="button">＋ Legg til</button></div><div id="review-parts" class="part-editor-list"></div><footer><button id="review-save" class="btn btn-primary" type="submit">Godkjenn og lagre</button></footer></form>
+  </dialog>
+
+  <template id="empty-template"><div class="empty-state"><span>♫</span><h3>Ingen notar her enno</h3><p>Importer den første songen for å kome i gang.</p><button class="btn btn-primary" data-action="open-import">＋ Importer notar</button></div></template>
+  <script>if (["localhost","127.0.0.1"].includes(location.hostname)) self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;</script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

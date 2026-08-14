@@ -1,0 +1,25 @@
+.detail-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .8rem;
+}
+
+.btn-danger {
+  background: #fff;
+  color: #9b2c2c;
+  border: 1px solid #e2b4b4;
+}
+
+.btn-danger:hover {
+  background: #fff1f1;
+  border-color: #c46b6b;
+}
+
+.btn-danger:disabled {
+  opacity: .6;
+}
+
+@media (max-width: 520px) {
+  .detail-actions { align-items: flex-start; }
+}

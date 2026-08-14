@@ -1,0 +1,103 @@
+.part-selection-tools {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: .5rem;
+  align-items: center;
+  margin-bottom: .7rem;
+}
+
+.part-selection-tools .btn {
+  padding: .65rem .7rem;
+}
+
+.part-select-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: stretch;
+  gap: .35rem;
+  margin-top: .55rem;
+}
+
+.part-select-row .part-btn {
+  margin-top: 0;
+}
+
+.part-check {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.part-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--green);
+}
+
+.multi-preview {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.multi-preview-group {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+  border-radius: 10px;
+  transition: background .2s, box-shadow .2s;
+}
+
+.multi-preview-group:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.multi-preview-group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: .75rem;
+}
+
+.multi-preview-group strong,
+.multi-preview-group small {
+  display: block;
+}
+
+.multi-preview-group.focused {
+  background: var(--mint);
+  box-shadow: 0 0 0 8px var(--mint);
+}
+
+.multi-preview-group small {
+  color: var(--muted);
+  margin-top: .15rem;
+}
+
+@media (min-width: 851px) {
+  .preview-panel {
+    position: sticky;
+    top: 98px;
+    align-self: start;
+    max-height: calc(100vh - 116px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+
+  .preview-panel > .preview-toolbar {
+    position: sticky;
+    top: -1.25rem;
+    z-index: 2;
+    margin: -1.25rem -1.25rem 1rem;
+    padding: 1.25rem;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 520px) {
+  .part-selection-tools { grid-template-columns: 1fr; }
+}
