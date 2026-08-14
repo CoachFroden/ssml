@@ -10,27 +10,22 @@ export const firebaseConfig = {
   appId: "1:1091683313021:web:fb43407e195744c8759814"
 };
 
-export const appCheckSiteKey = "6Lf6g4UtAAAAAAPeT-6sB0_AA3LptZ-L1elN6_bav";
-
 export const isFirebaseConfigured = !Object.values(firebaseConfig).some(value => value.includes("LIM_INN"));
 
 let services = null;
 
 export async function initFirebase() {
   if (!isFirebaseConfigured) return null;
-  const [{ initializeApp }, authModule, firestoreModule, storageModule, appCheckModule, aiModule] = await Promise.all([
+  const [{ initializeApp }, authModule, firestoreModule, storageModule, aiModule] = await Promise.all([
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js"),
-    import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-ai.js")
   ]);
   const app = initializeApp(firebaseConfig);
-  const appCheck = appCheckModule.initializeAppCheck(app, {
-    provider: new appCheckModule.ReCaptchaEnterpriseProvider(appCheckSiteKey),
-    isTokenAutoRefreshEnabled: true
-  });
+  // App Check er mellombels slått av. Firebase-konsollen står på «unenforced»,
+  // så tenestene kan brukast utan reCAPTCHA medan produksjonsoppsettet blir avklart.
   const ai = aiModule.getAI(app, { backend: new aiModule.GoogleAIBackend() });
   const responseSchema = aiModule.Schema.object({ properties: {
     title: aiModule.Schema.string(),
@@ -50,7 +45,7 @@ export async function initFirebase() {
     model: "gemini-3.5-flash",
     generationConfig: { responseMimeType: "application/json", responseSchema, temperature: 0.1, maxOutputTokens: 8192 }
   });
-  services = { app, appCheck, ai, analysisModel, auth: authModule.getAuth(app), db: firestoreModule.getFirestore(app), storage: storageModule.getStorage(app), authModule, firestoreModule, storageModule };
+  services = { app, ai, analysisModel, auth: authModule.getAuth(app), db: firestoreModule.getFirestore(app), storage: storageModule.getStorage(app), authModule, firestoreModule, storageModule };
   return services;
 }
 
