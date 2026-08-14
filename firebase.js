@@ -85,10 +85,10 @@ export async function saveSong(song, files) {
   return { id: docRef.id, ...song, parts, createdAt: new Date().toISOString() };
 }
 
-export async function updateSongParts(songId, parts) {
+export async function updateSongParts(songId, parts, mode = "mapped") {
   if (!services) throw new Error("Firebase er ikkje konfigurert.");
   const { doc, updateDoc } = services.firestoreModule;
-  await updateDoc(doc(services.db, "songs", songId), { parts, mode: "mapped" });
+  await updateDoc(doc(services.db, "songs", songId), { parts, mode });
 }
 
 export async function deleteSong(song) {

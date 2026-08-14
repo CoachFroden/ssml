@@ -15,10 +15,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="features.css">
-  <link rel="stylesheet" href="actions.css">
-  <link rel="stylesheet" href="selection.css">
+  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="features.css?v=7">
+  <link rel="stylesheet" href="actions.css?v=7">
+  <link rel="stylesheet" href="selection.css?v=7">
 </head>
 <body>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
@@ -112,6 +112,10 @@
     <form id="parts-form" method="dialog"><header><div><p class="eyebrow green">Samla PDF</p><h2>Fordel sider på stemmer</h2></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><p class="muted">Skriv instrument/stemme og sidene som høyrer til. Døme: <strong>1–2, 5</strong>.</p><div id="part-editor-list" class="part-editor-list"></div><button id="add-part-row" class="btn btn-ghost" type="button">＋ Legg til stemme</button><footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button class="btn btn-primary" type="submit">Lagre stemmer</button></footer></form>
   </dialog>
 
+  <dialog id="edit-part-dialog" class="modal small-modal">
+    <form id="edit-part-form" method="dialog"><header><div><p class="eyebrow green">Rediger stemme</p><h2>Instrumentnamn</h2></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><label>Namn på instrument/stemme<input id="edit-part-name" required placeholder="Til dømes Klarinett 1"></label><p class="muted edit-part-help">Enkeltsider slettar du med knappen under sida i førehandsvisinga.</p><footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button id="save-part-name" class="btn btn-primary" type="submit">Lagre namn</button></footer></form>
+  </dialog>
+
   <dialog id="page-dialog" class="page-modal">
     <header><div><strong id="page-modal-title">Note</strong><small id="page-modal-count"></small></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><div class="page-stage"><button id="previous-page" class="page-arrow" aria-label="Førre side">‹</button><canvas id="large-page-canvas"></canvas><button id="next-page" class="page-arrow" aria-label="Neste side">›</button></div><footer><button id="print-current-page" class="btn btn-primary" type="button">Skriv ut denne sida</button></footer>
   </dialog>
@@ -121,6 +125,6 @@
   </dialog>
 
   <template id="empty-template"><div class="empty-state"><span>♫</span><h3>Ingen notar her enno</h3><p>Importer den første songen for å kome i gang.</p><button class="btn btn-primary" data-action="open-import">＋ Importer notar</button></div></template>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=7"></script>
 </body>
 </html>

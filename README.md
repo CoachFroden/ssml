@@ -55,6 +55,12 @@ sang
 - Talet på kopiar må veljast i utskriftsvindauget til operativsystemet; appen minner brukaren på det.
 - PDF-miniatyrar blir laga med PDF.js frå CDN, så første innlasting krev nettilgang.
 
+## Redigering
+
+- Vel ei stemme og trykk **Rediger instrument** for å endre instrumentnamnet.
+- Trykk **Slett side** under ein miniatyr for å fjerne sida frå den aktuelle stemma.
+- Original-PDF-en blir ikkje endra når ei enkeltside blir fjerna. Sida kan derfor leggjast tilbake seinare ved å redigere stemmefordelinga.
+
 ## Filer
 
 - `index.html` – struktur og innhald

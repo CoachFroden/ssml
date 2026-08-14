@@ -42,6 +42,42 @@
   gap: 1.25rem;
 }
 
+.preview-actions {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.page-thumb-wrap {
+  display: grid;
+  align-content: start;
+  gap: .35rem;
+}
+
+.page-thumb-wrap .page-thumb {
+  width: 100%;
+}
+
+.delete-page-btn {
+  border: 1px solid #e2b8b3;
+  border-radius: 8px;
+  padding: .42rem .55rem;
+  background: #fff7f6;
+  color: #983c34;
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.delete-page-btn:hover {
+  background: #fbe5e2;
+}
+
+.edit-part-help {
+  margin-top: 1rem;
+  font-size: .82rem;
+}
+
 .multi-preview-group {
   border-top: 1px solid var(--line);
   padding-top: 1rem;
@@ -100,4 +136,7 @@
 
 @media (max-width: 520px) {
   .part-selection-tools { grid-template-columns: 1fr; }
+  .preview-toolbar { align-items: flex-start; }
+  .preview-actions { width: 100%; justify-content: stretch; }
+  .preview-actions .btn { flex: 1; }
 }
