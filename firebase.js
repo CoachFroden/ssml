@@ -10,7 +10,7 @@ export const firebaseConfig = {
   appId: "1:1091683313021:web:fb43407e195744c8759814"
 };
 
-export const appCheckSiteKey = "6Lcmc4UTaA7AADne_exwFX4KztkeeR008_Pmon4i";
+export const appCheckSiteKey = "6Lcmc4UtAAAAADne_exwFX4KztkeeR008_Pmon4i";
 
 export const isFirebaseConfigured = !Object.values(firebaseConfig).some(value => value.includes("LIM_INN"));
 
