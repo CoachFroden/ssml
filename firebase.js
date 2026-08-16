@@ -91,6 +91,16 @@ export async function updateSongParts(songId, parts, mode = "mapped") {
   await updateDoc(doc(services.db, "songs", songId), { parts, mode });
 }
 
+export async function updateSongMetadata(songId, metadata) {
+  if (!services) throw new Error("Firebase er ikkje konfigurert.");
+  const { doc, updateDoc } = services.firestoreModule;
+  await updateDoc(doc(services.db, "songs", songId), {
+    title: metadata.title,
+    composer: metadata.composer,
+    arranger: metadata.arranger
+  });
+}
+
 export async function deleteSong(song) {
   if (!services) throw new Error("Firebase er ikkje konfigurert.");
   const paths = [...new Set((song.parts || []).map(part => part.storagePath).filter(Boolean))];

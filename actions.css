@@ -11,6 +11,14 @@
   border: 1px solid #e2b4b4;
 }
 
+.btn-light {
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.35);
+}
+
+.btn-light:hover { background: rgba(255,255,255,.24); }
+
 .btn-danger:hover {
   background: #fff1f1;
   border-color: #c46b6b;
