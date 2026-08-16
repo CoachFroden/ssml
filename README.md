@@ -53,6 +53,7 @@ sang
 - Demo-import lagrar metadata lokalt, men nettlesaren kan ikkje behalde sjølve PDF-fila etter at fana er lukka. Firebase-modus lagrar fila permanent.
 - AI-resultat må kontrollerast: svake skanningar eller uvanlege noteark kan gi feil forslag.
 - Talet på kopiar må veljast i utskriftsvindauget til operativsystemet; appen minner brukaren på det.
+- Utskrifta blir klargjord i appen utan å opne eit tomt `about:blank`-faneblad.
 - PDF-miniatyrar blir laga med PDF.js frå CDN, så første innlasting krev nettilgang.
 
 ## Redigering
