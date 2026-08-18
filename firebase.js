@@ -199,15 +199,50 @@ export async function deleteSong(song) {
   await deleteDoc(doc(services.db, "songs", song.id));
 }
 
-export async function analyzeSongPdf(song, sourceFiles) {
+export async function analyzeSongPdf(song, sourceFiles, onProgress) {
   if (!services?.analysisModel) throw new Error("Firebase AI Logic er ikkje klart.");
   const analysisFiles = sourceFiles?.length ? [...sourceFiles] : await Promise.all(song.parts.map(async part => {
     const response = await fetch(part.url);
     if (!response.ok) throw new Error(`Kunne ikkje hente ${part.fileName} for AI-analyse.`);
     return new File([await response.blob()], part.fileName, { type: "application/pdf" });
   }));
-  const totalBytes = analysisFiles.reduce((sum, file) => sum + file.size, 0);
-  if (totalBytes > 15 * 1024 * 1024) throw new Error("AI_ANALYSIS_FILE_TOO_LARGE");
+  const maximumSingleFileBytes = 15 * 1024 * 1024;
+  const batchTargetBytes = 12 * 1024 * 1024;
+  if (analysisFiles.some(file => file.size > maximumSingleFileBytes)) throw new Error("AI_ANALYSIS_FILE_TOO_LARGE");
+
+  // Send separate stems in small groups. This avoids turning a full set of
+  // parts into one oversized inline AI request while preserving the files as-is.
+  const batches = [];
+  let batch = [];
+  let batchBytes = 0;
+  for (const file of analysisFiles) {
+    if (batch.length && batchBytes + file.size > batchTargetBytes) {
+      batches.push(batch);
+      batch = [];
+      batchBytes = 0;
+    }
+    batch.push(file);
+    batchBytes += file.size;
+  }
+  if (batch.length) batches.push(batch);
+
+  const analyses = [];
+  for (const [index, filesInBatch] of batches.entries()) {
+    onProgress?.(index + 1, batches.length);
+    analyses.push(await analyzePdfBatch(filesInBatch));
+  }
+  const firstWith = field => analyses.find(analysis => analysis?.[field])?.[field] || "";
+  const confidences = analyses.map(analysis => Number(analysis?.confidence)).filter(Number.isFinite);
+  return {
+    title: firstWith("title"),
+    composer: firstWith("composer"),
+    arranger: firstWith("arranger"),
+    confidence: confidences.length ? confidences.reduce((sum, value) => sum + value, 0) / confidences.length : 0,
+    parts: analyses.flatMap(analysis => Array.isArray(analysis?.parts) ? analysis.parts : [])
+  };
+}
+
+async function analyzePdfBatch(analysisFiles) {
   const files = await Promise.all(analysisFiles.map(async file => ({
     inlineData: {
       mimeType: "application/pdf",
@@ -215,7 +250,7 @@ export async function analyzeSongPdf(song, sourceFiles) {
     }
   })));
   const prompt = `Analyser desse musikknotane for eit skulemusikkorps. Returner berre data i skjemaet.
-Finn korrekt songtittel, komponist og arrangør frå tekst i notane. Identifiser kvar instrumentstemme og alle PDF-sidene som høyrer til stemma. Ei stemme kan gå over fleire sider. Bruk PDF-sidetal frå 1, ikkje trykte sidetal. Skil mellom til dømes Fløyte 1 og Fløyte 2. Bruk norsk instrumentnamn når det er naturleg. Set fileName til nøyaktig namnet på kjeldefila. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1. Filnamn: ${song.parts.map(p=>p.fileName).join(", ")}.`;
+Finn korrekt songtittel, komponist og arrangør frå tekst i notane. Identifiser kvar instrumentstemme og alle PDF-sidene som høyrer til stemma. Ei stemme kan gå over fleire sider. Bruk PDF-sidetal frå 1, ikkje trykte sidetal. Skil mellom til dømes Fløyte 1 og Fløyte 2. Bruk norsk instrumentnamn når det er naturleg. Set fileName til nøyaktig namnet på kjeldefila. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1. Filnamn i denne bolken: ${analysisFiles.map(file => file.name).join(", ")}.`;
   const result = await services.analysisModel.generateContent([prompt, ...files]);
   return JSON.parse(result.response.text());
 }
