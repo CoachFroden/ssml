@@ -69,26 +69,151 @@ export async function fetchSongs() {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-export async function saveSong(song, files) {
-  const { collection, addDoc, serverTimestamp, updateDoc } = services.firestoreModule;
+export async function saveSong(song, files, enhancedFiles = []) {
+  const { collection, addDoc, serverTimestamp, updateDoc, deleteDoc } = services.firestoreModule;
   const docRef = await addDoc(collection(services.db, "songs"), { ...song, parts: [], createdAt: serverTimestamp() });
   const parts = [];
-  for (let index = 0; index < files.length; index++) {
-    const file = files[index];
-    const path = `songs/${docRef.id}/${Date.now()}-${file.name}`;
-    const storageRef = services.storageModule.ref(services.storage, path);
-    await services.storageModule.uploadBytes(storageRef, file, { contentType: "application/pdf" });
-    const url = await services.storageModule.getDownloadURL(storageRef);
-    parts.push({ id: `${docRef.id}-${index}`, name: song.mode === "combined" ? "Samla partitur" : file.name.replace(/\.pdf$/i, ""), fileName: file.name, storagePath: path, url, pageCount: null });
+  const uploadedPaths = [];
+  try {
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index];
+      const enhancedFile = enhancedFiles[index] || null;
+      const stamp = `${Date.now()}-${index}`;
+      // Filene ligg direkte under songmappa slik at dei passar Storage-regelen
+      // songs/{songId}/{fileName}. Prefikset skil originalen frå den forbetra fila.
+      const originalPath = `songs/${docRef.id}/${stamp}-original-${file.name}`;
+      const originalRef = services.storageModule.ref(services.storage, originalPath);
+      await services.storageModule.uploadBytes(originalRef, file, { contentType: "application/pdf" });
+      uploadedPaths.push(originalPath);
+      const originalUrl = await services.storageModule.getDownloadURL(originalRef);
+      let enhancedPath = null;
+      let enhancedUrl = null;
+      if (enhancedFile) {
+        enhancedPath = `songs/${docRef.id}/${stamp}-enhanced-${file.name}`;
+        const enhancedRef = services.storageModule.ref(services.storage, enhancedPath);
+        await services.storageModule.uploadBytes(enhancedRef, enhancedFile, { contentType: "application/pdf" });
+        uploadedPaths.push(enhancedPath);
+        enhancedUrl = await services.storageModule.getDownloadURL(enhancedRef);
+      }
+      parts.push({
+        id: `${docRef.id}-${index}`,
+        name: song.mode === "combined" ? "Samla partitur" : file.name.replace(/\.pdf$/i, ""),
+        fileName: file.name,
+        storagePath: enhancedPath || originalPath,
+        url: enhancedUrl || originalUrl,
+        originalStoragePath: originalPath,
+        originalUrl,
+        enhancedStoragePath: enhancedPath,
+        enhancedUrl,
+        enhancementApplied: Boolean(enhancedUrl),
+        enhancementStatus: enhancedUrl ? "completed" : "not_requested",
+        enhancementVersion: enhancedUrl ? "legacy-client-v1" : null,
+        processingMode: enhancedUrl ? "legacy-client" : null,
+        processingError: null,
+        pageCount: null
+      });
+    }
+    await updateDoc(docRef, { parts });
+    return { id: docRef.id, ...song, parts, createdAt: new Date().toISOString() };
+  } catch (error) {
+    // Rydd opp både delvis opplasta filer og den tomme Firestore-posten.
+    await Promise.allSettled(uploadedPaths.map(path =>
+      services.storageModule.deleteObject(services.storageModule.ref(services.storage, path))
+    ));
+    await deleteDoc(docRef).catch(() => {});
+    throw error;
   }
-  await updateDoc(docRef, { parts });
-  return { id: docRef.id, ...song, parts, createdAt: new Date().toISOString() };
+}
+
+export async function queuePdfEnhancements(song, processingMode = "normal") {
+  if (!services) throw new Error("Firebase er ikkje konfigurert.");
+  const { collection, doc, serverTimestamp, writeBatch } = services.firestoreModule;
+  const batch = writeBatch(services.db);
+  const jobsByPath = new Map();
+  const parts = (song.parts || []).map(part => {
+    const originalStoragePath = part.originalStoragePath || part.storagePath;
+    let jobRef = jobsByPath.get(originalStoragePath);
+    if (!jobRef) {
+      jobRef = doc(collection(services.db, "pdfEnhancementJobs"));
+      jobsByPath.set(originalStoragePath, jobRef);
+      batch.set(jobRef, {
+        songId: song.id,
+        partId: part.id,
+        fileName: part.fileName,
+        originalStoragePath,
+        status: "queued",
+        processingMode,
+        pipelineVersion: "1.0.0",
+        createdAt: serverTimestamp(),
+        requestedBy: services.auth.currentUser?.uid || null
+      });
+    }
+    return {
+      ...part,
+      enhancementJobId: jobRef.id,
+      enhancementStatus: "queued",
+      enhancementVersion: "1.0.0",
+      processingMode,
+      processingError: null
+    };
+  });
+  batch.update(doc(services.db, "songs", song.id), { parts });
+  await batch.commit();
+  return parts;
 }
 
 export async function updateSongParts(songId, parts, mode = "mapped") {
   if (!services) throw new Error("Firebase er ikkje konfigurert.");
   const { doc, updateDoc } = services.firestoreModule;
   await updateDoc(doc(services.db, "songs", songId), { parts, mode });
+}
+
+export async function replacePartPdf(songId, parts, partId, originalFile, enhancedFile = null) {
+  if (!services) throw new Error("Firebase er ikkje konfigurert.");
+  const stamp = Date.now();
+  const uploadedPaths = [];
+  try {
+    const originalPath = `songs/${songId}/${stamp}-original-${originalFile.name}`;
+    const originalRef = services.storageModule.ref(services.storage, originalPath);
+    await services.storageModule.uploadBytes(originalRef, originalFile, { contentType: "application/pdf" });
+    uploadedPaths.push(originalPath);
+    const originalUrl = await services.storageModule.getDownloadURL(originalRef);
+    let enhancedPath = null;
+    let enhancedUrl = null;
+    if (enhancedFile) {
+      enhancedPath = `songs/${songId}/${stamp}-enhanced-${enhancedFile.name}`;
+      const enhancedRef = services.storageModule.ref(services.storage, enhancedPath);
+      await services.storageModule.uploadBytes(enhancedRef, enhancedFile, { contentType: "application/pdf" });
+      uploadedPaths.push(enhancedPath);
+      enhancedUrl = await services.storageModule.getDownloadURL(enhancedRef);
+    }
+    const nextParts = parts.map(part => part.id === partId ? {
+      ...part,
+      archivedStoragePaths: [...new Set([
+        ...(part.archivedStoragePaths || []),
+        part.storagePath,
+        part.originalStoragePath,
+        part.enhancedStoragePath
+      ].filter(Boolean))],
+      fileName: originalFile.name,
+      storagePath: enhancedPath || originalPath,
+      url: enhancedUrl || originalUrl,
+      originalStoragePath: originalPath,
+      originalUrl,
+      enhancedStoragePath: enhancedPath,
+      enhancedUrl,
+      enhancementApplied: Boolean(enhancedUrl),
+      pageNumbers: Array.from({ length: part.pageCount }, (_, index) => index + 1)
+    } : part);
+    const { doc, updateDoc } = services.firestoreModule;
+    await updateDoc(doc(services.db, "songs", songId), { parts: nextParts });
+    return nextParts;
+  } catch (error) {
+    await Promise.allSettled(uploadedPaths.map(path =>
+      services.storageModule.deleteObject(services.storageModule.ref(services.storage, path))
+    ));
+    throw error;
+  }
 }
 
 export async function updateSongMetadata(songId, metadata) {
@@ -103,7 +228,7 @@ export async function updateSongMetadata(songId, metadata) {
 
 export async function deleteSong(song) {
   if (!services) throw new Error("Firebase er ikkje konfigurert.");
-  const paths = [...new Set((song.parts || []).map(part => part.storagePath).filter(Boolean))];
+  const paths = [...new Set((song.parts || []).flatMap(part => [part.storagePath, part.originalStoragePath, part.enhancedStoragePath, ...(part.archivedStoragePaths || [])]).filter(Boolean))];
   for (const path of paths) {
     try {
       await services.storageModule.deleteObject(services.storageModule.ref(services.storage, path));
@@ -122,18 +247,72 @@ export async function analyzeSongPdf(song, sourceFiles) {
     if (!response.ok) throw new Error(`Kunne ikkje hente ${part.fileName} for AI-analyse.`);
     return new File([await response.blob()], part.fileName, { type: "application/pdf" });
   }));
-  const totalBytes = analysisFiles.reduce((sum, file) => sum + file.size, 0);
-  if (totalBytes > 15 * 1024 * 1024) throw new Error("AI_ANALYSIS_FILE_TOO_LARGE");
-  const files = await Promise.all(analysisFiles.map(async file => ({
-    inlineData: {
-      mimeType: "application/pdf",
-      data: await fileToBase64(file)
+  const analyses = [];
+  for (const file of analysisFiles) {
+    const chunks = await splitPdfForAi(file);
+    for (const chunk of chunks) {
+      const rangeText = chunk.pageCount ? `Dette er side ${chunk.pageOffset + 1} til ${chunk.pageOffset + chunk.pageCount} av kjeldefila.` : "Dette er heile kjeldefila.";
+      const prompt = `Analyser desse musikknotane for eit skulemusikkorps. Returner berre data i skjemaet.
+Finn korrekt songtittel, komponist og arrangør frå tekst i notane. Identifiser kvar instrumentstemme og alle PDF-sidene som høyrer til stemma. Ei stemme kan gå over fleire sider. Bruk PDF-sidetal frå 1 i denne bolken, ikkje trykte sidetal. Skil mellom til dømes Fløyte 1 og Fløyte 2. Bruk norsk instrumentnamn når det er naturleg. Set fileName til nøyaktig dette kjeldefilnamnet: ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1. ${rangeText}`;
+      const result = await services.analysisModel.generateContent([prompt, {
+        inlineData: { mimeType: "application/pdf", data: await fileToBase64(chunk.file) }
+      }]);
+      analyses.push({ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: chunk.pageOffset });
     }
-  })));
-  const prompt = `Analyser desse musikknotane for eit skulemusikkorps. Returner berre data i skjemaet.
-Finn korrekt songtittel, komponist og arrangør frå tekst i notane. Identifiser kvar instrumentstemme og alle PDF-sidene som høyrer til stemma. Ei stemme kan gå over fleire sider. Bruk PDF-sidetal frå 1, ikkje trykte sidetal. Skil mellom til dømes Fløyte 1 og Fløyte 2. Bruk norsk instrumentnamn når det er naturleg. Set fileName til nøyaktig namnet på kjeldefila. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1. Filnamn: ${song.parts.map(p=>p.fileName).join(", ")}.`;
-  const result = await services.analysisModel.generateContent([prompt, ...files]);
-  return JSON.parse(result.response.text());
+  }
+  return mergeSongAnalyses(analyses, song);
+}
+
+async function splitPdfForAi(file) {
+  const limit = 10 * 1024 * 1024;
+  if (file.size <= limit) return [{ file, pageOffset: 0, pageCount: null }];
+  const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
+  const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: false });
+  const chunks = [];
+  let start = 0;
+  while (start < source.getPageCount()) {
+    let count = Math.min(8, source.getPageCount() - start);
+    let outputFile = null;
+    while (count > 0) {
+      const output = await PDFDocument.create();
+      const indices = Array.from({ length: count }, (_, index) => start + index);
+      const pages = await output.copyPages(source, indices);
+      pages.forEach(page => output.addPage(page));
+      const bytes = await output.save({ useObjectStreams: true });
+      if (bytes.byteLength <= limit) {
+        outputFile = new File([bytes], `${file.name.replace(/\.pdf$/i, "")}-del-${chunks.length + 1}.pdf`, { type: "application/pdf" });
+        break;
+      }
+      count = Math.floor(count / 2);
+    }
+    if (!outputFile || count < 1) throw new Error("AI_ANALYSIS_SINGLE_PAGE_TOO_LARGE");
+    chunks.push({ file: outputFile, pageOffset: start, pageCount: count });
+    start += count;
+  }
+  return chunks;
+}
+
+function mergeSongAnalyses(analyses, song) {
+  const best = field => analyses
+    .filter(item => item.data?.[field])
+    .sort((a, b) => Number(b.data.confidence || 0) - Number(a.data.confidence || 0))[0]?.data?.[field] || song[field] || "";
+  const merged = new Map();
+  for (const item of analyses) {
+    for (const part of item.data?.parts || []) {
+      const name = part.name || [part.instrument, part.voice].filter(Boolean).join(" ") || "Ukjend stemme";
+      const key = `${item.fileName}\u0000${name.toLowerCase()}`;
+      const existing = merged.get(key) || { ...part, name, fileName: item.fileName, pageNumbers: [], confidence: 0 };
+      const adjusted = (part.pageNumbers || []).map(number => Number(number) + item.pageOffset).filter(Number.isFinite);
+      existing.pageNumbers = [...new Set([...existing.pageNumbers, ...adjusted])].sort((a, b) => a - b);
+      existing.confidence = Math.max(Number(existing.confidence || 0), Number(part.confidence || 0));
+      merged.set(key, existing);
+    }
+  }
+  return {
+    title: best("title"), composer: best("composer"), arranger: best("arranger"),
+    confidence: analyses.length ? Math.max(...analyses.map(item => Number(item.data?.confidence || 0))) : 0,
+    parts: [...merged.values()]
+  };
 }
 
 function fileToBase64(file) {
@@ -146,15 +325,36 @@ function fileToBase64(file) {
 }
 
 export async function applySongAnalysis(songId, metadata, parts) {
-  const { doc, updateDoc, serverTimestamp } = services.firestoreModule;
-  await updateDoc(doc(services.db, "songs", songId), {
-    title: metadata.title,
-    composer: metadata.composer,
-    arranger: metadata.arranger,
-    parts,
-    mode: "analyzed",
-    aiAnalyzedAt: serverTimestamp(),
-    aiModel: "gemini-3.5-flash",
-    aiConfidence: metadata.confidence
+  const { doc, runTransaction, serverTimestamp } = services.firestoreModule;
+  await runTransaction(services.db, async transaction => {
+    const songRef = doc(services.db, "songs", songId);
+    const snapshot = await transaction.get(songRef);
+    const liveParts = snapshot.data()?.parts || [];
+    const mergedParts = parts.map(part => {
+      const live = liveParts.find(item =>
+        item.originalStoragePath && item.originalStoragePath === part.originalStoragePath
+      ) || liveParts.find(item => item.fileName === part.fileName);
+      if (!live) return part;
+      return {
+        ...part,
+        storagePath: live.storagePath || part.storagePath,
+        url: live.url || part.url,
+        originalStoragePath: live.originalStoragePath || part.originalStoragePath,
+        originalUrl: live.originalUrl || part.originalUrl,
+        enhancedStoragePath: live.enhancedStoragePath || part.enhancedStoragePath || null,
+        enhancedUrl: live.enhancedUrl || part.enhancedUrl || null,
+        enhancementApplied: Boolean(live.enhancementApplied || part.enhancementApplied),
+        enhancementJobId: live.enhancementJobId || part.enhancementJobId || null,
+        enhancementStatus: live.enhancementStatus || part.enhancementStatus || "not_requested",
+        enhancementVersion: live.enhancementVersion || part.enhancementVersion || null,
+        processingMode: live.processingMode || part.processingMode || null,
+        processingError: live.processingError || part.processingError || null
+      };
+    });
+    transaction.update(songRef, {
+      title: metadata.title, composer: metadata.composer, arranger: metadata.arranger,
+      parts: mergedParts, mode: "analyzed", aiAnalyzedAt: serverTimestamp(),
+      aiModel: "gemini-3.5-flash", aiConfidence: metadata.confidence
+    });
   });
 }

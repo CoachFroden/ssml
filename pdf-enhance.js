@@ -85,38 +85,20 @@ async function isScannedPage(page, pdfjs) {
 }
 
 function cleanScan(source) {
-  // Scans such as the supplied flute part have a thin dark frame along the
-  // physical paper edge. Trim only that fixed outer safety margin; never use
-  // musical content inside the page to decide how much to remove.
-  const framed = trimScannerFrame(source);
-  const crop = findDarkEdgeCrop(framed);
-  const cropped = cropCanvas(framed, crop);
+  const crop = findDarkEdgeCrop(source);
+  const cropped = document.createElement("canvas");
+  cropped.width = crop.width;
+  cropped.height = crop.height;
+  const croppedContext = cropped.getContext("2d", { alpha: false, willReadFrequently: true });
+  croppedContext.fillStyle = "white";
+  croppedContext.fillRect(0, 0, crop.width, crop.height);
+  croppedContext.drawImage(source, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
 
   const angle = estimateDeskew(cropped);
   const straight = Math.abs(angle) >= 0.2 ? rotateOnWhite(cropped, angle) : cropped;
   normalizeBackground(straight);
   removeEdgeArtifacts(straight);
-  // Deskewing can expose a scanner border that was not at the outermost edge
-  // of the original image. Run the crop test once more after cleanup.
-  const finalCrop = findDarkEdgeCrop(straight);
-  return finalCrop.x || finalCrop.y || finalCrop.width !== straight.width || finalCrop.height !== straight.height
-    ? cropCanvas(straight, finalCrop)
-    : straight;
-}
-
-function trimScannerFrame(source) {
-  const context = source.getContext("2d", { willReadFrequently: true });
-  const { width, height } = source;
-  const pixels = context.getImageData(0, 0, width, height).data;
-  const hasFrame = [
-    lineStats(pixels, width, height, "row", 0),
-    lineStats(pixels, width, height, "row", height - 1),
-    lineStats(pixels, width, height, "column", 0),
-    lineStats(pixels, width, height, "column", width - 1)
-  ].filter(Boolean).length >= 2;
-  if (!hasFrame) return source;
-  const margin = Math.max(4, Math.round(Math.min(width, height) * 0.008));
-  return cropCanvas(source, { x: margin, y: margin, width: width - margin * 2, height: height - margin * 2 });
+  return straight;
 }
 
 function findDarkEdgeCrop(canvas) {
@@ -128,37 +110,15 @@ function findDarkEdgeCrop(canvas) {
   const maxY = Math.floor(height * 0.09);
   const maxX = Math.floor(width * 0.09);
   let top = 0, bottom = height - 1, left = 0, right = width - 1;
-  const outermostBandExtent = (limit, at) => {
-    let extent = null;
-    for (let offset = 0; offset < limit; offset++) if (at(offset)) extent = offset;
-    return extent;
-  };
-  // A scanner border may be separated from the physical edge by a thin white
-  // strip. Find a broad dark band anywhere in the outer margin, not just at 0.
-  const topBand = outermostBandExtent(maxY, rowBad);
-  const bottomBand = outermostBandExtent(maxY, offset => rowBad(height - 1 - offset));
-  const leftBand = outermostBandExtent(maxX, colBad);
-  const rightBand = outermostBandExtent(maxX, offset => colBad(width - 1 - offset));
-  if (topBand !== null) top = topBand + 1;
-  if (bottomBand !== null) bottom = height - 2 - bottomBand;
-  if (leftBand !== null) left = leftBand + 1;
-  if (rightBand !== null) right = width - 2 - rightBand;
+  if (rowBad(0)) while (top < maxY && rowBad(top)) top++;
+  if (rowBad(height - 1)) while (bottom > height - maxY && rowBad(bottom)) bottom--;
+  if (colBad(0)) while (left < maxX && colBad(left)) left++;
+  if (colBad(width - 1)) while (right > width - maxX && colBad(right)) right--;
   const padding = Math.round(Math.min(width, height) * 0.006);
   left = Math.max(0, left - padding); top = Math.max(0, top - padding);
   right = Math.min(width - 1, right + padding); bottom = Math.min(height - 1, bottom + padding);
   if (right - left < width * 0.75 || bottom - top < height * 0.75) return { x: 0, y: 0, width, height };
   return { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
-}
-
-function cropCanvas(source, crop) {
-  const output = document.createElement("canvas");
-  output.width = crop.width;
-  output.height = crop.height;
-  const context = output.getContext("2d", { alpha: false, willReadFrequently: true });
-  context.fillStyle = "white";
-  context.fillRect(0, 0, output.width, output.height);
-  context.drawImage(source, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
-  return output;
 }
 
 function lineStats(data, width, height, direction, position) {
