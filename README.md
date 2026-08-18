@@ -34,6 +34,10 @@ Opne deretter `http://localhost:8080`. Klikk **Prøv demo utan Firebase** for å
 
 Appen bruker Firebase AI Logic med Agent Platform Gemini API og modellen `gemini-3.6-flash`. Ved import blir PDF-en analysert for tittel, komponist, arrangør, instrument, stemme og sidetal. Brukaren kontrollerer alltid forslaget før det blir lagra. AI blir berre kalla ved ny import.
 
+## Automatisk forbetring av skanna notar
+
+Ved import kan appen rette opp skeive skanningar, fjerne mørke kantar og skuggar og jamne ut kontrasten. Digitale PDF-ar blir oppdaga og haldne urørte. Både originalen og ei eventuell forbetra utgåve blir lagra i Firebase Storage. På songsida kan brukaren veksle mellom «Vis original» og «Vis forbetra». Forbetringa er deterministisk bilethandsaming og genererer aldri nytt noteinnhald.
+
 Firebase AI Logic og reCAPTCHA Enterprise App Check må vere aktiverte. For lokal utvikling skriv appen ut ein App Check debug-token i nettlesarkonsollen. Registrer denne under App Check → SSML noter → Manage debug tokens. Fjern lokal debug-modus ved produksjonssetting.
 
 For produksjon må Firestore- og Storage-reglane avgrense lesing og skriving til innlogga brukarar. Firebase sin `apiKey` for ei web-app er ikkje ein hemmeleg nøkkel; tryggleiken ligg i Authentication og security rules. Aldri legg ein service-account/private key i nettlesarkoden.
@@ -60,6 +64,7 @@ sang
 
 - Trykk **Rediger informasjon** på songen for å endre tittel, komponist og arrangør.
 - Vel ei stemme og trykk **Rediger instrument** for å endre instrumentnamnet.
+- Vel ei stemme og trykk **Legg til sider** for å setje inn nye PDF-sider først, mellom eksisterande sider eller sist. Appen lagar ei ny samla stemmefil, og dei andre instrumenta blir ikkje endra.
 - Trykk **Slett side** under ein miniatyr for å fjerne sida frå den aktuelle stemma.
 - Original-PDF-en blir ikkje endra når ei enkeltside blir fjerna. Sida kan derfor leggjast tilbake seinare ved å redigere stemmefordelinga.
 

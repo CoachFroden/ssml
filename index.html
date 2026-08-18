@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=13">
   <link rel="stylesheet" href="features.css?v=10">
   <link rel="stylesheet" href="actions.css?v=10">
   <link rel="stylesheet" href="selection.css?v=10">
@@ -99,7 +99,8 @@
       <fieldset><legend>Korleis er notane organiserte?</legend><label class="radio-card"><input type="radio" name="pdf-mode" value="combined" checked><span><strong>Éi samla PDF</strong><small>Alle stemmer og sider i same fil</small></span></label><label class="radio-card"><input type="radio" name="pdf-mode" value="separate"><span><strong>Éi PDF per stemme</strong><small>Last opp fleire filer, til dømes Fløyte 1.pdf</small></span></label></fieldset>
       <label id="drop-zone" class="drop-zone"><input id="pdf-files" type="file" accept="application/pdf,.pdf" multiple><span class="upload-icon">⇧</span><strong>Slepp PDF-filene her</strong><small>eller klikk for å velje filer · maks 50 MB per fil</small></label>
       <div id="file-list" class="file-list"></div>
-      <aside class="info-note"><span>i</span><p><strong>Automatisk splitting kjem seinare</strong><br>For ei samla PDF blir fila no lagra som «Samla partitur». OCR og automatisk oppdeling i stemmer krev ei backend-teneste. Du kan framleis velje og skrive ut enkeltsider.</p></aside>
+      <label class="enhance-option"><input id="enhance-scans" type="checkbox" checked><span><strong>Forbetre skanna notar automatisk</strong><small>Rettar opp skeive sider, fjernar mørke kantar og skuggar og aukar kontrasten. Digitale PDF-ar blir ikkje endra. Originalen blir alltid teken vare på.</small></span></label>
+      <aside class="info-note"><span>i</span><p><strong>Trygg PDF-behandling</strong><br>Forbetringa bruker fast bilethandsaming og teiknar aldri notar på nytt. Etter import kan du veksle mellom original og forbetra utgåve.</p></aside>
       <footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button id="save-song" class="btn btn-primary" type="submit">Lagre i arkivet</button></footer>
     </form>
   </dialog>
@@ -116,6 +117,10 @@
     <form id="edit-part-form" method="dialog"><header><div><p class="eyebrow green">Rediger stemme</p><h2>Instrumentnamn</h2></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><label>Namn på instrument/stemme<input id="edit-part-name" required placeholder="Til dømes Klarinett 1"></label><p class="muted edit-part-help">Enkeltsider slettar du med knappen under sida i førehandsvisinga.</p><footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button id="save-part-name" class="btn btn-primary" type="submit">Lagre namn</button></footer></form>
   </dialog>
 
+  <dialog id="append-pages-dialog" class="modal small-modal">
+    <form id="append-pages-form" method="dialog"><header><div><p class="eyebrow green">Utvid stemme</p><h2>Legg til sider</h2></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><p>Vald stemme: <strong id="append-part-name"></strong></p><label class="drop-zone"><input id="append-pages-file" type="file" accept="application/pdf,.pdf" multiple><span class="upload-icon">⇧</span><strong>Vel nye PDF-sider</strong><small>Fleire filer blir sette inn i same rekkefølgje som lista under</small></label><div id="append-file-list" class="file-list"></div><label>Plassering<select id="append-position"></select></label><label class="enhance-option"><input id="enhance-appended-pages" type="checkbox" checked><span><strong>Forbetre nye skanna sider</strong><small>Originalane blir framleis tekne vare på.</small></span></label><aside class="append-review"><strong>Kontroll før lagring</strong><p id="append-summary" class="muted">Vel éi eller fleire PDF-filer.</p></aside><footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button id="save-appended-pages" class="btn btn-primary" type="submit">Legg til sidene</button></footer></form>
+  </dialog>
+
   <dialog id="edit-song-dialog" class="modal small-modal">
     <form id="edit-song-form" method="dialog"><header><div><p class="eyebrow green">Rediger song</p><h2>Songinformasjon</h2></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><label>Tittel<input id="edit-song-title" required></label><label>Komponist<input id="edit-song-composer" placeholder="Kan stå tomt"></label><label>Arrangør<input id="edit-song-arranger" placeholder="Kan stå tomt"></label><footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button id="save-song-metadata" class="btn btn-primary" type="submit">Lagre endringar</button></footer></form>
   </dialog>
@@ -129,6 +134,6 @@
   </dialog>
 
   <template id="empty-template"><div class="empty-state"><span>♫</span><h3>Ingen notar her enno</h3><p>Importer den første songen for å kome i gang.</p><button class="btn btn-primary" data-action="open-import">＋ Importer notar</button></div></template>
-  <script type="module" src="app.js?v=11"></script>
+  <script type="module" src="app.js?v=15"></script>
 </body>
 </html>

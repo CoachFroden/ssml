@@ -69,26 +69,110 @@ export async function fetchSongs() {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-export async function saveSong(song, files) {
-  const { collection, addDoc, serverTimestamp, updateDoc } = services.firestoreModule;
+export async function saveSong(song, files, enhancedFiles = []) {
+  const { collection, addDoc, serverTimestamp, updateDoc, deleteDoc } = services.firestoreModule;
   const docRef = await addDoc(collection(services.db, "songs"), { ...song, parts: [], createdAt: serverTimestamp() });
   const parts = [];
-  for (let index = 0; index < files.length; index++) {
-    const file = files[index];
-    const path = `songs/${docRef.id}/${Date.now()}-${file.name}`;
-    const storageRef = services.storageModule.ref(services.storage, path);
-    await services.storageModule.uploadBytes(storageRef, file, { contentType: "application/pdf" });
-    const url = await services.storageModule.getDownloadURL(storageRef);
-    parts.push({ id: `${docRef.id}-${index}`, name: song.mode === "combined" ? "Samla partitur" : file.name.replace(/\.pdf$/i, ""), fileName: file.name, storagePath: path, url, pageCount: null });
+  const uploadedPaths = [];
+  try {
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index];
+      const enhancedFile = enhancedFiles[index] || null;
+      const stamp = `${Date.now()}-${index}`;
+      // Filene ligg direkte under songmappa slik at dei passar Storage-regelen
+      // songs/{songId}/{fileName}. Prefikset skil originalen frå den forbetra fila.
+      const originalPath = `songs/${docRef.id}/${stamp}-original-${file.name}`;
+      const originalRef = services.storageModule.ref(services.storage, originalPath);
+      await services.storageModule.uploadBytes(originalRef, file, { contentType: "application/pdf" });
+      uploadedPaths.push(originalPath);
+      const originalUrl = await services.storageModule.getDownloadURL(originalRef);
+      let enhancedPath = null;
+      let enhancedUrl = null;
+      if (enhancedFile) {
+        enhancedPath = `songs/${docRef.id}/${stamp}-enhanced-${file.name}`;
+        const enhancedRef = services.storageModule.ref(services.storage, enhancedPath);
+        await services.storageModule.uploadBytes(enhancedRef, enhancedFile, { contentType: "application/pdf" });
+        uploadedPaths.push(enhancedPath);
+        enhancedUrl = await services.storageModule.getDownloadURL(enhancedRef);
+      }
+      parts.push({
+        id: `${docRef.id}-${index}`,
+        name: song.mode === "combined" ? "Samla partitur" : file.name.replace(/\.pdf$/i, ""),
+        fileName: file.name,
+        storagePath: enhancedPath || originalPath,
+        url: enhancedUrl || originalUrl,
+        originalStoragePath: originalPath,
+        originalUrl,
+        enhancedStoragePath: enhancedPath,
+        enhancedUrl,
+        enhancementApplied: Boolean(enhancedUrl),
+        pageCount: null
+      });
+    }
+    await updateDoc(docRef, { parts });
+    return { id: docRef.id, ...song, parts, createdAt: new Date().toISOString() };
+  } catch (error) {
+    // Rydd opp både delvis opplasta filer og den tomme Firestore-posten.
+    await Promise.allSettled(uploadedPaths.map(path =>
+      services.storageModule.deleteObject(services.storageModule.ref(services.storage, path))
+    ));
+    await deleteDoc(docRef).catch(() => {});
+    throw error;
   }
-  await updateDoc(docRef, { parts });
-  return { id: docRef.id, ...song, parts, createdAt: new Date().toISOString() };
 }
 
 export async function updateSongParts(songId, parts, mode = "mapped") {
   if (!services) throw new Error("Firebase er ikkje konfigurert.");
   const { doc, updateDoc } = services.firestoreModule;
   await updateDoc(doc(services.db, "songs", songId), { parts, mode });
+}
+
+export async function replacePartPdf(songId, parts, partId, originalFile, enhancedFile = null) {
+  if (!services) throw new Error("Firebase er ikkje konfigurert.");
+  const stamp = Date.now();
+  const uploadedPaths = [];
+  try {
+    const originalPath = `songs/${songId}/${stamp}-original-${originalFile.name}`;
+    const originalRef = services.storageModule.ref(services.storage, originalPath);
+    await services.storageModule.uploadBytes(originalRef, originalFile, { contentType: "application/pdf" });
+    uploadedPaths.push(originalPath);
+    const originalUrl = await services.storageModule.getDownloadURL(originalRef);
+    let enhancedPath = null;
+    let enhancedUrl = null;
+    if (enhancedFile) {
+      enhancedPath = `songs/${songId}/${stamp}-enhanced-${enhancedFile.name}`;
+      const enhancedRef = services.storageModule.ref(services.storage, enhancedPath);
+      await services.storageModule.uploadBytes(enhancedRef, enhancedFile, { contentType: "application/pdf" });
+      uploadedPaths.push(enhancedPath);
+      enhancedUrl = await services.storageModule.getDownloadURL(enhancedRef);
+    }
+    const nextParts = parts.map(part => part.id === partId ? {
+      ...part,
+      archivedStoragePaths: [...new Set([
+        ...(part.archivedStoragePaths || []),
+        part.storagePath,
+        part.originalStoragePath,
+        part.enhancedStoragePath
+      ].filter(Boolean))],
+      fileName: originalFile.name,
+      storagePath: enhancedPath || originalPath,
+      url: enhancedUrl || originalUrl,
+      originalStoragePath: originalPath,
+      originalUrl,
+      enhancedStoragePath: enhancedPath,
+      enhancedUrl,
+      enhancementApplied: Boolean(enhancedUrl),
+      pageNumbers: Array.from({ length: part.pageCount }, (_, index) => index + 1)
+    } : part);
+    const { doc, updateDoc } = services.firestoreModule;
+    await updateDoc(doc(services.db, "songs", songId), { parts: nextParts });
+    return nextParts;
+  } catch (error) {
+    await Promise.allSettled(uploadedPaths.map(path =>
+      services.storageModule.deleteObject(services.storageModule.ref(services.storage, path))
+    ));
+    throw error;
+  }
 }
 
 export async function updateSongMetadata(songId, metadata) {
@@ -103,7 +187,7 @@ export async function updateSongMetadata(songId, metadata) {
 
 export async function deleteSong(song) {
   if (!services) throw new Error("Firebase er ikkje konfigurert.");
-  const paths = [...new Set((song.parts || []).map(part => part.storagePath).filter(Boolean))];
+  const paths = [...new Set((song.parts || []).flatMap(part => [part.storagePath, part.originalStoragePath, part.enhancedStoragePath, ...(part.archivedStoragePaths || [])]).filter(Boolean))];
   for (const path of paths) {
     try {
       await services.storageModule.deleteObject(services.storageModule.ref(services.storage, path));
