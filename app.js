@@ -1,4 +1,4 @@
-import { initFirebase, isFirebaseConfigured, signIn, signOutUser, observeAuth, fetchSongs, saveSong, queuePdfEnhancements, replacePartPdf, updateSongParts, updateSongMetadata, deleteSong, analyzeSongPdf, applySongAnalysis } from "./firebase.js?v=18";
+import { initFirebase, isFirebaseConfigured, signIn, signOutUser, observeAuth, fetchSongs, saveSong, queuePdfEnhancements, addSongPart, replacePartPdf, updateSongParts, updateSongMetadata, deleteSong, analyzeSongPdf, analyzeNewInstrumentPdf, applySongAnalysis } from "./firebase.js?v=19";
 import { enhancePdfFiles } from "./pdf-enhance.js?v=1";
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -8,7 +8,7 @@ const demoSongs = [
   { id:"demo-2", title:"Norge i rødt, hvitt og blått", composer:"Lars-Erik Larsson", arranger:"Idar Torskangerpoll", mode:"combined", createdAt:"2026-08-04T10:00:00Z", parts:[{id:"d4",name:"Samla partitur",fileName:"partitur.pdf",url:null,pageCount:4}]},
   { id:"demo-3", title:"Fairytale", composer:"Alexander Rybak", arranger:"Lars Erik Gudim", mode:"separate", createdAt:"2026-07-29T10:00:00Z", parts:[{id:"d5",name:"Partitur",fileName:"Partitur.pdf",url:null,pageCount:3},{id:"d6",name:"Trompet 1",fileName:"Trompet 1.pdf",url:null,pageCount:2}]}
 ];
-let state = { demo:false, songs:[], files:[], appendFiles:[], activeSong:null, activePart:null, selectedPartIds:new Set(), selectedPage:"all", pdfDoc:null, visiblePages:[], viewerIndex:0, pendingSong:null, pendingAnalysis:null, previewVersion:0, viewOriginal:false };
+let state = { demo:false, songs:[], files:[], appendFiles:[], newInstrumentFile:null, activeSong:null, activePart:null, selectedPartIds:new Set(), selectedPage:"all", pdfDoc:null, visiblePages:[], viewerIndex:0, pendingSong:null, pendingAnalysis:null, previewVersion:0, viewOriginal:false };
 let firebase = null;
 const previewPdfCache = new Map();
 
@@ -50,6 +50,8 @@ function bindEvents() {
   $("#edit-song-form").addEventListener("submit",saveSongMetadata);
   $("#append-pages-file").addEventListener("change",event=>addAppendFiles(event.target.files));
   $("#append-pages-form").addEventListener("submit",saveAppendedPages);
+  $("#new-instrument-file").addEventListener("change",event=>selectNewInstrumentFile(event.target.files?.[0]));
+  $("#add-instrument-form").addEventListener("submit",saveNewInstrument);
   $("#previous-page").addEventListener("click",()=>moveViewer(-1));
   $("#next-page").addEventListener("click",()=>moveViewer(1));
   $("#print-current-page").addEventListener("click",()=>printPageNumbers([state.visiblePages[state.viewerIndex]]));
@@ -120,7 +122,57 @@ function partOrderValue(part){
 }
 function sortParts(parts=[]){return [...parts].sort((a,b)=>partOrderValue(a)-partOrderValue(b)||(a.name||"").localeCompare(b.name||"","no"));}
 function openSong(id){ const song=state.songs.find(x=>x.id===id);if(!song)return;song.parts=sortParts(song.parts||[]);state.activeSong=song;state.activePart=song.parts?.[0]||null;state.selectedPartIds=new Set(state.activePart?[state.activePart.id]:[]);state.selectedPage="all";state.viewOriginal=false;renderSongDetail();showView("song");if(state.activePart)loadPreview(state.activePart); }
-function renderSongDetail(){ const song=state.activeSong;const canMap=song.mode==="combined"||song.mode==="mapped";const hasEnhanced=(song.parts||[]).some(part=>part.enhancedUrl);const sourceButton=hasEnhanced?`<button id="toggle-pdf-source" class="btn btn-ghost source-toggle" type="button">${state.viewOriginal?"Vis forbetra":"Vis original"}</button>`:"";$("#song-detail").innerHTML=`<div class="detail-header"><div><p class="eyebrow">${canMap?"Samla PDF":"Stemmebibliotek"}</p><h1>${escapeHtml(song.title)}</h1><p>${escapeHtml(song.composer||"Ukjend komponist")}${song.arranger?` · arrangert av ${escapeHtml(song.arranger)}`:""}</p></div><div class="detail-actions"><span>${formatDate(song.createdAt)}</span><button id="edit-song" class="btn btn-light" type="button">Rediger informasjon</button><button id="delete-song" class="btn btn-danger" type="button">Slett sang</button></div></div><div class="parts-layout"><aside class="parts-panel"><div class="preview-toolbar"><h2>Stemmer <small>(${song.parts?.length||0})</small></h2>${canMap?'<button id="map-parts" class="text-btn">Rediger</button>':""}</div><div class="part-selection-tools"><button id="select-all-parts" class="text-btn" type="button">Velg alle</button><button id="print-selected-parts" class="btn btn-primary" type="button">Skriv ut valgte</button></div><div id="part-list"></div>${song.mode==="combined"?'<button id="map-parts-main" class="btn btn-primary btn-wide">Fordel instrument og stemmer</button>':""}</aside><section class="preview-panel"><div class="preview-toolbar"><h2 id="preview-title">Førehandsvising</h2><div class="preview-actions">${sourceButton}<button id="append-pages" class="btn btn-ghost" type="button">＋ Legg til sider</button><button id="edit-active-part" class="btn btn-ghost" type="button">Rediger instrument</button><button id="open-print" class="btn btn-primary">⌁ Skriv ut stemma</button></div></div><div id="thumbnail-grid" class="thumbnail-grid"></div></section></div>`;renderPartList();$("#open-print").addEventListener("click",openPrintDialog);$("#append-pages").addEventListener("click",openAppendPagesDialog);$("#edit-active-part").addEventListener("click",openActivePartEditor);$("#edit-song").addEventListener("click",openSongEditor);$("#toggle-pdf-source")?.addEventListener("click",togglePdfSource);$("#select-all-parts").addEventListener("click",toggleAllParts);$("#print-selected-parts").addEventListener("click",printSelectedParts);$("#delete-song").addEventListener("click",handleDeleteSong);$("#map-parts")?.addEventListener("click",openPartsEditor);$("#map-parts-main")?.addEventListener("click",openPartsEditor); }
+function renderSongDetail(){ const song=state.activeSong;const canMap=song.mode==="combined"||song.mode==="mapped";const hasEnhanced=(song.parts||[]).some(part=>part.enhancedUrl);const sourceButton=hasEnhanced?`<button id="toggle-pdf-source" class="btn btn-ghost source-toggle" type="button">${state.viewOriginal?"Vis forbetra":"Vis original"}</button>`:"";$("#song-detail").innerHTML=`<div class="detail-header"><div><p class="eyebrow">${canMap?"Samla PDF":"Stemmebibliotek"}</p><h1>${escapeHtml(song.title)}</h1><p>${escapeHtml(song.composer||"Ukjend komponist")}${song.arranger?` · arrangert av ${escapeHtml(song.arranger)}`:""}</p></div><div class="detail-actions"><span>${formatDate(song.createdAt)}</span><button id="edit-song" class="btn btn-light" type="button">Rediger informasjon</button><button id="delete-song" class="btn btn-danger" type="button">Slett sang</button></div></div><div class="parts-layout"><aside class="parts-panel"><div class="preview-toolbar"><h2>Stemmer <small>(${song.parts?.length||0})</small></h2><button id="add-instrument" class="text-btn" type="button">＋ Legg til instrument</button>${canMap?'<button id="map-parts" class="text-btn">Rediger</button>':""}</div><div class="part-selection-tools"><button id="select-all-parts" class="text-btn" type="button">Velg alle</button><button id="print-selected-parts" class="btn btn-primary" type="button">Skriv ut valgte</button></div><div id="part-list"></div>${song.mode==="combined"?'<button id="map-parts-main" class="btn btn-primary btn-wide">Fordel instrument og stemmer</button>':""}</aside><section class="preview-panel"><div class="preview-toolbar"><h2 id="preview-title">Førehandsvising</h2><div class="preview-actions">${sourceButton}<button id="append-pages" class="btn btn-ghost" type="button">＋ Legg til sider</button><button id="edit-active-part" class="btn btn-ghost" type="button">Rediger instrument</button><button id="open-print" class="btn btn-primary">⌁ Skriv ut stemma</button></div></div><div id="thumbnail-grid" class="thumbnail-grid"></div></section></div>`;renderPartList();$("#open-print").addEventListener("click",openPrintDialog);$("#append-pages").addEventListener("click",openAppendPagesDialog);$("#add-instrument").addEventListener("click",openAddInstrumentDialog);$("#edit-active-part").addEventListener("click",openActivePartEditor);$("#edit-song").addEventListener("click",openSongEditor);$("#toggle-pdf-source")?.addEventListener("click",togglePdfSource);$("#select-all-parts").addEventListener("click",toggleAllParts);$("#print-selected-parts").addEventListener("click",printSelectedParts);$("#delete-song").addEventListener("click",handleDeleteSong);$("#map-parts")?.addEventListener("click",openPartsEditor);$("#map-parts-main")?.addEventListener("click",openPartsEditor); }
+
+function openAddInstrumentDialog(){
+  const song=state.activeSong;if(!song)return;
+  state.newInstrumentFile=null;
+  $("#add-instrument-form").reset();
+  $("#add-instrument-song-title").textContent=song.title||"Denne songen";
+  $("#new-instrument-summary").textContent="Vel éi PDF-fil. AI finn instrument og kontrollerer tittelen.";
+  $("#add-instrument-dialog").showModal();
+}
+function selectNewInstrumentFile(file){
+  state.newInstrumentFile=null;
+  const summary=$("#new-instrument-summary");
+  if(!file){summary.textContent="Vel éi PDF-fil. AI finn instrument og kontrollerer tittelen.";return;}
+  if(!(file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf"))){$("#new-instrument-file").value="";summary.textContent="Filen må vere ein PDF.";toast("Vel ei PDF-fil.","error");return;}
+  if(file.size>50*1024*1024){$("#new-instrument-file").value="";summary.textContent="PDF-en er større enn 50 MB.";toast("PDF-en kan vere maks 50 MB.","error");return;}
+  state.newInstrumentFile=file;
+  summary.textContent=`${file.name} · ${(file.size/1048576).toFixed(1)} MB`;
+}
+function normalizedSongTitle(value=""){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
+function titlesProbablyMatch(a,b){
+  const left=normalizedSongTitle(a),right=normalizedSongTitle(b);if(!left||!right||left===right||left.includes(right)||right.includes(left))return true;
+  const ignore=new Set(["the","and","for","med","selection","selections","broadway"]);
+  const tokens=value=>new Set(value.split(" ").filter(token=>token.length>2&&!ignore.has(token)));
+  const one=tokens(left),two=tokens(right);if(!one.size||!two.size)return true;
+  const overlap=[...one].filter(token=>two.has(token)).length;
+  return overlap/Math.min(one.size,two.size)>=0.6;
+}
+async function saveNewInstrument(event){
+  event.preventDefault();const song=state.activeSong,file=state.newInstrumentFile;
+  if(!song||!file){toast("Vel PDF-en til det nye instrumentet.","error");return;}
+  if(state.demo){toast("Nye instrument kan berre leggjast til i Firebase-modus.","error");return;}
+  const button=$("#save-new-instrument");button.disabled=true;button.textContent="AI analyserer instrumentet …";
+  try{
+    const analysis=await analyzeNewInstrumentPdf(song,file);
+    const detected=(analysis.parts||[]).find(part=>part.fileName===file.name)||(analysis.parts||[])[0];
+    const name=(detected?.name||[detected?.instrument,detected?.voice].filter(Boolean).join(" ")||file.name.replace(/\.pdf$/i,"")).trim();
+    if(analysis.title&&song.title&&!titlesProbablyMatch(analysis.title,song.title)){
+      const proceed=confirm(`AI fann tittelen «${analysis.title}», medan den opne songen er «${song.title}». Legg til «${name}» likevel?`);
+      if(!proceed)return;
+    }
+    button.textContent="Lastar opp …";
+    const result=await addSongPart(song.id,song.parts||[],file,name,analysis.sourcePageCount||1);
+    song.parts=sortParts(result.parts);
+    state.activePart=song.parts.find(part=>part.id===result.part.id)||result.part;
+    state.selectedPartIds=new Set([state.activePart.id]);
+    previewPdfCache.clear();state.pdfDoc=null;state.viewOriginal=false;state.newInstrumentFile=null;
+    $("#add-instrument-dialog").close();renderSongDetail();await renderSelectedPreview();renderAll();toast(`«${name}» er lagt til i «${song.title}».`);
+  }catch(error){console.error(error);toast(error.message||"Kunne ikkje leggje til instrumentet.","error");}
+  finally{button.disabled=false;button.textContent="Analyser og legg til";}
+}
 
 function openAppendPagesDialog(){
   const part=state.activePart;if(!part)return;

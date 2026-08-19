@@ -173,6 +173,42 @@ export async function updateSongParts(songId, parts, mode = "mapped") {
   await updateDoc(doc(services.db, "songs", songId), { parts, mode });
 }
 
+export async function addSongPart(songId, parts, file, name, pageCount) {
+  if (!services) throw new Error("Firebase er ikkje konfigurert.");
+  const stamp = Date.now();
+  const originalPath = `songs/${songId}/${stamp}-original-${file.name}`;
+  const originalRef = services.storageModule.ref(services.storage, originalPath);
+  try {
+    await services.storageModule.uploadBytes(originalRef, file, { contentType: "application/pdf" });
+    const originalUrl = await services.storageModule.getDownloadURL(originalRef);
+    const part = {
+      id: `${songId}-added-${stamp}`,
+      name,
+      fileName: file.name,
+      storagePath: originalPath,
+      url: originalUrl,
+      originalStoragePath: originalPath,
+      originalUrl,
+      enhancedStoragePath: null,
+      enhancedUrl: null,
+      enhancementApplied: false,
+      enhancementStatus: "not_requested",
+      enhancementVersion: null,
+      processingMode: null,
+      processingError: null,
+      pageCount,
+      pageNumbers: Array.from({ length: pageCount }, (_, index) => index + 1)
+    };
+    const nextParts = [...(parts || []), part];
+    const { doc, updateDoc } = services.firestoreModule;
+    await updateDoc(doc(services.db, "songs", songId), { parts: nextParts });
+    return { parts: nextParts, part };
+  } catch (error) {
+    await services.storageModule.deleteObject(originalRef).catch(() => {});
+    throw error;
+  }
+}
+
 export async function replacePartPdf(songId, parts, partId, originalFile, enhancedFile = null) {
   if (!services) throw new Error("Firebase er ikkje konfigurert.");
   const stamp = Date.now();
@@ -243,6 +279,25 @@ export async function deleteSong(song) {
   }
   const { deleteDoc, doc } = services.firestoreModule;
   await deleteDoc(doc(services.db, "songs", song.id));
+}
+
+export async function analyzeNewInstrumentPdf(song, file) {
+  if (!services?.analysisModel) throw new Error("Firebase AI Logic er ikkje klart.");
+  const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
+  const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: false });
+  const pageCount = source.getPageCount();
+  if (!pageCount) throw new Error("PDF-en har ingen sider.");
+  const preview = await PDFDocument.create();
+  const indices = Array.from({ length: Math.min(2, pageCount) }, (_, index) => index);
+  const pages = await preview.copyPages(source, indices);
+  pages.forEach(page => preview.addPage(page));
+  const previewFile = new File([await preview.save({ useObjectStreams: true })], file.name, { type: "application/pdf" });
+  const prompt = `Denne PDF-en skal leggjast til som ei ny instrumentstemme i den eksisterande songen «${song.title || ""}». Analyser berre for identifikasjon, ikkje kvalitet. Finn songtittel, komponist, arrangør og instrument/stemme frå dei første sidene. Returner éi instrumentstemme i parts dersom det er mogleg. Bruk norsk instrumentnamn når det er naturleg. Set fileName nøyaktig til ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1.`;
+  const result = await services.analysisModel.generateContent([prompt, {
+    inlineData: { mimeType: "application/pdf", data: await fileToBase64(previewFile) }
+  }]);
+  const analysis = mergeSongAnalyses([{ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: 0 }], song);
+  return { ...analysis, sourcePageCount: pageCount };
 }
 
 export async function analyzeSongPdf(song, sourceFiles) {
