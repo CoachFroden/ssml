@@ -110,7 +110,6 @@ function ensureButton() {
   button.id = "email-selected-parts";
   button.className = "btn btn-ghost";
   button.type = "button";
-  button.addEventListener("click", prepareShare);
   tools.append(button);
   updateButtonState();
 }
@@ -325,6 +324,7 @@ async function buildFiles(song, selected, onProgress = () => {}) {
 }
 
 async function prepareShare() {
+  if (preparing) return;
   const selected = selectedRows();
   if (!selected.length) {
     toast("Vel minst éi stemme.", "error");
@@ -395,6 +395,13 @@ async function sharePreparedFiles() {
 
 const observer = new MutationObserver(() => ensureButton());
 observer.observe(document.documentElement, { childList: true, subtree: true });
+document.addEventListener("click", event => {
+  const button = event.target.closest?.("#email-selected-parts");
+  if (!button) return;
+  event.preventDefault();
+  event.stopPropagation();
+  prepareShare();
+}, true);
 document.addEventListener("change", event => {
   if (event.target.matches?.('#part-list input[type="checkbox"]')) setTimeout(updateButtonState, 0);
 });
