@@ -1,0 +1,212 @@
+name: One-time add instrument feature
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Add existing-song instrument workflow'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Add instrument-to-existing-song feature
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # ---- firebase.js ----
+          firebase = Path('firebase.js')
+          text = firebase.read_text(encoding='utf-8')
+
+          marker = '''export async function updateSongParts(songId, parts, mode = "mapped") {
+            if (!services) throw new Error("Firebase er ikkje konfigurert.");
+            const { doc, updateDoc } = services.firestoreModule;
+            await updateDoc(doc(services.db, "songs", songId), { parts, mode });
+          }
+          '''
+          if marker not in text:
+              raise SystemExit('updateSongParts marker not found')
+
+          addition = marker + '''
+          export async function addSongPart(songId, parts, file, name, pageCount) {
+            if (!services) throw new Error("Firebase er ikkje konfigurert.");
+            const stamp = Date.now();
+            const originalPath = `songs/${songId}/${stamp}-original-${file.name}`;
+            const originalRef = services.storageModule.ref(services.storage, originalPath);
+            try {
+              await services.storageModule.uploadBytes(originalRef, file, { contentType: "application/pdf" });
+              const originalUrl = await services.storageModule.getDownloadURL(originalRef);
+              const part = {
+                id: `${songId}-added-${stamp}`,
+                name,
+                fileName: file.name,
+                storagePath: originalPath,
+                url: originalUrl,
+                originalStoragePath: originalPath,
+                originalUrl,
+                enhancedStoragePath: null,
+                enhancedUrl: null,
+                enhancementApplied: false,
+                enhancementStatus: "not_requested",
+                enhancementVersion: null,
+                processingMode: null,
+                processingError: null,
+                pageCount,
+                pageNumbers: Array.from({ length: pageCount }, (_, index) => index + 1)
+              };
+              const nextParts = [...(parts || []), part];
+              const { doc, updateDoc } = services.firestoreModule;
+              await updateDoc(doc(services.db, "songs", songId), { parts: nextParts });
+              return { parts: nextParts, part };
+            } catch (error) {
+              await services.storageModule.deleteObject(originalRef).catch(() => {});
+              throw error;
+            }
+          }
+          '''
+          text = text.replace(marker, addition, 1)
+
+          analyze_marker = '''export async function analyzeSongPdf(song, sourceFiles) {
+          '''
+          if analyze_marker not in text:
+              raise SystemExit('analyzeSongPdf marker not found')
+
+          quick_analyzer = '''export async function analyzeNewInstrumentPdf(song, file) {
+            if (!services?.analysisModel) throw new Error("Firebase AI Logic er ikkje klart.");
+            const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
+            const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: false });
+            const pageCount = source.getPageCount();
+            if (!pageCount) throw new Error("PDF-en har ingen sider.");
+            const preview = await PDFDocument.create();
+            const indices = Array.from({ length: Math.min(2, pageCount) }, (_, index) => index);
+            const pages = await preview.copyPages(source, indices);
+            pages.forEach(page => preview.addPage(page));
+            const previewFile = new File([await preview.save({ useObjectStreams: true })], file.name, { type: "application/pdf" });
+            const prompt = `Denne PDF-en skal leggjast til som ei ny instrumentstemme i den eksisterande songen «${song.title || ""}». Analyser berre for identifikasjon, ikkje kvalitet. Finn songtittel, komponist, arrangør og instrument/stemme frå dei første sidene. Returner éi instrumentstemme i parts dersom det er mogleg. Bruk norsk instrumentnamn når det er naturleg. Set fileName nøyaktig til ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1.`;
+            const result = await services.analysisModel.generateContent([prompt, {
+              inlineData: { mimeType: "application/pdf", data: await fileToBase64(previewFile) }
+            }]);
+            const analysis = mergeSongAnalyses([{ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: 0 }], song);
+            return { ...analysis, sourcePageCount: pageCount };
+          }
+
+          '''
+          text = text.replace(analyze_marker, quick_analyzer + analyze_marker, 1)
+          firebase.write_text(text, encoding='utf-8')
+
+          # ---- app.js ----
+          app = Path('app.js')
+          text = app.read_text(encoding='utf-8')
+          text = text.replace('saveSong, queuePdfEnhancements, replacePartPdf, updateSongParts', 'saveSong, queuePdfEnhancements, addSongPart, replacePartPdf, updateSongParts', 1)
+          text = text.replace('analyzeSongPdf, applySongAnalysis } from "./firebase.js?v=18"', 'analyzeSongPdf, analyzeNewInstrumentPdf, applySongAnalysis } from "./firebase.js?v=19"', 1)
+          text = text.replace('files:[], appendFiles:[], activeSong:null', 'files:[], appendFiles:[], newInstrumentFile:null, activeSong:null', 1)
+
+          bind_marker = '  $("#append-pages-form").addEventListener("submit",saveAppendedPages);\n'
+          if bind_marker not in text:
+              raise SystemExit('append-pages bind marker not found')
+          text = text.replace(bind_marker, bind_marker + '  $("#new-instrument-file").addEventListener("change",event=>selectNewInstrumentFile(event.target.files?.[0]));\n  $("#add-instrument-form").addEventListener("submit",saveNewInstrument);\n', 1)
+
+          title_marker = '<h2>Stemmer <small>(${song.parts?.length||0})</small></h2>${canMap?'
+          if title_marker not in text:
+              raise SystemExit('parts heading marker not found')
+          text = text.replace(title_marker, '<h2>Stemmer <small>(${song.parts?.length||0})</small></h2><button id="add-instrument" class="text-btn" type="button">＋ Legg til instrument</button>${canMap?', 1)
+
+          event_marker = '$("#append-pages").addEventListener("click",openAppendPagesDialog);'
+          if event_marker not in text:
+              raise SystemExit('append button event marker not found')
+          text = text.replace(event_marker, event_marker + '$("#add-instrument").addEventListener("click",openAddInstrumentDialog);', 1)
+
+          function_marker = 'function openAppendPagesDialog(){\n'
+          if function_marker not in text:
+              raise SystemExit('openAppendPagesDialog marker not found')
+
+          functions = '''function openAddInstrumentDialog(){
+            const song=state.activeSong;if(!song)return;
+            state.newInstrumentFile=null;
+            $("#add-instrument-form").reset();
+            $("#add-instrument-song-title").textContent=song.title||"Denne songen";
+            $("#new-instrument-summary").textContent="Vel éi PDF-fil. AI finn instrument og kontrollerer tittelen.";
+            $("#add-instrument-dialog").showModal();
+          }
+          function selectNewInstrumentFile(file){
+            state.newInstrumentFile=null;
+            const summary=$("#new-instrument-summary");
+            if(!file){summary.textContent="Vel éi PDF-fil. AI finn instrument og kontrollerer tittelen.";return;}
+            if(!(file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf"))){$("#new-instrument-file").value="";summary.textContent="Filen må vere ein PDF.";toast("Vel ei PDF-fil.","error");return;}
+            if(file.size>50*1024*1024){$("#new-instrument-file").value="";summary.textContent="PDF-en er større enn 50 MB.";toast("PDF-en kan vere maks 50 MB.","error");return;}
+            state.newInstrumentFile=file;
+            summary.textContent=`${file.name} · ${(file.size/1048576).toFixed(1)} MB`;
+          }
+          function normalizedSongTitle(value=""){return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();}
+          function titlesProbablyMatch(a,b){
+            const left=normalizedSongTitle(a),right=normalizedSongTitle(b);if(!left||!right||left===right||left.includes(right)||right.includes(left))return true;
+            const ignore=new Set(["the","and","for","med","selection","selections","broadway"]);
+            const tokens=value=>new Set(value.split(" ").filter(token=>token.length>2&&!ignore.has(token)));
+            const one=tokens(left),two=tokens(right);if(!one.size||!two.size)return true;
+            const overlap=[...one].filter(token=>two.has(token)).length;
+            return overlap/Math.min(one.size,two.size)>=0.6;
+          }
+          async function saveNewInstrument(event){
+            event.preventDefault();const song=state.activeSong,file=state.newInstrumentFile;
+            if(!song||!file){toast("Vel PDF-en til det nye instrumentet.","error");return;}
+            if(state.demo){toast("Nye instrument kan berre leggjast til i Firebase-modus.","error");return;}
+            const button=$("#save-new-instrument");button.disabled=true;button.textContent="AI analyserer instrumentet …";
+            try{
+              const analysis=await analyzeNewInstrumentPdf(song,file);
+              const detected=(analysis.parts||[]).find(part=>part.fileName===file.name)||(analysis.parts||[])[0];
+              const name=(detected?.name||[detected?.instrument,detected?.voice].filter(Boolean).join(" ")||file.name.replace(/\\.pdf$/i,"")).trim();
+              if(analysis.title&&song.title&&!titlesProbablyMatch(analysis.title,song.title)){
+                const proceed=confirm(`AI fann tittelen «${analysis.title}», medan den opne songen er «${song.title}». Legg til «${name}» likevel?`);
+                if(!proceed)return;
+              }
+              button.textContent="Lastar opp …";
+              const result=await addSongPart(song.id,song.parts||[],file,name,analysis.sourcePageCount||1);
+              song.parts=sortParts(result.parts);
+              state.activePart=song.parts.find(part=>part.id===result.part.id)||result.part;
+              state.selectedPartIds=new Set([state.activePart.id]);
+              previewPdfCache.clear();state.pdfDoc=null;state.viewOriginal=false;state.newInstrumentFile=null;
+              $("#add-instrument-dialog").close();renderSongDetail();await renderSelectedPreview();renderAll();toast(`«${name}» er lagt til i «${song.title}».`);
+            }catch(error){console.error(error);toast(error.message||"Kunne ikkje leggje til instrumentet.","error");}
+            finally{button.disabled=false;button.textContent="Analyser og legg til";}
+          }
+
+          '''
+          text = text.replace(function_marker, functions + function_marker, 1)
+          app.write_text(text, encoding='utf-8')
+
+          # ---- index.html ----
+          index = Path('index.html')
+          text = index.read_text(encoding='utf-8')
+          dialog_marker = '  <dialog id="append-pages-dialog" class="modal small-modal">\n'
+          if dialog_marker not in text:
+              raise SystemExit('append dialog marker not found')
+          dialog = '''  <dialog id="add-instrument-dialog" class="modal small-modal">
+            <form id="add-instrument-form" method="dialog"><header><div><p class="eyebrow green">Ny stemme</p><h2>Legg til instrument</h2></div><button class="icon-btn" type="button" data-close-dialog>×</button></header><p>Song: <strong id="add-instrument-song-title"></strong></p><label class="drop-zone"><input id="new-instrument-file" type="file" accept="application/pdf,.pdf"><span class="upload-icon">⇧</span><strong>Vel PDF for instrumentet</strong><small>AI les dei første sidene for å finne tittel og instrument · maks 50 MB</small></label><aside class="append-review"><strong>PDF-en blir ikkje kvalitetsbehandla</strong><p id="new-instrument-summary" class="muted">Vel éi PDF-fil. AI finn instrument og kontrollerer tittelen.</p></aside><footer><button class="btn btn-ghost" type="button" data-close-dialog>Avbryt</button><button id="save-new-instrument" class="btn btn-primary" type="submit">Analyser og legg til</button></footer></form>
+          </dialog>
+
+          '''
+          text = text.replace(dialog_marker, dialog + dialog_marker, 1)
+          text = text.replace('app.js?v=18', 'app.js?v=19')
+          index.write_text(text, encoding='utf-8')
+
+          # Self-delete the workflow after the patch has been applied.
+          Path('.github/workflows/one-time-add-instrument.yml').unlink()
+          PY
+      - name: Validate JavaScript
+        run: |
+          node --check app.js
+          node --check firebase.js
+      - name: Commit feature
+        run: |
+          git config user.name "SSML automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add app.js firebase.js index.html .github/workflows/one-time-add-instrument.yml
+          git commit -m "Add instrument to existing song"
+          git push origin HEAD:main
