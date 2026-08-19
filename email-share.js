@@ -3,6 +3,9 @@ const FIRESTORE_URL = "https://www.gstatic.com/firebasejs/11.10.0/firebase-fires
 const PDFLIB_URL = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm";
 const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
 const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+const LARGE_SEPARATE_PDF_BYTES = 8 * 1024 * 1024;
+const EMAIL_RASTER_SCALE = 1.75;
+const EMAIL_JPEG_QUALITY = 0.72;
 
 let preparedFiles = [];
 let preparing = false;
@@ -163,19 +166,26 @@ async function getPdfJsDocument(entry, url) {
   if (entry.pdfjs) return entry.pdfjs;
   const pdfjs = await import(PDFJS_URL);
   pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-  entry.pdfjs = await pdfjs.getDocument({ url, verbosity: 0 }).promise;
+  if (entry.blob) {
+    const data = new Uint8Array(await entry.blob.arrayBuffer());
+    entry.pdfjs = await pdfjs.getDocument({ data, verbosity: 0 }).promise;
+  } else {
+    entry.pdfjs = await pdfjs.getDocument({ url, verbosity: 0 }).promise;
+  }
   return entry.pdfjs;
 }
 
-async function rasterizePartPdf(source, pages, fileName) {
+async function rasterizePartPdf(source, pages, fileName, options = {}) {
   const { PDFDocument } = await import(PDFLIB_URL);
   const output = await PDFDocument.create();
+  const scale = Number(options.scale || 2);
+  const quality = Number(options.quality ?? 0.82);
   const wanted = pages?.length ? pages : Array.from({ length: source.numPages }, (_, index) => index + 1);
   for (const pageNo of wanted) {
     if (!Number.isInteger(pageNo) || pageNo < 1 || pageNo > source.numPages) continue;
     const page = await source.getPage(pageNo);
     const baseViewport = page.getViewport({ scale: 1 });
-    const renderViewport = page.getViewport({ scale: 2 });
+    const renderViewport = page.getViewport({ scale });
     const canvas = document.createElement("canvas");
     canvas.width = Math.ceil(renderViewport.width);
     canvas.height = Math.ceil(renderViewport.height);
@@ -183,7 +193,7 @@ async function rasterizePartPdf(source, pages, fileName) {
     context.fillStyle = "#fff";
     context.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: context, viewport: renderViewport }).promise;
-    const jpgData = canvas.toDataURL("image/jpeg", 0.82);
+    const jpgData = canvas.toDataURL("image/jpeg", quality);
     const image = await output.embedJpg(jpgData);
     const outPage = output.addPage([baseViewport.width, baseViewport.height]);
     outPage.drawImage(image, { x: 0, y: 0, width: baseViewport.width, height: baseViewport.height });
@@ -192,6 +202,29 @@ async function rasterizePartPdf(source, pages, fileName) {
   }
   if (!output.getPageCount()) throw new Error("Ingen gyldige sider kunne klargjerast.");
   return new File([await output.save({ useObjectStreams: true })], fileName, { type: "application/pdf" });
+}
+
+async function releaseCachedSource(sourceCache, url) {
+  const entry = sourceCache.get(url);
+  if (!entry) return;
+  if (entry.pdfjs) {
+    try { await entry.pdfjs.destroy(); } catch {}
+    entry.pdfjs = null;
+  }
+  entry.pdf = null;
+  entry.blob = null;
+  sourceCache.delete(url);
+}
+
+async function prepareLargeSeparatePdf(entry, url, fileName) {
+  const originalSize = entry.blob?.size || 0;
+  const source = await getPdfJsDocument(entry, url);
+  const compact = await rasterizePartPdf(source, null, fileName, {
+    scale: EMAIL_RASTER_SCALE,
+    quality: EMAIL_JPEG_QUALITY
+  });
+  if (!originalSize || compact.size < originalSize) return compact;
+  return new File([entry.blob], fileName, { type: "application/pdf" });
 }
 
 async function buildFiles(song, selected, onProgress = () => {}) {
@@ -233,22 +266,29 @@ async function buildFiles(song, selected, onProgress = () => {}) {
       onProgress(index, selectedParts.length, part.name);
       const url = sourceUrl(part, original);
       if (!url) throw new Error(`«${part.name}» manglar PDF-fil.`);
-      const entry = await getSource(url);
-      const fileName = safeFileName(song, part);
+
       const sourcePartCount = sourceCounts.get(url) || 0;
       const sharedSource = sourcePartCount > 1;
       const wholeSourceSelected = sharedSource && (selectedSourceCounts.get(url) || 0) === sourcePartCount;
+      if (wholeSourceSelected && sentWholeSources.has(url)) continue;
+
+      const entry = await getSource(url);
+      const fileName = safeFileName(song, part);
 
       if (wholeSourceSelected) {
-        if (!sentWholeSources.has(url)) {
-          files.push(new File([entry.blob], safeWholeFileName(song, part), { type: "application/pdf" }));
-          sentWholeSources.add(url);
-        }
+        files.push(new File([entry.blob], safeWholeFileName(song, part), { type: "application/pdf" }));
+        sentWholeSources.add(url);
+        await releaseCachedSource(sourceCache, url);
         continue;
       }
 
       if (!sharedSource) {
-        files.push(new File([entry.blob], fileName, { type: "application/pdf" }));
+        if (entry.blob.size > LARGE_SEPARATE_PDF_BYTES) {
+          files.push(await prepareLargeSeparatePdf(entry, url, fileName));
+        } else {
+          files.push(new File([entry.blob], fileName, { type: "application/pdf" }));
+        }
+        await releaseCachedSource(sourceCache, url);
         continue;
       }
 
@@ -280,11 +320,7 @@ async function buildFiles(song, selected, onProgress = () => {}) {
     onProgress(selectedParts.length, selectedParts.length, "");
     return files;
   } finally {
-    for (const entry of sourceCache.values()) {
-      if (entry.pdfjs) {
-        try { await entry.pdfjs.destroy(); } catch {}
-      }
-    }
+    for (const url of [...sourceCache.keys()]) await releaseCachedSource(sourceCache, url);
   }
 }
 
