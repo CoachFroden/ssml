@@ -27,9 +27,23 @@ function ensureStyles() {
   style.id = "email-share-styles";
   style.textContent = `
     #email-selected-parts { grid-column: 2; }
+    #email-share-dialog > div { padding: 1.7rem; overflow: auto; max-height: 90vh; }
+    #email-share-dialog header { gap: 1rem; }
+    #email-share-dialog header > div { min-width: 0; }
+    #email-share-dialog .eyebrow { margin-bottom: .45rem; }
+    #email-share-summary { margin: .85rem 0 1rem; line-height: 1.45; }
     #email-share-files { max-height: 42vh; overflow: auto; margin: .8rem 0; }
-    #email-share-files .file-row { grid-template-columns: 1fr; }
-    @media (max-width: 520px) { #email-selected-parts { grid-column: auto; } }
+    #email-share-files .file-row { grid-template-columns: 1fr; padding: .85rem .9rem; }
+    #email-share-files .file-row strong { overflow-wrap: anywhere; }
+    #email-share-dialog footer { flex-wrap: wrap; }
+    @media (max-width: 520px) {
+      #email-selected-parts { grid-column: auto; }
+      #email-share-dialog { width: calc(100% - 1.5rem); max-height: calc(100dvh - 1.5rem); border-radius: 16px; }
+      #email-share-dialog > div { padding: 1.15rem; max-height: calc(100dvh - 1.5rem); }
+      #email-share-dialog header .icon-btn { flex: 0 0 40px; }
+      #email-share-dialog footer { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+      #email-share-dialog footer .btn { width: 100%; padding: .8rem .7rem; }
+    }
   `;
   document.head.append(style);
 }
