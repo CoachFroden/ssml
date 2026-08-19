@@ -150,43 +150,42 @@ function safeFileName(song, part) {
     .trim();
 }
 
-async function rasterizePartPdf(url, pages, fileName) {
-  const [{ PDFDocument }, pdfjs] = await Promise.all([
-    import(PDFLIB_URL),
-    import(PDFJS_URL)
-  ]);
+async function getPdfJsDocument(entry, url) {
+  if (entry.pdfjs) return entry.pdfjs;
+  const pdfjs = await import(PDFJS_URL);
   pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-  const source = await pdfjs.getDocument(url).promise;
-  const output = await PDFDocument.create();
-  try {
-    const wanted = pages?.length ? pages : Array.from({ length: source.numPages }, (_, index) => index + 1);
-    for (const pageNo of wanted) {
-      if (!Number.isInteger(pageNo) || pageNo < 1 || pageNo > source.numPages) continue;
-      const page = await source.getPage(pageNo);
-      const baseViewport = page.getViewport({ scale: 1 });
-      const renderViewport = page.getViewport({ scale: 2 });
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(renderViewport.width);
-      canvas.height = Math.ceil(renderViewport.height);
-      const context = canvas.getContext("2d", { alpha: false });
-      context.fillStyle = "#fff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      await page.render({ canvasContext: context, viewport: renderViewport }).promise;
-      const jpgData = canvas.toDataURL("image/jpeg", 0.96);
-      const image = await output.embedJpg(jpgData);
-      const outPage = output.addPage([baseViewport.width, baseViewport.height]);
-      outPage.drawImage(image, { x: 0, y: 0, width: baseViewport.width, height: baseViewport.height });
-      canvas.width = 1;
-      canvas.height = 1;
-    }
-    if (!output.getPageCount()) throw new Error("Ingen gyldige sider kunne klargjerast.");
-    return new File([await output.save({ useObjectStreams: true })], fileName, { type: "application/pdf" });
-  } finally {
-    try { await source.destroy(); } catch {}
-  }
+  entry.pdfjs = await pdfjs.getDocument({ url, verbosity: 0 }).promise;
+  return entry.pdfjs;
 }
 
-async function buildFiles(song, selected) {
+async function rasterizePartPdf(source, pages, fileName) {
+  const { PDFDocument } = await import(PDFLIB_URL);
+  const output = await PDFDocument.create();
+  const wanted = pages?.length ? pages : Array.from({ length: source.numPages }, (_, index) => index + 1);
+  for (const pageNo of wanted) {
+    if (!Number.isInteger(pageNo) || pageNo < 1 || pageNo > source.numPages) continue;
+    const page = await source.getPage(pageNo);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const renderViewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(renderViewport.width);
+    canvas.height = Math.ceil(renderViewport.height);
+    const context = canvas.getContext("2d", { alpha: false });
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: context, viewport: renderViewport }).promise;
+    const jpgData = canvas.toDataURL("image/jpeg", 0.82);
+    const image = await output.embedJpg(jpgData);
+    const outPage = output.addPage([baseViewport.width, baseViewport.height]);
+    outPage.drawImage(image, { x: 0, y: 0, width: baseViewport.width, height: baseViewport.height });
+    canvas.width = 1;
+    canvas.height = 1;
+  }
+  if (!output.getPageCount()) throw new Error("Ingen gyldige sider kunne klargjerast.");
+  return new File([await output.save({ useObjectStreams: true })], fileName, { type: "application/pdf" });
+}
+
+async function buildFiles(song, selected, onProgress = () => {}) {
   const original = useOriginalSource();
   const selectedParts = selected.map(item => {
     const matches = (song.parts || []).filter(part => part.fileName === item.fileName);
@@ -206,45 +205,60 @@ async function buildFiles(song, selected) {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Kunne ikkje hente ei av PDF-filene.");
     const blob = await response.blob();
-    const entry = { blob, pdf: null };
+    const entry = { blob, pdf: null, pdfjs: null, encrypted: false };
     sourceCache.set(url, entry);
     return entry;
   };
 
   const files = [];
-  for (const part of selectedParts) {
-    const url = sourceUrl(part, original);
-    if (!url) throw new Error(`«${part.name}» manglar PDF-fil.`);
-    const entry = await getSource(url);
-    const fileName = safeFileName(song, part);
-    const sharedSource = (sourceCounts.get(url) || 0) > 1;
-    if (!sharedSource) {
-      files.push(new File([entry.blob], fileName, { type: "application/pdf" }));
-      continue;
-    }
+  try {
+    for (let index = 0; index < selectedParts.length; index++) {
+      const part = selectedParts[index];
+      onProgress(index, selectedParts.length, part.name);
+      const url = sourceUrl(part, original);
+      if (!url) throw new Error(`«${part.name}» manglar PDF-fil.`);
+      const entry = await getSource(url);
+      const fileName = safeFileName(song, part);
+      const sharedSource = (sourceCounts.get(url) || 0) > 1;
+      if (!sharedSource) {
+        files.push(new File([entry.blob], fileName, { type: "application/pdf" }));
+        continue;
+      }
 
-    const requestedPages = part.pageNumbers?.length ? part.pageNumbers : null;
-    const { PDFDocument } = await import(PDFLIB_URL);
-    if (!entry.pdf) {
-      try {
-        entry.pdf = await PDFDocument.load(await entry.blob.arrayBuffer());
-      } catch (error) {
-        if (/encrypted/i.test(String(error?.message || error))) {
-          files.push(await rasterizePartPdf(url, requestedPages, fileName));
-          continue;
+      const requestedPages = part.pageNumbers?.length ? part.pageNumbers : null;
+      const { PDFDocument } = await import(PDFLIB_URL);
+      if (!entry.pdf && !entry.encrypted) {
+        try {
+          entry.pdf = await PDFDocument.load(await entry.blob.arrayBuffer());
+        } catch (error) {
+          if (/encrypted/i.test(String(error?.message || error))) entry.encrypted = true;
+          else throw error;
         }
-        throw error;
+      }
+
+      if (entry.encrypted) {
+        const source = await getPdfJsDocument(entry, url);
+        files.push(await rasterizePartPdf(source, requestedPages, fileName));
+        continue;
+      }
+
+      const pages = requestedPages || Array.from({ length: entry.pdf.getPageCount() }, (_, pageIndex) => pageIndex + 1);
+      const validPages = pages.filter(page => Number.isInteger(page) && page >= 1 && page <= entry.pdf.getPageCount());
+      if (!validPages.length) throw new Error(`Ingen gyldige sider funne for «${part.name}».`);
+      const output = await PDFDocument.create();
+      const copied = await output.copyPages(entry.pdf, validPages.map(page => page - 1));
+      copied.forEach(page => output.addPage(page));
+      files.push(new File([await output.save({ useObjectStreams: true })], fileName, { type: "application/pdf" }));
+    }
+    onProgress(selectedParts.length, selectedParts.length, "");
+    return files;
+  } finally {
+    for (const entry of sourceCache.values()) {
+      if (entry.pdfjs) {
+        try { await entry.pdfjs.destroy(); } catch {}
       }
     }
-    const pages = requestedPages || Array.from({ length: entry.pdf.getPageCount() }, (_, index) => index + 1);
-    const validPages = pages.filter(page => Number.isInteger(page) && page >= 1 && page <= entry.pdf.getPageCount());
-    if (!validPages.length) throw new Error(`Ingen gyldige sider funne for «${part.name}».`);
-    const output = await PDFDocument.create();
-    const copied = await output.copyPages(entry.pdf, validPages.map(page => page - 1));
-    copied.forEach(page => output.addPage(page));
-    files.push(new File([await output.save({ useObjectStreams: true })], fileName, { type: "application/pdf" }));
   }
-  return files;
 }
 
 async function prepareShare() {
@@ -264,12 +278,17 @@ async function prepareShare() {
   button.textContent = "Klargjer PDF-ar …";
   try {
     const song = await getCurrentSong(selected);
-    preparedFiles = await buildFiles(song, selected);
+    preparedFiles = await buildFiles(song, selected, (done, total, name) => {
+      const next = Math.min(total, done + 1);
+      button.textContent = done >= total ? "Klargjort" : `Klargjer ${next} av ${total} …`;
+      if (name && done < total) button.title = name;
+    });
     if (navigator.canShare && !navigator.canShare({ files: preparedFiles })) {
       throw new Error("Nettlesaren kan ikkje dele desse PDF-filene som vedlegg.");
     }
     const totalMb = preparedFiles.reduce((sum, file) => sum + file.size, 0) / 1048576;
-    document.querySelector("#email-share-summary").textContent = `${preparedFiles.length} PDF-fil(er), ${totalMb.toFixed(1)} MB. Trykk «Del PDF-ar» og vel Mail.`;
+    const sizeWarning = totalMb > 25 ? " Dette er mykje for éin e-post; vurder færre stemmer om Mail avviser sendinga." : "";
+    document.querySelector("#email-share-summary").textContent = `${preparedFiles.length} PDF-fil(er), ${totalMb.toFixed(1)} MB. Trykk «Del PDF-ar» og vel Mail.${sizeWarning}`;
     const list = document.querySelector("#email-share-files");
     list.innerHTML = "";
     preparedFiles.forEach(file => {
@@ -285,6 +304,7 @@ async function prepareShare() {
     toast(error.message || "Kunne ikkje klargjere PDF-ane for e-post.", "error");
   } finally {
     preparing = false;
+    button.title = "";
     updateButtonState();
   }
 }
