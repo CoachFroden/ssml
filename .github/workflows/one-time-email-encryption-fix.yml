@@ -1,0 +1,120 @@
+name: One-time email sharing encryption fix
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Patch email sharing for encrypted PDFs'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch email sharing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('email-share.js')
+          text = path.read_text(encoding='utf-8')
+
+          text = text.replace('button.className = "btn btn-light";', 'button.className = "btn btn-ghost";', 1)
+
+          marker = '''async function buildFiles(song, selected) {'''
+          helper = '''async function rasterizePartPdf(url, pages, fileName) {
+  const [{ PDFDocument }, pdfjs] = await Promise.all([
+    import(PDFLIB_URL),
+    import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs")
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+  const source = await pdfjs.getDocument(url).promise;
+  const output = await PDFDocument.create();
+  try {
+    const wanted = pages?.length ? pages : Array.from({ length: source.numPages }, (_, index) => index + 1);
+    for (const pageNo of wanted) {
+      if (!Number.isInteger(pageNo) || pageNo < 1 || pageNo > source.numPages) continue;
+      const page = await source.getPage(pageNo);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const renderViewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(renderViewport.width);
+      canvas.height = Math.ceil(renderViewport.height);
+      await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport: renderViewport }).promise;
+      const jpgData = canvas.toDataURL("image/jpeg", 0.96);
+      const image = await output.embedJpg(jpgData);
+      const outPage = output.addPage([baseViewport.width, baseViewport.height]);
+      outPage.drawImage(image, { x: 0, y: 0, width: baseViewport.width, height: baseViewport.height });
+      canvas.width = 1;
+      canvas.height = 1;
+    }
+    if (!output.getPageCount()) throw new Error("Ingen gyldige sider kunne klargjerast.");
+    return new File([await output.save({ useObjectStreams: true })], fileName, { type: "application/pdf" });
+  } finally {
+    try { await source.destroy(); } catch {}
+  }
+}
+
+'''
+          if 'async function rasterizePartPdf(' not in text:
+              if marker not in text:
+                  raise SystemExit('buildFiles marker not found')
+              text = text.replace(marker, helper + marker, 1)
+
+          old = '''    const { PDFDocument } = await import(PDFLIB_URL);
+    if (!entry.pdf) entry.pdf = await PDFDocument.load(await entry.blob.arrayBuffer());
+    const pages = part.pageNumbers?.length
+      ? part.pageNumbers
+      : Array.from({ length: entry.pdf.getPageCount() }, (_, index) => index + 1);
+    const validPages = pages.filter(page => Number.isInteger(page) && page >= 1 && page <= entry.pdf.getPageCount());
+    if (!validPages.length) throw new Error(`Ingen gyldige sider funne for «${part.name}».`);
+    const output = await PDFDocument.create();
+    const copied = await output.copyPages(entry.pdf, validPages.map(page => page - 1));
+    copied.forEach(page => output.addPage(page));
+    files.push(new File([await output.save({ useObjectStreams: true })], fileName, { type: "application/pdf" }));'''
+          new = '''    const requestedPages = part.pageNumbers?.length ? part.pageNumbers : null;
+    const { PDFDocument } = await import(PDFLIB_URL);
+    if (!entry.pdf) {
+      try {
+        entry.pdf = await PDFDocument.load(await entry.blob.arrayBuffer());
+      } catch (error) {
+        if (/encrypted/i.test(String(error?.message || error))) {
+          files.push(await rasterizePartPdf(url, requestedPages, fileName));
+          continue;
+        }
+        throw error;
+      }
+    }
+    const pages = requestedPages || Array.from({ length: entry.pdf.getPageCount() }, (_, index) => index + 1);
+    const validPages = pages.filter(page => Number.isInteger(page) && page >= 1 && page <= entry.pdf.getPageCount());
+    if (!validPages.length) throw new Error(`Ingen gyldige sider funne for «${part.name}».`);
+    const output = await PDFDocument.create();
+    const copied = await output.copyPages(entry.pdf, validPages.map(page => page - 1));
+    copied.forEach(page => output.addPage(page));
+    files.push(new File([await output.save({ useObjectStreams: true })], fileName, { type: "application/pdf" }));'''
+          if old not in text:
+              raise SystemExit('Expected PDF split block not found')
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+
+          index = Path('index.html')
+          index_text = index.read_text(encoding='utf-8')
+          index_text = index_text.replace('email-share.js?v=1', 'email-share.js?v=2')
+          index.write_text(index_text, encoding='utf-8')
+
+          Path('.github/workflows/one-time-email-encryption-fix.yml').unlink()
+          PY
+      - name: Validate JavaScript
+        run: node --check email-share.js
+      - name: Commit change
+        run: |
+          git config user.name "SSML automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add email-share.js index.html .github/workflows/one-time-email-encryption-fix.yml
+          git commit -m "Fix email sharing for encrypted PDFs"
+          git push origin HEAD:main
