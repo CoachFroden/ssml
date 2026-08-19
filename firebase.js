@@ -127,11 +127,16 @@ export async function saveSong(song, files, enhancedFiles = []) {
 
 export async function queuePdfEnhancements(song, processingMode = "normal") {
   if (!services) throw new Error("Firebase er ikkje konfigurert.");
+  const currentUser = services.auth.currentUser;
+  if (!currentUser) throw new Error("Du må vere innlogga for å starte PDF-forbetring.");
   const { collection, doc, serverTimestamp, writeBatch } = services.firestoreModule;
   const batch = writeBatch(services.db);
   const jobsByPath = new Map();
   const parts = (song.parts || []).map(part => {
     const originalStoragePath = part.originalStoragePath || part.storagePath;
+    if (!originalStoragePath || !originalStoragePath.startsWith(`songs/${song.id}/`)) {
+      throw new Error(`Ugyldig originalsti for ${part.fileName || part.name || "stemme"}.`);
+    }
     let jobRef = jobsByPath.get(originalStoragePath);
     if (!jobRef) {
       jobRef = doc(collection(services.db, "pdfEnhancementJobs"));
@@ -145,7 +150,7 @@ export async function queuePdfEnhancements(song, processingMode = "normal") {
         processingMode,
         pipelineVersion: "1.0.0",
         createdAt: serverTimestamp(),
-        requestedBy: services.auth.currentUser?.uid || null
+        requestedBy: currentUser.uid
       });
     }
     return {
