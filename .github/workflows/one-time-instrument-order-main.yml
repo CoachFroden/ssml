@@ -1,0 +1,90 @@
+name: One-time janitsjar instrument order fix
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'Run one-time janitsjar instrument order fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Update instrument sorting
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app.js')
+          text = path.read_text(encoding='utf-8')
+          old = r'''const SSML_PART_ORDER=[/partitur|score|conductor|dirigent/,/piccolo/,/fløyte|flute/,/oboe/,/fagott|bassoon/,/klarinett|clarinet/,/altsaksofon|alto sax/,/tenorsaksofon|tenor sax/,/barytonsaksofon|baritone sax/,/trompet|trumpet|kornett|cornet/,/horn/,/trombone/,/baryton|baritone|eufonium|euphonium/,/tuba/,/elektrisk bass|electric bass/,/slagverk 1|percussion 1/,/trommesett|drum set|drums/,/slagverk 2|percussion 2/,/melodisk slagverk|mallet|xylophone|bells|vibes/,/pauker|timpani/,/slagverk|percussion/];
+function partOrderValue(part){const name=(part.name||part.fileName||"").toLowerCase();let rank=SSML_PART_ORDER.findIndex(pattern=>pattern.test(name));if(rank<0)rank=99;if(/bassklarinett|bass clarinet/.test(name))rank=5.2;if(/altklarinett|alto clarinet/.test(name))rank=5.1;const voice=Number(name.match(/\b([1-9])\b/)?.[1]||0);return rank*100+voice;}'''
+          new = r'''const SSML_PART_ORDER=[
+  {rank:0,pattern:/partitur|full score|score|conductor|dirigent/},
+  {rank:10,pattern:/piccolo/},
+  {rank:20,pattern:/fløyte|flute/},
+  {rank:30,pattern:/oboe/},
+  {rank:40,pattern:/engelsk horn|english horn|cor anglais/},
+  {rank:51,pattern:/kontrafagott|contrabassoon/},
+  {rank:50,pattern:/fagott|bassoon/},
+  {rank:60,pattern:/(^|\s)(ess|eb|e-flat|e flat|e♭)[-\s]*(klarinett|clarinet)/},
+  {rank:80,pattern:/kontra[-\s]*altklarinett|contra[-\s]*alto clarinet/},
+  {rank:81,pattern:/altklarinett|alto clarinet/},
+  {rank:90,pattern:/kontrabassklarinett|contrabass clarinet/},
+  {rank:91,pattern:/bassklarinett|bass clarinet/},
+  {rank:70,pattern:/klarinett|clarinet/},
+  {rank:100,pattern:/sopransaksofon|soprano sax/},
+  {rank:110,pattern:/altsaksofon|alto sax/},
+  {rank:120,pattern:/tenorsaksofon|tenor sax/},
+  {rank:130,pattern:/barytonsaksofon|baritonsaksofon|baritone sax|bari sax/},
+  {rank:140,pattern:/althorn|alto horn|tenorhorn|tenor horn|french horn|f-horn|\bhorn\b/},
+  {rank:150,pattern:/kornett|cornet/},
+  {rank:160,pattern:/flygelhorn|flugelhorn/},
+  {rank:170,pattern:/trompet|trumpet/},
+  {rank:190,pattern:/basstrombone|bass trombone/},
+  {rank:180,pattern:/trombone/},
+  {rank:200,pattern:/baryton|baritone|eufonium|euphonium/},
+  {rank:210,pattern:/tuba/},
+  {rank:220,pattern:/strykebass|string bass|double bass|contrabass/},
+  {rank:230,pattern:/elektrisk bass|electric bass|bass guitar/},
+  {rank:240,pattern:/pauker|timpani/},
+  {rank:250,pattern:/melodisk slagverk|mallet|xylophone|glockenspiel|bells|vibraphone|vibes|marimba/},
+  {rank:260,pattern:/slagverk|percussion/},
+  {rank:270,pattern:/trommesett|drum set|drumset|drums/}
+];
+function partOrderValue(part){
+  const name=`${part.name||""} ${part.fileName||""}`.toLowerCase().replace(/\.pdf$/i,"");
+  const match=SSML_PART_ORDER.find(item=>item.pattern.test(name));
+  const rank=match?.rank??999;
+  const voice=Number(name.match(/\b([1-9])\b/)?.[1]||0);
+  return rank*100+voice;
+}'''
+
+          if old not in text:
+              raise SystemExit('Expected sorting block was not found; no changes made.')
+          text = text.replace(old, new, 1)
+          text = text.replace('firebase.js?v=17', 'firebase.js?v=18', 1)
+          path.write_text(text, encoding='utf-8')
+
+          index = Path('index.html')
+          index_text = index.read_text(encoding='utf-8')
+          index_text = index_text.replace('app.js?v=17', 'app.js?v=18')
+          index.write_text(index_text, encoding='utf-8')
+
+          Path('.github/workflows/one-time-instrument-order-main.yml').unlink()
+          PY
+      - name: Validate JavaScript
+        run: node --check app.js
+      - name: Commit change
+        run: |
+          git config user.name "SSML automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add app.js index.html .github/workflows/one-time-instrument-order-main.yml
+          git commit -m "Fix janitsjar instrument sorting"
+          git push origin HEAD:main
