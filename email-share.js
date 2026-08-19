@@ -73,8 +73,10 @@ function updateButtonState() {
   const button = document.querySelector("#email-selected-parts");
   if (!button || preparing) return;
   const count = selectedRows().length;
-  button.disabled = count === 0;
-  button.textContent = `✉ Send på e-post (${count})`;
+  const disabled = count === 0;
+  const label = `✉ Send på e-post (${count})`;
+  if (button.disabled !== disabled) button.disabled = disabled;
+  if (button.textContent !== label) button.textContent = label;
 }
 
 function ensureButton() {
