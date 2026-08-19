@@ -63,10 +63,91 @@ export function observeAuth(callback) {
   return services.authModule.onAuthStateChanged(services.auth, callback);
 }
 
+function normalizePartLabel(value = "") {
+  return String(value)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/\.pdf$/i, "")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function partPageSignature(part = {}) {
+  if (Array.isArray(part.pageNumbers) && part.pageNumbers.length) {
+    return [...new Set(part.pageNumbers.map(Number).filter(Number.isFinite))].sort((a, b) => a - b).join(",");
+  }
+  return `count:${part.pageCount ?? ""}`;
+}
+
+function partSourceKey(part = {}) {
+  return part.originalStoragePath || part.storagePath || part.fileName || "";
+}
+
+function fileNameMatchScore(part = {}) {
+  const fileName = normalizePartLabel(part.fileName || "");
+  const name = normalizePartLabel(part.name || "");
+  if (!fileName || !name) return 0;
+  if (fileName === name) return 100;
+  if (fileName.endsWith(` ${name}`) || fileName.includes(name)) return 80 + Math.min(19, name.length / 10);
+  const tokens = name.split(" ").filter(token => token.length > 1);
+  if (!tokens.length) return 0;
+  const fileTokens = new Set(fileName.split(" "));
+  const hits = tokens.filter(token => fileTokens.has(token)).length;
+  return (hits / tokens.length) * 50;
+}
+
+function preferDuplicatePart(first, second) {
+  const firstScore = fileNameMatchScore(first);
+  const secondScore = fileNameMatchScore(second);
+  const preferred = secondScore > firstScore ? second : first;
+  const other = preferred === first ? second : first;
+  return {
+    ...other,
+    ...preferred,
+    storagePath: preferred.storagePath || other.storagePath,
+    url: preferred.url || other.url,
+    originalStoragePath: preferred.originalStoragePath || other.originalStoragePath,
+    originalUrl: preferred.originalUrl || other.originalUrl,
+    enhancedStoragePath: preferred.enhancedStoragePath || other.enhancedStoragePath || null,
+    enhancedUrl: preferred.enhancedUrl || other.enhancedUrl || null,
+    enhancementApplied: Boolean(preferred.enhancementApplied || other.enhancementApplied),
+    confidence: Math.max(Number(first.confidence || 0), Number(second.confidence || 0))
+  };
+}
+
+function dedupeDuplicateParts(parts = []) {
+  const sources = new Set(parts.map(partSourceKey).filter(Boolean));
+  const onePartPerSource = sources.size > 1;
+  const result = [];
+  const indexes = new Map();
+  for (const part of parts) {
+    const source = partSourceKey(part);
+    if (!source) { result.push(part); continue; }
+    const key = onePartPerSource ? source : `${source}\u0000${partPageSignature(part)}`;
+    if (!indexes.has(key)) {
+      indexes.set(key, result.length);
+      result.push(part);
+      continue;
+    }
+    const index = indexes.get(key);
+    result[index] = preferDuplicatePart(result[index], part);
+  }
+  return result;
+}
+
 export async function fetchSongs() {
-  const { collection, getDocs, orderBy, query } = services.firestoreModule;
+  const { collection, doc, getDocs, orderBy, query, updateDoc } = services.firestoreModule;
   const snapshot = await getDocs(query(collection(services.db, "songs"), orderBy("createdAt", "desc")));
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const songs = snapshot.docs.map(snapshotDoc => ({ id: snapshotDoc.id, ...snapshotDoc.data() }));
+  const cleanupWrites = [];
+  for (const song of songs) {
+    const originalParts = song.parts || [];
+    const cleanedParts = dedupeDuplicateParts(originalParts);
+    if (cleanedParts.length !== originalParts.length) {
+      song.parts = cleanedParts;
+      cleanupWrites.push(updateDoc(doc(services.db, "songs", song.id), { parts: cleanedParts }));
+    }
+  }
+  if (cleanupWrites.length) await Promise.allSettled(cleanupWrites);
+  return songs;
 }
 
 export async function saveSong(song, files, enhancedFiles = []) {
@@ -296,7 +377,7 @@ export async function analyzeNewInstrumentPdf(song, file) {
   const result = await services.analysisModel.generateContent([prompt, {
     inlineData: { mimeType: "application/pdf", data: await fileToBase64(previewFile) }
   }]);
-  const analysis = mergeSongAnalyses([{ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: 0 }], song);
+  const analysis = mergeSongAnalyses([{ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: 0 }], song, { onePartPerFile: true });
   return { ...analysis, sourcePageCount: pageCount };
 }
 
@@ -320,7 +401,7 @@ Finn korrekt songtittel, komponist og arrangør frå tekst i notane. Identifiser
       analyses.push({ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: chunk.pageOffset });
     }
   }
-  return mergeSongAnalyses(analyses, song);
+  return mergeSongAnalyses(analyses, song, { onePartPerFile: song.mode === "separate" });
 }
 
 async function splitPdfForAi(file) {
@@ -352,7 +433,7 @@ async function splitPdfForAi(file) {
   return chunks;
 }
 
-function mergeSongAnalyses(analyses, song) {
+function mergeSongAnalyses(analyses, song, { onePartPerFile = false } = {}) {
   const best = field => analyses
     .filter(item => item.data?.[field])
     .sort((a, b) => Number(b.data.confidence || 0) - Number(a.data.confidence || 0))[0]?.data?.[field] || song[field] || "";
@@ -360,12 +441,26 @@ function mergeSongAnalyses(analyses, song) {
   for (const item of analyses) {
     for (const part of item.data?.parts || []) {
       const name = part.name || [part.instrument, part.voice].filter(Boolean).join(" ") || "Ukjend stemme";
-      const key = `${item.fileName}\u0000${name.toLowerCase()}`;
-      const existing = merged.get(key) || { ...part, name, fileName: item.fileName, pageNumbers: [], confidence: 0 };
+      const key = onePartPerFile ? item.fileName : `${item.fileName}\u0000${name.toLowerCase()}`;
+      const candidate = { ...part, name, fileName: item.fileName, pageNumbers: [], confidence: Number(part.confidence || 0) };
+      const existing = merged.get(key);
       const adjusted = (part.pageNumbers || []).map(number => Number(number) + item.pageOffset).filter(Number.isFinite);
-      existing.pageNumbers = [...new Set([...existing.pageNumbers, ...adjusted])].sort((a, b) => a - b);
-      existing.confidence = Math.max(Number(existing.confidence || 0), Number(part.confidence || 0));
-      merged.set(key, existing);
+      if (!existing) {
+        candidate.pageNumbers = [...new Set(adjusted)].sort((a, b) => a - b);
+        merged.set(key, candidate);
+        continue;
+      }
+      const allPages = [...new Set([...(existing.pageNumbers || []), ...adjusted])].sort((a, b) => a - b);
+      if (onePartPerFile) {
+        const preferred = preferDuplicatePart(existing, candidate);
+        preferred.pageNumbers = allPages;
+        preferred.confidence = Math.max(Number(existing.confidence || 0), Number(candidate.confidence || 0));
+        merged.set(key, preferred);
+      } else {
+        existing.pageNumbers = allPages;
+        existing.confidence = Math.max(Number(existing.confidence || 0), Number(part.confidence || 0));
+        merged.set(key, existing);
+      }
     }
   }
   return {
@@ -413,7 +508,7 @@ export async function applySongAnalysis(songId, metadata, parts) {
     });
     transaction.update(songRef, {
       title: metadata.title, composer: metadata.composer, arranger: metadata.arranger,
-      parts: mergedParts, mode: "analyzed", aiAnalyzedAt: serverTimestamp(),
+      parts: dedupeDuplicateParts(mergedParts), mode: "analyzed", aiAnalyzedAt: serverTimestamp(),
       aiModel: "gemini-3.5-flash", aiConfidence: metadata.confidence
     });
   });
