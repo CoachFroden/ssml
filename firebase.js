@@ -113,24 +113,59 @@ function preferDuplicatePart(first, second) {
   };
 }
 
+function clearlySameDuplicate(first, second) {
+  if (normalizePartLabel(first.name) === normalizePartLabel(second.name)) return true;
+  const scores = [fileNameMatchScore(first), fileNameMatchScore(second)].sort((a, b) => b - a);
+  return scores[0] >= 75 && scores[1] < 50;
+}
+
 function dedupeDuplicateParts(parts = []) {
-  const sources = new Set(parts.map(partSourceKey).filter(Boolean));
-  const onePartPerSource = sources.size > 1;
   const result = [];
-  const indexes = new Map();
+  const exactIndexes = new Map();
   for (const part of parts) {
     const source = partSourceKey(part);
     if (!source) { result.push(part); continue; }
-    const key = onePartPerSource ? source : `${source}\u0000${partPageSignature(part)}`;
-    if (!indexes.has(key)) {
-      indexes.set(key, result.length);
+    const baseKey = `${source}\u0000${partPageSignature(part)}`;
+    const existingIndex = exactIndexes.get(baseKey);
+    if (existingIndex === undefined) {
+      exactIndexes.set(baseKey, result.length);
       result.push(part);
       continue;
     }
-    const index = indexes.get(key);
-    result[index] = preferDuplicatePart(result[index], part);
+    if (clearlySameDuplicate(result[existingIndex], part)) {
+      result[existingIndex] = preferDuplicatePart(result[existingIndex], part);
+    } else {
+      result.push(part);
+    }
   }
-  return result;
+
+  const distinctSources = new Set(result.map(partSourceKey).filter(Boolean));
+  if (distinctSources.size < 3) return result;
+
+  const groups = new Map();
+  result.forEach((part, index) => {
+    const source = partSourceKey(part);
+    if (!source) return;
+    if (!groups.has(source)) groups.set(source, []);
+    groups.get(source).push(index);
+  });
+
+  const removeIndexes = new Set();
+  for (const indexes of groups.values()) {
+    if (indexes.length < 2) continue;
+    const strongMatches = indexes.filter(index => fileNameMatchScore(result[index]) >= 75);
+    if (strongMatches.length !== 1) continue;
+    const winnerIndex = strongMatches[0];
+    const others = indexes.filter(index => index !== winnerIndex);
+    if (others.some(index => fileNameMatchScore(result[index]) >= 50)) continue;
+    let winner = result[winnerIndex];
+    for (const index of others) {
+      winner = preferDuplicatePart(winner, result[index]);
+      removeIndexes.add(index);
+    }
+    result[winnerIndex] = winner;
+  }
+  return result.filter((_, index) => !removeIndexes.has(index));
 }
 
 export async function fetchSongs() {
