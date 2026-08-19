@@ -150,6 +150,15 @@ function safeFileName(song, part) {
     .trim();
 }
 
+function safeWholeFileName(song, part) {
+  const originalName = String(part?.fileName || "").trim();
+  const name = /\.pdf$/i.test(originalName) ? originalName : `${song.title || "Notar"}.pdf`;
+  return name
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function getPdfJsDocument(entry, url) {
   if (entry.pdfjs) return entry.pdfjs;
   const pdfjs = await import(PDFJS_URL);
@@ -199,6 +208,12 @@ async function buildFiles(song, selected, onProgress = () => {}) {
     if (url) sourceCounts.set(url, (sourceCounts.get(url) || 0) + 1);
   }
 
+  const selectedSourceCounts = new Map();
+  for (const part of selectedParts) {
+    const url = sourceUrl(part, original);
+    if (url) selectedSourceCounts.set(url, (selectedSourceCounts.get(url) || 0) + 1);
+  }
+
   const sourceCache = new Map();
   const getSource = async url => {
     if (sourceCache.has(url)) return sourceCache.get(url);
@@ -211,6 +226,7 @@ async function buildFiles(song, selected, onProgress = () => {}) {
   };
 
   const files = [];
+  const sentWholeSources = new Set();
   try {
     for (let index = 0; index < selectedParts.length; index++) {
       const part = selectedParts[index];
@@ -219,7 +235,18 @@ async function buildFiles(song, selected, onProgress = () => {}) {
       if (!url) throw new Error(`«${part.name}» manglar PDF-fil.`);
       const entry = await getSource(url);
       const fileName = safeFileName(song, part);
-      const sharedSource = (sourceCounts.get(url) || 0) > 1;
+      const sourcePartCount = sourceCounts.get(url) || 0;
+      const sharedSource = sourcePartCount > 1;
+      const wholeSourceSelected = sharedSource && (selectedSourceCounts.get(url) || 0) === sourcePartCount;
+
+      if (wholeSourceSelected) {
+        if (!sentWholeSources.has(url)) {
+          files.push(new File([entry.blob], safeWholeFileName(song, part), { type: "application/pdf" }));
+          sentWholeSources.add(url);
+        }
+        continue;
+      }
+
       if (!sharedSource) {
         files.push(new File([entry.blob], fileName, { type: "application/pdf" }));
         continue;
