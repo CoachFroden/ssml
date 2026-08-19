@@ -1,4 +1,4 @@
-import { initFirebase, isFirebaseConfigured, signIn, signOutUser, observeAuth, fetchSongs, saveSong, queuePdfEnhancements, replacePartPdf, updateSongParts, updateSongMetadata, deleteSong, analyzeSongPdf, applySongAnalysis } from "./firebase.js?v=17";
+import { initFirebase, isFirebaseConfigured, signIn, signOutUser, observeAuth, fetchSongs, saveSong, queuePdfEnhancements, replacePartPdf, updateSongParts, updateSongMetadata, deleteSong, analyzeSongPdf, applySongAnalysis } from "./firebase.js?v=18";
 import { enhancePdfFiles } from "./pdf-enhance.js?v=1";
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -78,8 +78,46 @@ function addReviewPart(part={}){const row=document.createElement("div");row.clas
 async function confirmAnalysis(event){event.preventDefault();const song=state.pendingSong;if(!song)return;const button=$("#review-save");button.disabled=true;button.textContent="Lagrar …";try{const rows=$$(".review-part-row");const parts=rows.map((row,index)=>{const requested=row.dataset.fileName;const source=song.parts.find(part=>part.fileName===requested)||song.parts[Math.min(index,song.parts.length-1)]||song.parts[0];const numbers=parsePageNumbersLoose($(".review-part-pages",row).value);return{...source,id:`${song.id}-ai-${index}`,name:$(".review-part-name",row).value.trim(),pageCount:null,pageNumbers:numbers,confidence:Number(row.dataset.confidence)||0};});const metadata={title:$("#review-title").value.trim(),composer:$("#review-composer").value.trim(),arranger:$("#review-arranger").value.trim(),confidence:Number(state.pendingAnalysis?.confidence)||0};await applySongAnalysis(song.id,metadata,parts);Object.assign(song,metadata,{parts,mode:"analyzed"});state.songs.unshift(song);state.pendingSong=null;state.pendingAnalysis=null;$("#ai-review-dialog").close();renderAll();toast(`«${song.title}» er analysert og lagra.`);openSong(song.id);}catch(error){console.error(error);toast(error.message||"Kunne ikkje lagre analysen.","error");}finally{button.disabled=false;button.textContent="Godkjenn og lagre";}}
 function parsePageNumbersLoose(text){const pages=new Set();for(const token of text.replace(/–/g,"-").split(",")){const bit=token.trim();if(!bit)continue;if(bit.includes("-")){const[start,end]=bit.split("-").map(Number);if(!start||!end||start>end)throw new Error(`Ugyldig sideområde: ${bit}`);for(let n=start;n<=end;n++)pages.add(n);}else{const n=Number(bit);if(!n)throw new Error(`Ugyldig sidetal: ${bit}`);pages.add(n);}}if(!pages.size)throw new Error("Kvar stemme må ha minst éi side.");return[...pages].sort((a,b)=>a-b);}
 
-const SSML_PART_ORDER=[/partitur|score|conductor|dirigent/,/piccolo/,/fløyte|flute/,/oboe/,/fagott|bassoon/,/klarinett|clarinet/,/altsaksofon|alto sax/,/tenorsaksofon|tenor sax/,/barytonsaksofon|baritone sax/,/trompet|trumpet|kornett|cornet/,/horn/,/trombone/,/baryton|baritone|eufonium|euphonium/,/tuba/,/elektrisk bass|electric bass/,/slagverk 1|percussion 1/,/trommesett|drum set|drums/,/slagverk 2|percussion 2/,/melodisk slagverk|mallet|xylophone|bells|vibes/,/pauker|timpani/,/slagverk|percussion/];
-function partOrderValue(part){const name=(part.name||part.fileName||"").toLowerCase();let rank=SSML_PART_ORDER.findIndex(pattern=>pattern.test(name));if(rank<0)rank=99;if(/bassklarinett|bass clarinet/.test(name))rank=5.2;if(/altklarinett|alto clarinet/.test(name))rank=5.1;const voice=Number(name.match(/\b([1-9])\b/)?.[1]||0);return rank*100+voice;}
+const SSML_PART_ORDER=[
+  {rank:0,pattern:/partitur|full score|score|conductor|dirigent/},
+  {rank:10,pattern:/piccolo/},
+  {rank:20,pattern:/fløyte|flute/},
+  {rank:30,pattern:/oboe/},
+  {rank:40,pattern:/engelsk horn|english horn|cor anglais/},
+  {rank:51,pattern:/kontrafagott|contrabassoon/},
+  {rank:50,pattern:/fagott|bassoon/},
+  {rank:60,pattern:/(^|\s)(ess|eb|e-flat|e flat|e♭)[-\s]*(klarinett|clarinet)/},
+  {rank:80,pattern:/kontra[-\s]*altklarinett|contra[-\s]*alto clarinet/},
+  {rank:81,pattern:/altklarinett|alto clarinet/},
+  {rank:90,pattern:/kontrabassklarinett|contrabass clarinet/},
+  {rank:91,pattern:/bassklarinett|bass clarinet/},
+  {rank:70,pattern:/klarinett|clarinet/},
+  {rank:100,pattern:/sopransaksofon|soprano sax/},
+  {rank:110,pattern:/altsaksofon|alto sax/},
+  {rank:120,pattern:/tenorsaksofon|tenor sax/},
+  {rank:130,pattern:/barytonsaksofon|baritonsaksofon|baritone sax|bari sax/},
+  {rank:140,pattern:/althorn|alto horn|tenorhorn|tenor horn|french horn|f-horn|\bhorn\b/},
+  {rank:150,pattern:/kornett|cornet/},
+  {rank:160,pattern:/flygelhorn|flugelhorn/},
+  {rank:170,pattern:/trompet|trumpet/},
+  {rank:190,pattern:/basstrombone|bass trombone/},
+  {rank:180,pattern:/trombone/},
+  {rank:200,pattern:/baryton|baritone|eufonium|euphonium/},
+  {rank:210,pattern:/tuba/},
+  {rank:220,pattern:/strykebass|string bass|double bass|contrabass/},
+  {rank:230,pattern:/elektrisk bass|electric bass|bass guitar/},
+  {rank:240,pattern:/pauker|timpani/},
+  {rank:250,pattern:/melodisk slagverk|mallet|xylophone|glockenspiel|bells|vibraphone|vibes|marimba/},
+  {rank:260,pattern:/slagverk|percussion/},
+  {rank:270,pattern:/trommesett|drum set|drumset|drums/}
+];
+function partOrderValue(part){
+  const name=`${part.name||""} ${part.fileName||""}`.toLowerCase().replace(/\.pdf$/i,"");
+  const match=SSML_PART_ORDER.find(item=>item.pattern.test(name));
+  const rank=match?.rank??999;
+  const voice=Number(name.match(/\b([1-9])\b/)?.[1]||0);
+  return rank*100+voice;
+}
 function sortParts(parts=[]){return [...parts].sort((a,b)=>partOrderValue(a)-partOrderValue(b)||(a.name||"").localeCompare(b.name||"","no"));}
 function openSong(id){ const song=state.songs.find(x=>x.id===id);if(!song)return;song.parts=sortParts(song.parts||[]);state.activeSong=song;state.activePart=song.parts?.[0]||null;state.selectedPartIds=new Set(state.activePart?[state.activePart.id]:[]);state.selectedPage="all";state.viewOriginal=false;renderSongDetail();showView("song");if(state.activePart)loadPreview(state.activePart); }
 function renderSongDetail(){ const song=state.activeSong;const canMap=song.mode==="combined"||song.mode==="mapped";const hasEnhanced=(song.parts||[]).some(part=>part.enhancedUrl);const sourceButton=hasEnhanced?`<button id="toggle-pdf-source" class="btn btn-ghost source-toggle" type="button">${state.viewOriginal?"Vis forbetra":"Vis original"}</button>`:"";$("#song-detail").innerHTML=`<div class="detail-header"><div><p class="eyebrow">${canMap?"Samla PDF":"Stemmebibliotek"}</p><h1>${escapeHtml(song.title)}</h1><p>${escapeHtml(song.composer||"Ukjend komponist")}${song.arranger?` · arrangert av ${escapeHtml(song.arranger)}`:""}</p></div><div class="detail-actions"><span>${formatDate(song.createdAt)}</span><button id="edit-song" class="btn btn-light" type="button">Rediger informasjon</button><button id="delete-song" class="btn btn-danger" type="button">Slett sang</button></div></div><div class="parts-layout"><aside class="parts-panel"><div class="preview-toolbar"><h2>Stemmer <small>(${song.parts?.length||0})</small></h2>${canMap?'<button id="map-parts" class="text-btn">Rediger</button>':""}</div><div class="part-selection-tools"><button id="select-all-parts" class="text-btn" type="button">Velg alle</button><button id="print-selected-parts" class="btn btn-primary" type="button">Skriv ut valgte</button></div><div id="part-list"></div>${song.mode==="combined"?'<button id="map-parts-main" class="btn btn-primary btn-wide">Fordel instrument og stemmer</button>':""}</aside><section class="preview-panel"><div class="preview-toolbar"><h2 id="preview-title">Førehandsvising</h2><div class="preview-actions">${sourceButton}<button id="append-pages" class="btn btn-ghost" type="button">＋ Legg til sider</button><button id="edit-active-part" class="btn btn-ghost" type="button">Rediger instrument</button><button id="open-print" class="btn btn-primary">⌁ Skriv ut stemma</button></div></div><div id="thumbnail-grid" class="thumbnail-grid"></div></section></div>`;renderPartList();$("#open-print").addEventListener("click",openPrintDialog);$("#append-pages").addEventListener("click",openAppendPagesDialog);$("#edit-active-part").addEventListener("click",openActivePartEditor);$("#edit-song").addEventListener("click",openSongEditor);$("#toggle-pdf-source")?.addEventListener("click",togglePdfSource);$("#select-all-parts").addEventListener("click",toggleAllParts);$("#print-selected-parts").addEventListener("click",printSelectedParts);$("#delete-song").addEventListener("click",handleDeleteSong);$("#map-parts")?.addEventListener("click",openPartsEditor);$("#map-parts-main")?.addEventListener("click",openPartsEditor); }
