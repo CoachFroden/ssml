@@ -1,6 +1,8 @@
 const FIREBASE_APP_URL = "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 const FIRESTORE_URL = "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 const PDFLIB_URL = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm";
+const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
+const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
 
 let preparedFiles = [];
 let preparing = false;
@@ -26,7 +28,7 @@ function ensureStyles() {
   const style = document.createElement("style");
   style.id = "email-share-styles";
   style.textContent = `
-    #email-selected-parts { grid-column: 2; }
+    #email-selected-parts { grid-column: 2; white-space: nowrap; }
     #email-share-dialog > div { padding: 1.7rem; overflow: auto; max-height: 90vh; }
     #email-share-dialog header { gap: 1rem; }
     #email-share-dialog header > div { min-width: 0; }
@@ -37,7 +39,7 @@ function ensureStyles() {
     #email-share-files .file-row strong { overflow-wrap: anywhere; }
     #email-share-dialog footer { flex-wrap: wrap; }
     @media (max-width: 520px) {
-      #email-selected-parts { grid-column: auto; }
+      #email-selected-parts { grid-column: auto; width: 100%; min-height: 44px; }
       #email-share-dialog { width: calc(100% - 1.5rem); max-height: calc(100dvh - 1.5rem); border-radius: 16px; }
       #email-share-dialog > div { padding: 1.15rem; max-height: calc(100dvh - 1.5rem); }
       #email-share-dialog header .icon-btn { flex: 0 0 40px; }
@@ -103,7 +105,7 @@ function ensureButton() {
   }
   const button = document.createElement("button");
   button.id = "email-selected-parts";
-  button.className = "btn btn-light";
+  button.className = "btn btn-ghost";
   button.type = "button";
   button.addEventListener("click", prepareShare);
   tools.append(button);
@@ -148,6 +150,42 @@ function safeFileName(song, part) {
     .trim();
 }
 
+async function rasterizePartPdf(url, pages, fileName) {
+  const [{ PDFDocument }, pdfjs] = await Promise.all([
+    import(PDFLIB_URL),
+    import(PDFJS_URL)
+  ]);
+  pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+  const source = await pdfjs.getDocument(url).promise;
+  const output = await PDFDocument.create();
+  try {
+    const wanted = pages?.length ? pages : Array.from({ length: source.numPages }, (_, index) => index + 1);
+    for (const pageNo of wanted) {
+      if (!Number.isInteger(pageNo) || pageNo < 1 || pageNo > source.numPages) continue;
+      const page = await source.getPage(pageNo);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const renderViewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(renderViewport.width);
+      canvas.height = Math.ceil(renderViewport.height);
+      const context = canvas.getContext("2d", { alpha: false });
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: context, viewport: renderViewport }).promise;
+      const jpgData = canvas.toDataURL("image/jpeg", 0.96);
+      const image = await output.embedJpg(jpgData);
+      const outPage = output.addPage([baseViewport.width, baseViewport.height]);
+      outPage.drawImage(image, { x: 0, y: 0, width: baseViewport.width, height: baseViewport.height });
+      canvas.width = 1;
+      canvas.height = 1;
+    }
+    if (!output.getPageCount()) throw new Error("Ingen gyldige sider kunne klargjerast.");
+    return new File([await output.save({ useObjectStreams: true })], fileName, { type: "application/pdf" });
+  } finally {
+    try { await source.destroy(); } catch {}
+  }
+}
+
 async function buildFiles(song, selected) {
   const original = useOriginalSource();
   const selectedParts = selected.map(item => {
@@ -185,11 +223,20 @@ async function buildFiles(song, selected) {
       continue;
     }
 
+    const requestedPages = part.pageNumbers?.length ? part.pageNumbers : null;
     const { PDFDocument } = await import(PDFLIB_URL);
-    if (!entry.pdf) entry.pdf = await PDFDocument.load(await entry.blob.arrayBuffer());
-    const pages = part.pageNumbers?.length
-      ? part.pageNumbers
-      : Array.from({ length: entry.pdf.getPageCount() }, (_, index) => index + 1);
+    if (!entry.pdf) {
+      try {
+        entry.pdf = await PDFDocument.load(await entry.blob.arrayBuffer());
+      } catch (error) {
+        if (/encrypted/i.test(String(error?.message || error))) {
+          files.push(await rasterizePartPdf(url, requestedPages, fileName));
+          continue;
+        }
+        throw error;
+      }
+    }
+    const pages = requestedPages || Array.from({ length: entry.pdf.getPageCount() }, (_, index) => index + 1);
     const validPages = pages.filter(page => Number.isInteger(page) && page >= 1 && page <= entry.pdf.getPageCount());
     if (!validPages.length) throw new Error(`Ingen gyldige sider funne for «${part.name}».`);
     const output = await PDFDocument.create();
