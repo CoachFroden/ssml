@@ -330,10 +330,6 @@ async function prepareShare() {
     toast("Vel minst éi stemme.", "error");
     return;
   }
-  if (!navigator.share) {
-    toast("Denne nettlesaren støttar ikkje PDF-vedlegg via delingsmenyen.", "error");
-    return;
-  }
 
   const button = document.querySelector("#email-selected-parts");
   preparing = true;
@@ -346,12 +342,13 @@ async function prepareShare() {
       button.textContent = done >= total ? "Klargjort" : `Klargjer ${next} av ${total} …`;
       if (name && done < total) button.title = name;
     });
-    if (navigator.canShare && !navigator.canShare({ files: preparedFiles })) {
+    if (navigator.share && navigator.canShare && !navigator.canShare({ files: preparedFiles })) {
       throw new Error("Nettlesaren kan ikkje dele desse PDF-filene som vedlegg.");
     }
     const totalMb = preparedFiles.reduce((sum, file) => sum + file.size, 0) / 1048576;
     const sizeWarning = totalMb > 25 ? " Dette er mykje for éin e-post; vurder færre stemmer om Mail avviser sendinga." : "";
-    document.querySelector("#email-share-summary").textContent = `${preparedFiles.length} PDF-fil(er), ${totalMb.toFixed(1)} MB. Trykk «Del PDF-ar» og vel Mail.${sizeWarning}`;
+    const desktopNote = navigator.share ? "" : " På denne PC-en kan du kontrollere filstørrelsen her, men sjølve delinga må testast på iPhone/iPad.";
+    document.querySelector("#email-share-summary").textContent = `${preparedFiles.length} PDF-fil(er), ${totalMb.toFixed(1)} MB. Trykk «Del PDF-ar» og vel Mail.${sizeWarning}${desktopNote}`;
     const list = document.querySelector("#email-share-files");
     list.innerHTML = "";
     preparedFiles.forEach(file => {
@@ -375,6 +372,10 @@ async function prepareShare() {
 async function sharePreparedFiles() {
   if (!preparedFiles.length) {
     toast("Ingen PDF-filer er klargjorde.", "error");
+    return;
+  }
+  if (!navigator.share) {
+    toast("Denne nettlesaren kan ikkje opne delingsmenyen. Test sjølve delinga på iPhone/iPad.", "error");
     return;
   }
   try {
