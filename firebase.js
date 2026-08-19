@@ -195,8 +195,6 @@ export async function saveSong(song, files, enhancedFiles = []) {
       const file = files[index];
       const enhancedFile = enhancedFiles[index] || null;
       const stamp = `${Date.now()}-${index}`;
-      // Filene ligg direkte under songmappa slik at dei passar Storage-regelen
-      // songs/{songId}/{fileName}. Prefikset skil originalen frå den forbetra fila.
       const originalPath = `songs/${docRef.id}/${stamp}-original-${file.name}`;
       const originalRef = services.storageModule.ref(services.storage, originalPath);
       await services.storageModule.uploadBytes(originalRef, file, { contentType: "application/pdf" });
@@ -232,7 +230,6 @@ export async function saveSong(song, files, enhancedFiles = []) {
     await updateDoc(docRef, { parts });
     return { id: docRef.id, ...song, parts, createdAt: new Date().toISOString() };
   } catch (error) {
-    // Rydd opp både delvis opplasta filer og den tomme Firestore-posten.
     await Promise.allSettled(uploadedPaths.map(path =>
       services.storageModule.deleteObject(services.storageModule.ref(services.storage, path))
     ));
@@ -408,12 +405,40 @@ export async function analyzeNewInstrumentPdf(song, file) {
   const pages = await preview.copyPages(source, indices);
   pages.forEach(page => preview.addPage(page));
   const previewFile = new File([await preview.save({ useObjectStreams: true })], file.name, { type: "application/pdf" });
-  const prompt = `Denne PDF-en skal leggjast til som ei ny instrumentstemme i den eksisterande songen «${song.title || ""}». Analyser berre for identifikasjon, ikkje kvalitet. Finn songtittel, komponist, arrangør og instrument/stemme frå dei første sidene. Returner éi instrumentstemme i parts dersom det er mogleg. Bruk norsk instrumentnamn når det er naturleg. Set fileName nøyaktig til ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1.`;
+  const prompt = `Denne PDF-en skal leggjast til som ei ny instrumentstemme i den eksisterande songen «${song.title || ""}». Analyser berre for identifikasjon, ikkje kvalitet. Finn songtittel, komponist, arrangør og instrument/stemme frå dei første sidene. Filnamnet «${file.name}» er eit sterkt hint om instrument og stemme og skal brukast aktivt. Dersom filnamnet tydeleg seier til dømes String Bass, Trombone 2 eller Clarinet 1, skal dette prioriterast med mindre notasida tydeleg viser noko anna. Returner nøyaktig éi instrumentstemme i parts. Bruk norsk instrumentnamn når det er naturleg. Set fileName nøyaktig til ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1.`;
   const result = await services.analysisModel.generateContent([prompt, {
     inlineData: { mimeType: "application/pdf", data: await fileToBase64(previewFile) }
   }]);
   const analysis = mergeSongAnalyses([{ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: 0 }], song, { onePartPerFile: true });
   return { ...analysis, sourcePageCount: pageCount };
+}
+
+async function analyzeSeparatePdf(song, file) {
+  const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
+  const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: false });
+  const pageCount = source.getPageCount();
+  if (!pageCount) throw new Error(`PDF-en «${file.name}» har ingen sider.`);
+  const preview = await PDFDocument.create();
+  const indices = Array.from({ length: Math.min(2, pageCount) }, (_, index) => index);
+  const pages = await preview.copyPages(source, indices);
+  pages.forEach(page => preview.addPage(page));
+  const previewFile = new File([await preview.save({ useObjectStreams: true })], file.name, { type: "application/pdf" });
+  const prompt = `Denne fila er éi instrumentstemme i eit skulemusikkorps. Returner berre data i skjemaet. Finn songtittel, komponist og arrangør frå notasida dersom det står der. Finn instrument og stemmenummer. Filnamnet «${file.name}» er eit sterkt og viktig hint og skal brukast aktivt i identifikasjonen. Dersom filnamnet tydeleg seier til dømes String Bass, Trombone 2, Trumpet 3 eller Clarinet 1, skal dette prioriterast med mindre notasida tydeleg viser noko anna. Returner nøyaktig éi stemme i parts og set fileName nøyaktig til ${file.name}. Bruk norsk instrumentnamn når det er naturleg. Confidence skal vere mellom 0 og 1.`;
+  const result = await services.analysisModel.generateContent([prompt, {
+    inlineData: { mimeType: "application/pdf", data: await fileToBase64(previewFile) }
+  }]);
+  const data = JSON.parse(result.response.text());
+  const detected = (data.parts || [])[0] || {
+    instrument: "",
+    voice: "",
+    name: file.name.replace(/\.pdf$/i, ""),
+    fileName: file.name,
+    confidence: Number(data.confidence || 0)
+  };
+  detected.fileName = file.name;
+  detected.pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1);
+  data.parts = [detected];
+  return { data, fileName: file.name, pageOffset: 0 };
 }
 
 export async function analyzeSongPdf(song, sourceFiles) {
@@ -423,20 +448,35 @@ export async function analyzeSongPdf(song, sourceFiles) {
     if (!response.ok) throw new Error(`Kunne ikkje hente ${part.fileName} for AI-analyse.`);
     return new File([await response.blob()], part.fileName, { type: "application/pdf" });
   }));
+
+  if (song.mode === "separate") {
+    const queue = [...analysisFiles];
+    const analyses = [];
+    const workerCount = Math.min(3, queue.length);
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (queue.length) {
+        const file = queue.shift();
+        if (!file) break;
+        analyses.push(await analyzeSeparatePdf(song, file));
+      }
+    });
+    await Promise.all(workers);
+    return mergeSongAnalyses(analyses, song, { onePartPerFile: true });
+  }
+
   const analyses = [];
   for (const file of analysisFiles) {
     const chunks = await splitPdfForAi(file);
     for (const chunk of chunks) {
       const rangeText = chunk.pageCount ? `Dette er side ${chunk.pageOffset + 1} til ${chunk.pageOffset + chunk.pageCount} av kjeldefila.` : "Dette er heile kjeldefila.";
-      const prompt = `Analyser desse musikknotane for eit skulemusikkorps. Returner berre data i skjemaet.
-Finn korrekt songtittel, komponist og arrangør frå tekst i notane. Identifiser kvar instrumentstemme og alle PDF-sidene som høyrer til stemma. Ei stemme kan gå over fleire sider. Bruk PDF-sidetal frå 1 i denne bolken, ikkje trykte sidetal. Skil mellom til dømes Fløyte 1 og Fløyte 2. Bruk norsk instrumentnamn når det er naturleg. Set fileName til nøyaktig dette kjeldefilnamnet: ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1. ${rangeText}`;
+      const prompt = `Analyser desse musikknotane for eit skulemusikkorps. Returner berre data i skjemaet.\nFinn korrekt songtittel, komponist og arrangør frå tekst i notane. Identifiser kvar instrumentstemme og alle PDF-sidene som høyrer til stemma. Ei stemme kan gå over fleire sider. Bruk PDF-sidetal frå 1 i denne bolken, ikkje trykte sidetal. Skil mellom til dømes Fløyte 1 og Fløyte 2. Bruk filnamnet «${file.name}» aktivt som eit ekstra hint om instrument og stemmenummer. Bruk norsk instrumentnamn når det er naturleg. Set fileName til nøyaktig dette kjeldefilnamnet: ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1. ${rangeText}`;
       const result = await services.analysisModel.generateContent([prompt, {
         inlineData: { mimeType: "application/pdf", data: await fileToBase64(chunk.file) }
       }]);
       analyses.push({ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: chunk.pageOffset });
     }
   }
-  return mergeSongAnalyses(analyses, song, { onePartPerFile: song.mode === "separate" });
+  return mergeSongAnalyses(analyses, song);
 }
 
 async function splitPdfForAi(file) {
