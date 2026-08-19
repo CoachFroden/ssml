@@ -1,4 +1,4 @@
-import { initFirebase, isFirebaseConfigured, signIn, signOutUser, observeAuth, fetchSongs, saveSong, queuePdfEnhancements, addSongPart, replacePartPdf, updateSongParts, updateSongMetadata, deleteSong, analyzeSongPdf, analyzeNewInstrumentPdf, applySongAnalysis } from "./firebase.js?v=22";
+import { initFirebase, isFirebaseConfigured, signIn, signOutUser, observeAuth, fetchSongs, saveSong, queuePdfEnhancements, addSongPart, replacePartPdf, updateSongParts, updateSongMetadata, deleteSong, analyzeSongPdf, analyzeNewInstrumentPdf, applySongAnalysis } from "./firebase.js?v=23";
 import { enhancePdfFiles } from "./pdf-enhance.js?v=1";
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -97,7 +97,7 @@ const SSML_PART_ORDER=[
   {rank:0,pattern:/partitur|full score|score|conductor|dirigent/},
   {rank:10,pattern:/piccolo/},
   {rank:20,pattern:/fløyte|flute/},
-  {rank:30,pattern:/oboe/},
+  {rank:30,pattern:/oboe|\bobo\b/},
   {rank:40,pattern:/engelsk horn|english horn|cor anglais/},
   {rank:51,pattern:/kontrafagott|contrabassoon/},
   {rank:50,pattern:/fagott|bassoon/},
@@ -122,7 +122,7 @@ const SSML_PART_ORDER=[
   {rank:220,pattern:/strykebass|string bass|double bass|contrabass|kontrabass/},
   {rank:230,pattern:/elektrisk bass|electric bass|bass guitar/},
   {rank:240,pattern:/pauker|timpani/},
-  {rank:250,pattern:/melodisk slagverk|mallet|xylophone|glockenspiel|bells|vibraphone|vibes|marimba/},
+  {rank:250,pattern:/melodisk slagverk|mallet|xylophone|xylofon|glockenspiel|bells|klokkespill|vibraphone|vibes|vibrafon|marimba/},
   {rank:260,pattern:/slagverk|percussion/},
   {rank:270,pattern:/trommesett|drum set|drumset|drums/}
 ];
