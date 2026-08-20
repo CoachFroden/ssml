@@ -2,6 +2,8 @@ import * as core from "./firebase-core.js?v=24";
 
 export * from "./firebase-core.js?v=24";
 
+const EMAIL_PDF_SERVICE_URL = "https://ssml-email-pdf-1091683313021.europe-west1.run.app";
+
 function isAiJsonSyntaxError(error) {
   const message = String(error?.message || error || "");
   return error instanceof SyntaxError || /JSON|double-quoted property name|Unexpected token|Expected property name|Unterminated string/i.test(message);
@@ -33,47 +35,122 @@ function normalizePartName(value = "") {
     .trim();
 }
 
-async function splitCombinedPdf(file) {
-  const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
-  // Nokre kjøpte/eldre note-PDF-ar er merkte som krypterte sjølv om dei kan opnast normalt.
-  // Vi må tillate at pdf-lib les dei for å lage små, ukrypterte AI-bolkar.
-  const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
-  const pageCount = source.getPageCount();
+async function getFirebaseIdToken() {
+  const authModule = await import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js");
+  const user = authModule.getAuth().currentUser;
+  if (!user) throw new Error("Du må vere innlogga for å klargjere PDF-en for AI-analyse.");
+  return user.getIdToken();
+}
+
+async function getPdfPageCountWithPdfJs(file) {
+  const pdfjs = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+  try {
+    return pdf.numPages;
+  } finally {
+    try { await pdf.destroy(); } catch {}
+  }
+}
+
+function songStoragePathForFile(song, file) {
+  const parts = song?.parts || [];
+  const match = parts.find(part => part.fileName === file.name) || (parts.length === 1 ? parts[0] : null);
+  return match?.originalStoragePath || match?.storagePath || "";
+}
+
+async function splitCombinedPdfOnServer(song, file) {
+  const storagePath = songStoragePathForFile(song, file);
+  if (!storagePath) throw new Error(`Fann ikkje lagringsstien til «${file.name}».`);
+
+  const pageCount = await getPdfPageCountWithPdfJs(file);
   if (!pageCount) throw new Error(`PDF-en «${file.name}» har ingen sider.`);
 
-  // Små bolkar gir mykje kortare og meir stabilt JSON-svar frå AI-en.
-  const maxPages = 6;
-  const maxBytes = 8 * 1024 * 1024;
+  const token = await getFirebaseIdToken();
   const chunks = [];
-  let start = 0;
+  const maxPages = 6;
 
-  while (start < pageCount) {
-    let count = Math.min(maxPages, pageCount - start);
-    let chunkFile = null;
+  for (let start = 1; start <= pageCount; start += maxPages) {
+    const end = Math.min(start + maxPages - 1, pageCount);
+    const pages = Array.from({ length: end - start + 1 }, (_, index) => start + index);
+    const response = await fetch(`${EMAIL_PDF_SERVICE_URL}/compress`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        storagePath,
+        fileName: `${file.name.replace(/\.pdf$/i, "")}-ai-${start}-${end}.pdf`,
+        pages
+      })
+    });
 
-    while (count >= 1) {
-      const output = await PDFDocument.create();
-      const indices = Array.from({ length: count }, (_, index) => start + index);
-      const pages = await output.copyPages(source, indices);
-      pages.forEach(page => output.addPage(page));
-      const bytes = await output.save({ useObjectStreams: true });
-      if (bytes.byteLength <= maxBytes || count === 1) {
-        chunkFile = new File(
-          [bytes],
-          `${file.name.replace(/\.pdf$/i, "")}-ai-${start + 1}-${start + count}.pdf`,
-          { type: "application/pdf" }
-        );
-        break;
-      }
-      count = Math.max(1, Math.floor(count / 2));
+    if (!response.ok) {
+      let message = `Serveren klarte ikkje å klargjere side ${start}–${end}.`;
+      try {
+        const payload = await response.json();
+        if (payload?.error) message = payload.error;
+      } catch {}
+      throw new Error(message);
     }
 
-    if (!chunkFile) throw new Error("AI_ANALYSIS_CHUNK_FAILED");
-    chunks.push({ file: chunkFile, pageOffset: start, pageCount: count });
-    start += count;
+    const blob = await response.blob();
+    chunks.push({
+      file: new File([blob], `${file.name.replace(/\.pdf$/i, "")}-ai-${start}-${end}.pdf`, { type: "application/pdf" }),
+      pageOffset: start - 1,
+      pageCount: pages.length
+    });
   }
 
   return chunks;
+}
+
+async function splitCombinedPdf(song, file) {
+  try {
+    const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
+    const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
+    const pageCount = source.getPageCount();
+    if (!pageCount) throw new Error(`PDF-en «${file.name}» har ingen sider.`);
+
+    // Små bolkar gir mykje kortare og meir stabilt JSON-svar frå AI-en.
+    const maxPages = 6;
+    const maxBytes = 8 * 1024 * 1024;
+    const chunks = [];
+    let start = 0;
+
+    while (start < pageCount) {
+      let count = Math.min(maxPages, pageCount - start);
+      let chunkFile = null;
+
+      while (count >= 1) {
+        const output = await PDFDocument.create();
+        const indices = Array.from({ length: count }, (_, index) => start + index);
+        const pages = await output.copyPages(source, indices);
+        pages.forEach(page => output.addPage(page));
+        const bytes = await output.save({ useObjectStreams: true });
+        if (bytes.byteLength <= maxBytes || count === 1) {
+          chunkFile = new File(
+            [bytes],
+            `${file.name.replace(/\.pdf$/i, "")}-ai-${start + 1}-${start + count}.pdf`,
+            { type: "application/pdf" }
+          );
+          break;
+        }
+        count = Math.max(1, Math.floor(count / 2));
+      }
+
+      if (!chunkFile) throw new Error("AI_ANALYSIS_CHUNK_FAILED");
+      chunks.push({ file: chunkFile, pageOffset: start, pageCount: count });
+      start += count;
+    }
+
+    return chunks;
+  } catch (error) {
+    console.warn("PDF-en kunne ikkje delast lokalt. Bruker serveren til å reparere og dele han for AI-analyse.", error);
+    return splitCombinedPdfOnServer(song, file);
+  }
 }
 
 function mergeChunkAnalyses(items, song) {
@@ -125,7 +202,7 @@ async function analyzeCombinedSong(song, sourceFiles) {
 
   const results = [];
   for (const originalFile of files) {
-    const chunks = await splitCombinedPdf(originalFile);
+    const chunks = await splitCombinedPdf(song, originalFile);
     for (const chunk of chunks) {
       const analysis = await withAiJsonRetry(() => core.analyzeSongPdf(song, [chunk.file]));
       results.push({
