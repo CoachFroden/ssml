@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#153f3a">
+  <title>Delte notar · SSML</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{font-family:"DM Sans",sans-serif;color:#173f3a;background:#f4f7f4}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#eaf2ed 0,#f7f9f7 240px)}
+    .top{background:#153f3a;color:#fff;padding:1rem 1.25rem}
+    .brand{max-width:920px;margin:auto;display:flex;align-items:center;gap:.75rem;font-family:Manrope,sans-serif;font-weight:800}
+    .mark{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#fff;color:#153f3a}
+    main{max-width:920px;margin:0 auto;padding:2rem 1rem 4rem}
+    .card{background:#fff;border:1px solid #dce4df;border-radius:20px;box-shadow:0 12px 35px rgba(23,63,58,.08);padding:1.5rem}
+    .eyebrow{margin:0 0 .35rem;text-transform:uppercase;letter-spacing:.08em;font-size:.75rem;font-weight:700;color:#4f7b72}
+    h1{font-family:Manrope,sans-serif;font-size:clamp(1.7rem,5vw,2.5rem);margin:.1rem 0 .35rem;color:#153f3a}
+    .meta,.muted{color:#667a74;line-height:1.5}
+    .expiry{margin-top:1rem;padding:.8rem 1rem;border-radius:12px;background:#f2f6f3;color:#4f6962;font-size:.92rem}
+    .files{display:grid;gap:.75rem;margin-top:1.35rem}
+    .file{display:flex;align-items:center;gap:1rem;border:1px solid #dce4df;border-radius:14px;padding:1rem}
+    .icon{font-size:1.5rem}
+    .file-info{min-width:0;flex:1}
+    .file-info strong{display:block;font-size:1rem;overflow-wrap:anywhere}
+    .file-info small{display:block;color:#71827d;margin-top:.2rem;overflow-wrap:anywhere}
+    .actions{display:flex;gap:.55rem;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:.65rem .85rem;border-radius:10px;text-decoration:none;font-weight:700;border:1px solid #cbd7d1;color:#174a43;background:#fff}
+    .btn.primary{background:#174a43;color:#fff;border-color:#174a43}
+    .status{padding:2rem 0;text-align:center;color:#667a74}
+    .error{color:#8b3c35;background:#fff2f0;border:1px solid #efd0cc;padding:1rem;border-radius:12px}
+    @media(max-width:640px){main{padding-top:1rem}.card{padding:1.1rem;border-radius:16px}.file{align-items:flex-start;flex-wrap:wrap}.actions{width:100%}.btn{flex:1}.icon{margin-top:.15rem}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="brand"><span class="mark">S</span><span>SSML · Delte notar</span></div></header>
+  <main>
+    <section class="card">
+      <p class="eyebrow">Samnanger Skulemusikklag</p>
+      <h1 id="share-title">Hentar notar …</h1>
+      <p id="share-meta" class="meta"></p>
+      <div id="share-expiry" class="expiry" hidden></div>
+      <div id="share-status" class="status">Hentar dei delte stemmene …</div>
+      <div id="share-files" class="files"></div>
+    </section>
+  </main>
+  <script type="module" src="share-page.js?v=1"></script>
+</body>
+</html>
