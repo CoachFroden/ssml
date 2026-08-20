@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlparse
 
 import firebase_admin
 from firebase_admin import auth, firestore
@@ -90,11 +90,52 @@ def clean_text(value, fallback=""):
     return re.sub(r"\s+", " ", str(value or fallback)).strip()[:250]
 
 
-def validate_storage_path(value: str) -> str:
-    path = str(value or "").strip().lstrip("/")
-    if not path.startswith("songs/") or ".." in path or not path.lower().endswith(".pdf"):
+def normalize_storage_path(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        raise ValueError("Ugyldig PDF-sti.")
+
+    path = raw
+    if raw.startswith("gs://"):
+        parsed = urlparse(raw)
+        if parsed.netloc and parsed.netloc != BUCKET_NAME:
+            raise ValueError("Ugyldig PDF-sti.")
+        path = parsed.path.lstrip("/")
+    elif raw.startswith("http://") or raw.startswith("https://"):
+        parsed = urlparse(raw)
+        host = parsed.netloc.lower()
+        if host == "firebasestorage.googleapis.com":
+            marker = "/o/"
+            if marker not in parsed.path:
+                raise ValueError("Ugyldig PDF-sti.")
+            prefix, encoded_path = parsed.path.split(marker, 1)
+            bucket_match = re.search(r"/b/([^/]+)$", prefix)
+            if bucket_match and bucket_match.group(1) != BUCKET_NAME:
+                raise ValueError("Ugyldig PDF-sti.")
+            path = unquote(encoded_path)
+        elif host == "storage.googleapis.com":
+            pieces = parsed.path.lstrip("/").split("/", 1)
+            if len(pieces) != 2 or pieces[0] != BUCKET_NAME:
+                raise ValueError("Ugyldig PDF-sti.")
+            path = unquote(pieces[1])
+        else:
+            raise ValueError("Ugyldig PDF-sti.")
+
+    path = unquote(path).strip().lstrip("/")
+    segments = [segment for segment in path.split("/") if segment]
+    if (
+        not path
+        or len(path) > 1024
+        or "\x00" in path
+        or any(segment in {".", ".."} for segment in segments)
+        or not path.lower().endswith(".pdf")
+    ):
         raise ValueError("Ugyldig PDF-sti.")
     return path
+
+
+def validate_storage_path(value: str) -> str:
+    return normalize_storage_path(value)
 
 
 def validate_pages(value):
@@ -199,6 +240,7 @@ def health():
         "pageSelection": True,
         "cors": True,
         "shareLinks": True,
+        "legacyStoragePaths": True,
     })
 
 
