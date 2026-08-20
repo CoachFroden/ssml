@@ -15,6 +15,7 @@ app = Flask(__name__)
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "samnanger-skulemusikklag")
 BUCKET_NAME = os.getenv("STORAGE_BUCKET", "samnanger-skulemusikklag.firebasestorage.app")
 MAX_INPUT_BYTES = int(os.getenv("MAX_INPUT_BYTES", str(100 * 1024 * 1024)))
+MAX_REQUESTED_PAGES = int(os.getenv("MAX_REQUESTED_PAGES", "300"))
 ALLOWED_ORIGINS = {
     "https://coachfroden.github.io",
     "http://127.0.0.1:5500",
@@ -71,7 +72,31 @@ def validate_storage_path(value: str) -> str:
     return path
 
 
-def compress_pdf(source: str, destination: str):
+def validate_pages(value):
+    if value in (None, [], ""):
+        return None
+    if not isinstance(value, list):
+        raise ValueError("Ugyldig sideliste.")
+    pages = []
+    seen = set()
+    for raw in value:
+        if isinstance(raw, bool):
+            raise ValueError("Ugyldig sideliste.")
+        try:
+            page = int(raw)
+        except (TypeError, ValueError):
+            raise ValueError("Ugyldig sideliste.") from None
+        if page < 1:
+            raise ValueError("Ugyldig sideliste.")
+        if page not in seen:
+            pages.append(page)
+            seen.add(page)
+    if not pages or len(pages) > MAX_REQUESTED_PAGES:
+        raise ValueError("For mange eller ingen PDF-sider er valde.")
+    return pages
+
+
+def compress_pdf(source: str, destination: str, pages=None):
     command = [
         "gs",
         "-sDEVICE=pdfwrite",
@@ -80,17 +105,19 @@ def compress_pdf(source: str, destination: str):
         "-dNOPAUSE",
         "-dQUIET",
         "-dBATCH",
+        "-dSAFER",
         "-dDetectDuplicateImages=true",
         "-dCompressFonts=true",
-        f"-sOutputFile={destination}",
-        source,
     ]
+    if pages:
+        command.append(f"-sPageList={','.join(str(page) for page in pages)}")
+    command.extend([f"-sOutputFile={destination}", source])
     subprocess.run(command, check=True, timeout=780)
 
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"ok": True, "service": "ssml-email-pdf"})
+    return jsonify({"ok": True, "service": "ssml-email-pdf", "pageSelection": True})
 
 
 @app.route("/compress", methods=["POST", "OPTIONS"])
@@ -103,6 +130,7 @@ def compress():
         payload = request.get_json(silent=True) or {}
         storage_path = validate_storage_path(payload.get("storagePath"))
         file_name = safe_download_name(payload.get("fileName") or Path(storage_path).name)
+        pages = validate_pages(payload.get("pages"))
 
         blob = bucket.blob(storage_path)
         blob.reload()
@@ -118,10 +146,14 @@ def compress():
             original_bytes = os.path.getsize(source)
 
             try:
-                compress_pdf(source, compact)
+                compress_pdf(source, compact, pages)
                 output_bytes = os.path.getsize(compact)
-                chosen = compact if 0 < output_bytes < original_bytes else source
+                # When a page subset is requested, the compact output is the only
+                # valid result even if the source PDF happened to be smaller.
+                chosen = compact if pages or (0 < output_bytes < original_bytes) else source
             except (subprocess.SubprocessError, OSError):
+                if pages:
+                    raise
                 chosen = source
 
             final_bytes = os.path.getsize(chosen)
@@ -140,7 +172,7 @@ def compress():
             response.headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(file_name)}"
             return response
     except ValueError as error:
-        return jsonify({"error": str(error)}), 401
+        return jsonify({"error": str(error)}), 400
     except Exception:
         app.logger.exception("PDF compression failed")
         return jsonify({"error": "Serveren klarte ikkje å klargjere PDF-fila."}), 500
