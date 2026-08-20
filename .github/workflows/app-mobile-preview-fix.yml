@@ -1,4 +1,4 @@
-name: Fix mobile multi-PDF preview
+name: Fix song deletion preview cleanup
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch app.js and index.html
+      - name: Patch deletion cleanup
         shell: bash
         run: |
           python - <<'PY'
@@ -22,44 +22,20 @@ jobs:
           app_path = Path('app.js')
           text = app_path.read_text(encoding='utf-8')
 
-          text = text.replace('const limit=isMobilePreview()?3:8;', 'const limit=isMobilePreview()?1:8;')
+          old = '''async function handleDeleteSong(){const song=state.activeSong;if(!song||!confirm(`Slette «${song.title}» og alle PDF-filene? Dette kan ikkje angrast.`))return;const button=$("#delete-song");button.disabled=true;button.textContent="Slettar …";try{if(state.demo){const stored=loadLocalSongs().filter(item=>item.id!==song.id);localStorage.setItem("ssml-demo-songs",JSON.stringify(stored));}else await deleteSong(song);state.songs=state.songs.filter(item=>item.id!==song.id);clearPreviewPdfCache();state.activeSong=null;state.activePart=null;renderAll();showView("archive");toast(`«${song.title}» er sletta.`);}catch(error){console.error(error);button.disabled=false;button.textContent="Slett sang";toast("Kunne ikkje slette songen og PDF-filene.","error");}}'''
+          new = '''async function handleDeleteSong(){const song=state.activeSong;if(!song||!confirm(`Slette «${song.title}» og alle PDF-filene? Dette kan ikkje angrast.`))return;const button=$("#delete-song");button.disabled=true;button.textContent="Slettar …";try{state.previewVersion++;clearPreviewPdfCache();if(state.demo){const stored=loadLocalSongs().filter(item=>item.id!==song.id);localStorage.setItem("ssml-demo-songs",JSON.stringify(stored));}else await deleteSong(song);state.songs=state.songs.filter(item=>item.id!==song.id);state.activeSong=null;state.activePart=null;renderAll();showView("archive");toast(`«${song.title}» er sletta.`);}catch(error){console.error(error);button.disabled=false;button.textContent="Slett sang";toast("Kunne ikkje slette songen og PDF-filene.","error");}}'''
 
-          old = '''function selectedParts(){return sortParts((state.activeSong?.parts||[]).filter(part=>state.selectedPartIds.has(part.id)));}\n\nasync function focusPreviewPart(part){'''
-          new = '''function selectedParts(){return sortParts((state.activeSong?.parts||[]).filter(part=>state.selectedPartIds.has(part.id)));}\nfunction showMobileSelectionSummary(){\n  const count=state.selectedPartIds.size;\n  const grid=$("#thumbnail-grid");\n  const title=$("#preview-title");\n  if(title)title.textContent=`${count} valde stemmer`;\n  if(grid){\n    grid.className="multi-preview";\n    grid.innerHTML=`<p class="loading-pages"><strong>${count} stemmer valde.</strong><br>Førehandsvising av fleire PDF-ar er slått av på iPhone/iPad for å spare minne. Du kan framleis sende eller skrive ut dei valde stemmene.</p>`;\n  }\n}\n\nasync function focusPreviewPart(part){'''
           if old not in text:
-              raise SystemExit('selectedParts anchor not found')
+              raise SystemExit('handleDeleteSong anchor not found')
           text = text.replace(old, new, 1)
-
-          old = '''row.querySelector("input").addEventListener("change",event=>{if(event.target.checked)state.selectedPartIds.add(part.id);else state.selectedPartIds.delete(part.id);if(!state.selectedPartIds.has(state.activePart?.id))state.activePart=selectedParts()[0]||null;updatePartSelectionTools();renderPartList();renderSelectedPreview();});'''
-          new = '''row.querySelector("input").addEventListener("change",event=>{if(event.target.checked)state.selectedPartIds.add(part.id);else state.selectedPartIds.delete(part.id);if(!state.selectedPartIds.has(state.activePart?.id))state.activePart=selectedParts()[0]||null;updatePartSelectionTools();renderPartList();if(isMobilePreview()&&state.selectedPartIds.size>1){state.previewVersion++;clearPreviewPdfCache();showMobileSelectionSummary();}else renderSelectedPreview();});'''
-          if old not in text:
-              raise SystemExit('checkbox handler anchor not found')
-          text = text.replace(old, new, 1)
-
-          old = '''function toggleAllParts(){const parts=state.activeSong.parts||[];state.selectedPartIds=state.selectedPartIds.size===parts.length?new Set():new Set(parts.map(part=>part.id));renderPartList();renderSelectedPreview();}'''
-          new = '''function toggleAllParts(){const parts=state.activeSong.parts||[];state.selectedPartIds=state.selectedPartIds.size===parts.length?new Set():new Set(parts.map(part=>part.id));renderPartList();if(isMobilePreview()&&state.selectedPartIds.size>1){state.previewVersion++;clearPreviewPdfCache();showMobileSelectionSummary();}else renderSelectedPreview();}'''
-          if old not in text:
-              raise SystemExit('toggleAllParts anchor not found')
-          text = text.replace(old, new, 1)
-
-          old = '''async function renderSelectedPreview(){\n  const parts=selectedParts();\n  const version=++state.previewVersion;\n  if(parts.length===0)'''
-          new = '''async function renderSelectedPreview(){\n  const parts=selectedParts();\n  const version=++state.previewVersion;\n  if(isMobilePreview()&&parts.length>1){clearPreviewPdfCache();showMobileSelectionSummary();return;}\n  if(parts.length===0)'''
-          if old not in text:
-              raise SystemExit('renderSelectedPreview anchor not found')
-          text = text.replace(old, new, 1)
-
-          old = '''async function loadPreview(part,version=++state.previewVersion){ const grid=$("#thumbnail-grid");grid.className="thumbnail-grid";$("#preview-title").textContent=part.name;grid.innerHTML='<p class="loading-pages">Lastar PDF-sider …</p>';state.pdfDoc=null;if(!partSourceUrl(part)){renderPlaceholderPages(part.pageCount||1);return;}try{state.pdfDoc=await getPreviewPdf(part);if(version!==state.previewVersion)return;part.pageCount=state.pdfDoc.numPages;state.visiblePages=part.pageNumbers?.length?part.pageNumbers:Array.from({length:state.pdfDoc.numPages},(_,i)=>i+1);grid.innerHTML="";for(const pageNo of state.visiblePages){'''
-          new = '''async function loadPreview(part,version=++state.previewVersion){ const grid=$("#thumbnail-grid");grid.className="thumbnail-grid";$("#preview-title").textContent=part.name;grid.innerHTML='<p class="loading-pages">Lastar PDF-sider …</p>';state.pdfDoc=null;if(!partSourceUrl(part)){renderPlaceholderPages(part.pageCount||1);return;}try{state.pdfDoc=await getPreviewPdf(part);if(version!==state.previewVersion)return;part.pageCount=state.pdfDoc.numPages;state.visiblePages=part.pageNumbers?.length?part.pageNumbers:Array.from({length:state.pdfDoc.numPages},(_,i)=>i+1);const previewPages=isMobilePreview()?state.visiblePages.slice(0,1):state.visiblePages;grid.innerHTML="";for(const pageNo of previewPages){'''
-          if old not in text:
-              raise SystemExit('loadPreview anchor not found')
-          text = text.replace(old, new, 1)
-
           app_path.write_text(text, encoding='utf-8')
 
           index_path = Path('index.html')
           index = index_path.read_text(encoding='utf-8')
-          index = index.replace('  <script src="mobile-preview-guard.js?v=1"></script>\n', '')
-          index = index.replace('app.js?v=23', 'app.js?v=24')
+          if 'app.js?v=24' in index:
+              index = index.replace('app.js?v=24', 'app.js?v=25', 1)
+          elif 'app.js?v=23' in index:
+              index = index.replace('app.js?v=23', 'app.js?v=25', 1)
           index_path.write_text(index, encoding='utf-8')
           PY
       - name: Commit patch
@@ -68,5 +44,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app.js index.html
-          git commit -m "Fix iPhone multi-PDF preview memory" || exit 0
+          git commit -m "Stop PDF preview before deleting song" || exit 0
           git push
