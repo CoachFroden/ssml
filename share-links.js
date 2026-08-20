@@ -88,8 +88,10 @@ function updateButtonState() {
   const button = document.querySelector("#share-selected-parts");
   if (!button || creatingShare) return;
   const count = selectedRows().length;
-  button.disabled = count === 0;
-  button.textContent = `↗ Del noter (${count})`;
+  const disabled = count === 0;
+  const text = `↗ Del noter (${count})`;
+  if (button.disabled !== disabled) button.disabled = disabled;
+  if (button.textContent !== text) button.textContent = text;
 }
 
 function ensureButton() {
