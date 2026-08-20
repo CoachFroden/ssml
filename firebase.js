@@ -35,7 +35,9 @@ function normalizePartName(value = "") {
 
 async function splitCombinedPdf(file) {
   const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
-  const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: false });
+  // Nokre kjøpte/eldre note-PDF-ar er merkte som krypterte sjølv om dei kan opnast normalt.
+  // Vi må tillate at pdf-lib les dei for å lage små, ukrypterte AI-bolkar.
+  const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
   const pageCount = source.getPageCount();
   if (!pageCount) throw new Error(`PDF-en «${file.name}» har ingen sider.`);
 
