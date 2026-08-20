@@ -16,8 +16,9 @@ PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "samnanger-skulemusikklag")
 BUCKET_NAME = os.getenv("STORAGE_BUCKET", "samnanger-skulemusikklag.firebasestorage.app")
 MAX_INPUT_BYTES = int(os.getenv("MAX_INPUT_BYTES", str(100 * 1024 * 1024)))
 MAX_REQUESTED_PAGES = int(os.getenv("MAX_REQUESTED_PAGES", "300"))
+PRODUCTION_ORIGIN = "https://coachfroden.github.io"
 ALLOWED_ORIGINS = {
-    "https://coachfroden.github.io",
+    PRODUCTION_ORIGIN,
     "http://127.0.0.1:5500",
     "http://127.0.0.1:5501",
     "http://localhost:5500",
@@ -31,15 +32,30 @@ storage_client = storage.Client(project=PROJECT_ID)
 bucket = storage_client.bucket(BUCKET_NAME)
 
 
-def corsify(response):
-    origin = request.headers.get("Origin")
+def allowed_origin():
+    origin = (request.headers.get("Origin") or "").rstrip("/")
     if origin in ALLOWED_ORIGINS:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Vary"] = "Origin"
+        return origin
+    # The production app is the only public browser client. Returning its
+    # origin explicitly makes Cloud Run preflight responses deterministic.
+    return PRODUCTION_ORIGIN
+
+
+def corsify(response):
+    response.headers["Access-Control-Allow-Origin"] = allowed_origin()
+    response.headers["Vary"] = "Origin"
     response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Max-Age"] = "3600"
     response.headers["Access-Control-Expose-Headers"] = "Content-Disposition, X-Original-Bytes, X-Output-Bytes, X-Compression-Ratio"
     return response
+
+
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        return corsify(make_response("", 204))
+    return None
 
 
 @app.after_request
@@ -117,7 +133,7 @@ def compress_pdf(source: str, destination: str, pages=None):
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"ok": True, "service": "ssml-email-pdf", "pageSelection": True})
+    return jsonify({"ok": True, "service": "ssml-email-pdf", "pageSelection": True, "cors": True})
 
 
 @app.route("/compress", methods=["POST", "OPTIONS"])
@@ -148,8 +164,6 @@ def compress():
             try:
                 compress_pdf(source, compact, pages)
                 output_bytes = os.path.getsize(compact)
-                # When a page subset is requested, the compact output is the only
-                # valid result even if the source PDF happened to be smaller.
                 chosen = compact if pages or (0 < output_bytes < original_bytes) else source
             except (subprocess.SubprocessError, OSError):
                 if pages:
