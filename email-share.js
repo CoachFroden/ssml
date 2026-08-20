@@ -3,9 +3,7 @@ const FIRESTORE_URL = "https://www.gstatic.com/firebasejs/11.10.0/firebase-fires
 const PDFLIB_URL = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm";
 const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
 const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
-const LARGE_SEPARATE_PDF_BYTES = 8 * 1024 * 1024;
-const EMAIL_RASTER_SCALE = 1.75;
-const EMAIL_JPEG_QUALITY = 0.72;
+const MOBILE_DIRECT_SHARE_LIMIT_BYTES = 40 * 1024 * 1024;
 
 let preparedFiles = [];
 let preparing = false;
@@ -24,6 +22,38 @@ function escapeHtml(value = "") {
   const div = document.createElement("div");
   div.textContent = value;
   return div.innerHTML;
+}
+
+function isAppleMobile() {
+  const ua = navigator.userAgent || "";
+  return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+}
+
+async function sourceSize(url) {
+  try {
+    const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+    if (!response.ok) return null;
+    const size = Number(response.headers.get("content-length"));
+    return Number.isFinite(size) && size > 0 ? size : null;
+  } catch {
+    return null;
+  }
+}
+
+async function enforceMobileSeparateLimit(selectedParts, sourceCounts, original) {
+  if (!isAppleMobile()) return;
+  const urls = [...new Set(selectedParts
+    .map(part => sourceUrl(part, original))
+    .filter(url => url && (sourceCounts.get(url) || 0) === 1))];
+  let total = 0;
+  for (const url of urls) {
+    const size = await sourceSize(url);
+    if (!size) continue;
+    total += size;
+    if (total > MOBILE_DIRECT_SHARE_LIMIT_BYTES) {
+      throw new Error("Dei valde separate PDF-filene er for store til å klargjerast trygt på iPhone/iPad. Vel færre stemmer. Dei store filene blir ikkje komprimerte på telefonen.");
+    }
+  }
 }
 
 function ensureStyles() {
@@ -75,6 +105,7 @@ function ensureDialog() {
   document.body.append(dialog);
   dialog.querySelectorAll(".email-share-close").forEach(button => button.addEventListener("click", () => dialog.close()));
   dialog.querySelector("#share-email-now").addEventListener("click", sharePreparedFiles);
+  dialog.addEventListener("close", () => { preparedFiles = []; });
 }
 
 function selectedRows() {
@@ -215,17 +246,6 @@ async function releaseCachedSource(sourceCache, url) {
   sourceCache.delete(url);
 }
 
-async function prepareLargeSeparatePdf(entry, url, fileName) {
-  const originalSize = entry.blob?.size || 0;
-  const source = await getPdfJsDocument(entry, url);
-  const compact = await rasterizePartPdf(source, null, fileName, {
-    scale: EMAIL_RASTER_SCALE,
-    quality: EMAIL_JPEG_QUALITY
-  });
-  if (!originalSize || compact.size < originalSize) return compact;
-  return new File([entry.blob], fileName, { type: "application/pdf" });
-}
-
 async function buildFiles(song, selected, onProgress = () => {}) {
   const original = useOriginalSource();
   const selectedParts = selected.map(item => {
@@ -245,6 +265,8 @@ async function buildFiles(song, selected, onProgress = () => {}) {
     const url = sourceUrl(part, original);
     if (url) selectedSourceCounts.set(url, (selectedSourceCounts.get(url) || 0) + 1);
   }
+
+  await enforceMobileSeparateLimit(selectedParts, sourceCounts, original);
 
   const sourceCache = new Map();
   const getSource = async url => {
@@ -282,11 +304,7 @@ async function buildFiles(song, selected, onProgress = () => {}) {
       }
 
       if (!sharedSource) {
-        if (entry.blob.size > LARGE_SEPARATE_PDF_BYTES) {
-          files.push(await prepareLargeSeparatePdf(entry, url, fileName));
-        } else {
-          files.push(new File([entry.blob], fileName, { type: "application/pdf" }));
-        }
+        files.push(new File([entry.blob], fileName, { type: "application/pdf" }));
         await releaseCachedSource(sourceCache, url);
         continue;
       }
@@ -331,6 +349,7 @@ async function prepareShare() {
     return;
   }
 
+  preparedFiles = [];
   const button = document.querySelector("#email-selected-parts");
   preparing = true;
   button.disabled = true;
