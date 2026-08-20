@@ -1,9 +1,10 @@
 const FIREBASE_APP_URL = "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 const FIRESTORE_URL = "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+const FIREBASE_AUTH_URL = "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 const PDFLIB_URL = "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm";
 const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs";
 const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
-const MOBILE_DIRECT_SHARE_LIMIT_BYTES = 40 * 1024 * 1024;
+const EMAIL_PDF_SERVICE_URL = "https://ssml-email-pdf-1091683313021.europe-west1.run.app";
 
 let preparedFiles = [];
 let preparing = false;
@@ -27,33 +28,6 @@ function escapeHtml(value = "") {
 function isAppleMobile() {
   const ua = navigator.userAgent || "";
   return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
-}
-
-async function sourceSize(url) {
-  try {
-    const response = await fetch(url, { method: "HEAD", cache: "no-store" });
-    if (!response.ok) return null;
-    const size = Number(response.headers.get("content-length"));
-    return Number.isFinite(size) && size > 0 ? size : null;
-  } catch {
-    return null;
-  }
-}
-
-async function enforceMobileSeparateLimit(selectedParts, sourceCounts, original) {
-  if (!isAppleMobile()) return;
-  const urls = [...new Set(selectedParts
-    .map(part => sourceUrl(part, original))
-    .filter(url => url && (sourceCounts.get(url) || 0) === 1))];
-  let total = 0;
-  for (const url of urls) {
-    const size = await sourceSize(url);
-    if (!size) continue;
-    total += size;
-    if (total > MOBILE_DIRECT_SHARE_LIMIT_BYTES) {
-      throw new Error("Dei valde separate PDF-filene er for store til å klargjerast trygt på iPhone/iPad. Vel færre stemmer. Dei store filene blir ikkje komprimerte på telefonen.");
-    }
-  }
 }
 
 function ensureStyles() {
@@ -96,7 +70,7 @@ function ensureDialog() {
       </header>
       <p id="email-share-summary" class="muted">Klargjer PDF-filer …</p>
       <div id="email-share-files" class="file-list"></div>
-      <aside class="info-note"><span>i</span><p><strong>På iPhone/iPad:</strong><br>Trykk «Del PDF-ar» og vel <strong>Mail</strong>. PDF-filene blir lagde ved som vedlegg.</p></aside>
+      <aside class="info-note"><span>i</span><p><strong>På iPhone/iPad:</strong><br>Store PDF-ar blir klargjorde på serveren for å spare minne på telefonen. Trykk «Del PDF-ar» og vel <strong>Mail</strong>.</p></aside>
       <footer>
         <button class="btn btn-ghost email-share-close" type="button">Avbryt</button>
         <button id="share-email-now" class="btn btn-primary" type="button">Del PDF-ar</button>
@@ -176,6 +150,11 @@ function sourceUrl(part, original) {
   return part.enhancedUrl || part.url || part.originalUrl || "";
 }
 
+function sourceStoragePath(part, original) {
+  if (original && part.originalStoragePath) return part.originalStoragePath;
+  return part.enhancedStoragePath || part.storagePath || part.originalStoragePath || "";
+}
+
 function safeFileName(song, part) {
   return `${song.title || "Notar"} - ${part.name || "Stemme"}.pdf`
     .replace(/[\\/:*?"<>|]+/g, "-")
@@ -190,6 +169,86 @@ function safeWholeFileName(song, part) {
     .replace(/[\\/:*?"<>|]+/g, "-")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+async function getFirebaseIdToken() {
+  const [{ getApps, getApp }, authModule] = await Promise.all([
+    import(FIREBASE_APP_URL),
+    import(FIREBASE_AUTH_URL)
+  ]);
+  if (!getApps().length) throw new Error("Firebase er ikkje klart enno.");
+  const user = authModule.getAuth(getApp()).currentUser;
+  if (!user) throw new Error("Du må vere innlogga for å klargjere PDF-ar på serveren.");
+  return user.getIdToken();
+}
+
+async function serverPdf(storagePath, fileName, pages, token) {
+  if (!storagePath) throw new Error(`«${fileName}» manglar lagringssti.`);
+  const payload = { storagePath, fileName };
+  if (Array.isArray(pages) && pages.length) payload.pages = pages;
+
+  const response = await fetch(`${EMAIL_PDF_SERVICE_URL}/compress`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload),
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    let message = "Serveren klarte ikkje å klargjere PDF-fila.";
+    try {
+      const body = await response.json();
+      if (body?.error) message = body.error;
+    } catch {}
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  if (!blob.size) throw new Error(`Serveren returnerte ei tom PDF-fil for «${fileName}».`);
+  return new File([blob], fileName, { type: "application/pdf" });
+}
+
+async function buildFilesOnServer(song, selectedParts, original, onProgress = () => {}) {
+  const token = await getFirebaseIdToken();
+  const sourceCounts = new Map();
+  const selectedSourceCounts = new Map();
+
+  for (const part of song.parts || []) {
+    const path = sourceStoragePath(part, original);
+    if (path) sourceCounts.set(path, (sourceCounts.get(path) || 0) + 1);
+  }
+  for (const part of selectedParts) {
+    const path = sourceStoragePath(part, original);
+    if (path) selectedSourceCounts.set(path, (selectedSourceCounts.get(path) || 0) + 1);
+  }
+
+  const files = [];
+  const sentWholeSources = new Set();
+  for (let index = 0; index < selectedParts.length; index++) {
+    const part = selectedParts[index];
+    onProgress(index, selectedParts.length, part.name);
+    const storagePath = sourceStoragePath(part, original);
+    if (!storagePath) throw new Error(`«${part.name}» manglar PDF-fil i lagringa.`);
+
+    const sourcePartCount = sourceCounts.get(storagePath) || 0;
+    const sharedSource = sourcePartCount > 1;
+    const wholeSourceSelected = sharedSource && (selectedSourceCounts.get(storagePath) || 0) === sourcePartCount;
+
+    if (wholeSourceSelected) {
+      if (sentWholeSources.has(storagePath)) continue;
+      files.push(await serverPdf(storagePath, safeWholeFileName(song, part), null, token));
+      sentWholeSources.add(storagePath);
+      continue;
+    }
+
+    const pages = sharedSource && part.pageNumbers?.length ? part.pageNumbers : null;
+    files.push(await serverPdf(storagePath, safeFileName(song, part), pages, token));
+  }
+  onProgress(selectedParts.length, selectedParts.length, "");
+  return files;
 }
 
 async function getPdfJsDocument(entry, url) {
@@ -246,14 +305,7 @@ async function releaseCachedSource(sourceCache, url) {
   sourceCache.delete(url);
 }
 
-async function buildFiles(song, selected, onProgress = () => {}) {
-  const original = useOriginalSource();
-  const selectedParts = selected.map(item => {
-    const matches = (song.parts || []).filter(part => part.fileName === item.fileName);
-    return matches.find(part => part.name === item.name) || matches[0];
-  });
-  if (selectedParts.some(part => !part)) throw new Error("Ei vald stemme manglar i arkivet.");
-
+async function buildFilesLocally(song, selectedParts, original, onProgress = () => {}) {
   const sourceCounts = new Map();
   for (const part of song.parts || []) {
     const url = sourceUrl(part, original);
@@ -265,8 +317,6 @@ async function buildFiles(song, selected, onProgress = () => {}) {
     const url = sourceUrl(part, original);
     if (url) selectedSourceCounts.set(url, (selectedSourceCounts.get(url) || 0) + 1);
   }
-
-  await enforceMobileSeparateLimit(selectedParts, sourceCounts, original);
 
   const sourceCache = new Map();
   const getSource = async url => {
@@ -341,6 +391,20 @@ async function buildFiles(song, selected, onProgress = () => {}) {
   }
 }
 
+async function buildFiles(song, selected, onProgress = () => {}) {
+  const original = useOriginalSource();
+  const selectedParts = selected.map(item => {
+    const matches = (song.parts || []).filter(part => part.fileName === item.fileName);
+    return matches.find(part => part.name === item.name) || matches[0];
+  });
+  if (selectedParts.some(part => !part)) throw new Error("Ei vald stemme manglar i arkivet.");
+
+  if (isAppleMobile()) {
+    return buildFilesOnServer(song, selectedParts, original, onProgress);
+  }
+  return buildFilesLocally(song, selectedParts, original, onProgress);
+}
+
 async function prepareShare() {
   if (preparing) return;
   const selected = selectedRows();
@@ -353,21 +417,22 @@ async function prepareShare() {
   const button = document.querySelector("#email-selected-parts");
   preparing = true;
   button.disabled = true;
-  button.textContent = "Klargjer PDF-ar …";
+  button.textContent = isAppleMobile() ? "Klargjer på server …" : "Klargjer PDF-ar …";
   try {
     const song = await getCurrentSong(selected);
     preparedFiles = await buildFiles(song, selected, (done, total, name) => {
       const next = Math.min(total, done + 1);
-      button.textContent = done >= total ? "Klargjort" : `Klargjer ${next} av ${total} …`;
+      button.textContent = done >= total ? "Klargjort" : `${isAppleMobile() ? "Server" : "Klargjer"} ${next} av ${total} …`;
       if (name && done < total) button.title = name;
     });
     if (navigator.share && navigator.canShare && !navigator.canShare({ files: preparedFiles })) {
       throw new Error("Nettlesaren kan ikkje dele desse PDF-filene som vedlegg.");
     }
     const totalMb = preparedFiles.reduce((sum, file) => sum + file.size, 0) / 1048576;
-    const sizeWarning = totalMb > 25 ? " Dette er mykje for éin e-post; vurder færre stemmer om Mail avviser sendinga." : "";
+    const sizeWarning = totalMb > 25 ? " Dette er mykje for éin e-post; Mail kan tilby Mail Drop dersom vedlegga er for store." : "";
+    const serverNote = isAppleMobile() ? " PDF-ane er klargjorde på serveren for å spare minne på telefonen." : "";
     const desktopNote = navigator.share ? "" : " På denne PC-en kan du kontrollere filstørrelsen her, men sjølve delinga må testast på iPhone/iPad.";
-    document.querySelector("#email-share-summary").textContent = `${preparedFiles.length} PDF-fil(er), ${totalMb.toFixed(1)} MB. Trykk «Del PDF-ar» og vel Mail.${sizeWarning}${desktopNote}`;
+    document.querySelector("#email-share-summary").textContent = `${preparedFiles.length} PDF-fil(er), ${totalMb.toFixed(1)} MB.${serverNote} Trykk «Del PDF-ar» og vel Mail.${sizeWarning}${desktopNote}`;
     const list = document.querySelector("#email-share-files");
     list.innerHTML = "";
     preparedFiles.forEach(file => {
