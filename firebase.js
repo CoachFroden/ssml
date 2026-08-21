@@ -1,6 +1,6 @@
-import * as core from "./firebase-core.js?v=25";
+import * as core from "./firebase-core.js?v=26";
 
-export * from "./firebase-core.js?v=25";
+export * from "./firebase-core.js?v=26";
 
 const EMAIL_PDF_SERVICE_URL = "https://ssml-email-pdf-1091683313021.europe-west1.run.app";
 
