@@ -1,5 +1,18 @@
 const SHARE_SERVICE_URL = "https://ssml-email-pdf-1091683313021.europe-west1.run.app";
 
+async function fetchWithTimeout(resource, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(resource, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("Delinga brukte for lang tid på å lastast. Prøv igjen.");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function escapeHtml(value = "") {
   const div = document.createElement("div");
   div.textContent = value;
@@ -30,7 +43,7 @@ async function loadShare() {
   }
 
   try {
-    const response = await fetch(`${SHARE_SERVICE_URL}/share/${encodeURIComponent(token)}`, { cache: "no-store" });
+    const response = await fetchWithTimeout(`${SHARE_SERVICE_URL}/share/${encodeURIComponent(token)}`, { cache: "no-store" }, 30000);
     let body = {};
     try { body = await response.json(); } catch {}
     if (!response.ok) throw new Error(body.error || "Kunne ikkje hente dei delte notane.");
