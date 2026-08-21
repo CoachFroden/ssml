@@ -401,6 +401,41 @@ export async function updateSongMetadata(songId, metadata) {
   });
 }
 
+export async function deleteSongPart(song, partId) {
+  if (!services) throw new Error("Firebase er ikkje konfigurert.");
+  const part = (song.parts || []).find(item => item.id === partId);
+  if (!part) throw new Error("Fann ikkje stemma som skulle slettast.");
+  const nextParts = (song.parts || []).filter(item => item.id !== partId);
+  if (!nextParts.length) throw new Error("Den siste stemma kan ikkje slettast. Slett heller heile songen.");
+
+  const { doc, updateDoc } = services.firestoreModule;
+  await updateDoc(doc(services.db, "songs", song.id), { parts: nextParts });
+
+  const remainingPaths = new Set(nextParts.flatMap(item => [
+    item.storagePath,
+    item.originalStoragePath,
+    item.enhancedStoragePath,
+    ...(item.archivedStoragePaths || [])
+  ]).filter(Boolean));
+  const removablePaths = [...new Set([
+    part.storagePath,
+    part.originalStoragePath,
+    part.enhancedStoragePath,
+    ...(part.archivedStoragePaths || [])
+  ].filter(path => path && !remainingPaths.has(path)))];
+
+  for (const path of removablePaths) {
+    try {
+      await services.storageModule.deleteObject(services.storageModule.ref(services.storage, path));
+    } catch (error) {
+      if (error?.code !== "storage/object-not-found") {
+        console.warn("Stemma vart fjerna, men ei ubrukt PDF-fil kunne ikkje slettast:", path, error);
+      }
+    }
+  }
+  return nextParts;
+}
+
 export async function deleteSong(song) {
   if (!services) throw new Error("Firebase er ikkje konfigurert.");
   const paths = [...new Set((song.parts || []).flatMap(part => [part.storagePath, part.originalStoragePath, part.enhancedStoragePath, ...(part.archivedStoragePaths || [])]).filter(Boolean))];
