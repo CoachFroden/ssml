@@ -5,6 +5,19 @@ const SHARE_SERVICE_URL = "https://ssml-email-pdf-1091683313021.europe-west1.run
 const SHARE_EXPIRES_DAYS = 30;
 
 let creatingShare = false;
+
+async function fetchWithTimeout(resource, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(resource, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("Delingstenesta brukte for lang tid på å svare. Prøv igjen.");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 let preparedShare = null;
 
 function toast(message, type = "ok") {
@@ -114,6 +127,11 @@ async function getCurrentSong(selected) {
   ]);
   if (!getApps().length) throw new Error("Firebase er ikkje klart enno.");
   const db = firestore.getFirestore(getApp());
+  const songId = document.querySelector("#song-detail")?.dataset?.songId;
+  if (songId) {
+    const exact = await firestore.getDoc(firestore.doc(db, "songs", songId));
+    if (exact.exists()) return { id: exact.id, ...exact.data() };
+  }
   const title = document.querySelector("#song-detail .detail-header h1")?.textContent?.trim();
   if (!title) throw new Error("Kunne ikkje finne den opne songen.");
   const snapshot = await firestore.getDocs(
@@ -212,7 +230,7 @@ async function createShare() {
     const items = makeShareItems(song, selectedParts, original);
     const token = await getFirebaseIdToken();
 
-    const response = await fetch(`${SHARE_SERVICE_URL}/shares`, {
+    const response = await fetchWithTimeout(`${SHARE_SERVICE_URL}/shares`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -226,7 +244,7 @@ async function createShare() {
         items
       }),
       cache: "no-store"
-    });
+    }, 30000);
 
     let body = {};
     try { body = await response.json(); } catch {}

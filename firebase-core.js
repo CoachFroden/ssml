@@ -14,6 +14,27 @@ export const isFirebaseConfigured = !Object.values(firebaseConfig).some(value =>
 
 let services = null;
 
+function withOperationTimeout(promise, timeoutMs = 120000, message = "Tenesta brukte for lang tid på å svare.") {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer));
+}
+
+async function fetchWithTimeout(resource, options = {}, timeoutMs = 45000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(resource, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("Nedlastinga brukte for lang tid. Prøv igjen.");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function initFirebase() {
   if (!isFirebaseConfigured) return null;
   const [{ initializeApp }, authModule, firestoreModule, storageModule, aiModule] = await Promise.all([
@@ -475,9 +496,9 @@ async function analyzeFirstPage(song, file, identifyInstrument = false) {
     ? ` Dersom filnamnet ikkje gir eit kjent instrument, identifiser også instrument/stemme frå overskrifta på notasida og returner maksimalt éi stemme i parts.`
     : ` Instrumentlista skal vere tom; parts skal vere [].`;
   const prompt = `Les berre førstesida av denne musikk-PDF-en. Finn korrekt songtittel, komponist og arrangør frå teksten på notasida. Den eksisterande songtittelen er «${song.title || ''}».${instrumentText} Set fileName nøyaktig til ${file.name} dersom du returnerer ei stemme. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1.`;
-  const result = await services.analysisModel.generateContent([prompt, {
+  const result = await withOperationTimeout(services.analysisModel.generateContent([prompt, {
     inlineData: { mimeType: 'application/pdf', data: await fileToBase64(previewFile) }
-  }]);
+  }]), 120000, "AI-analysen brukte for lang tid. Prøv igjen.");
   const data = JSON.parse(result.response.text());
   if (!Array.isArray(data.parts)) data.parts = [];
   return { data, pageCount };
@@ -508,7 +529,7 @@ export async function analyzeNewInstrumentPdf(song, file) {
 export async function analyzeSongPdf(song, sourceFiles) {
   if (!services?.analysisModel) throw new Error('Firebase AI Logic er ikkje klart.');
   const analysisFiles = sourceFiles?.length ? [...sourceFiles] : await Promise.all(song.parts.map(async part => {
-    const response = await fetch(part.url);
+    const response = await fetchWithTimeout(part.url);
     if (!response.ok) throw new Error(`Kunne ikkje hente ${part.fileName} for AI-analyse.`);
     return new File([await response.blob()], part.fileName, { type: 'application/pdf' });
   }));
@@ -559,9 +580,9 @@ export async function analyzeSongPdf(song, sourceFiles) {
     for (const chunk of chunks) {
       const rangeText = chunk.pageCount ? `Dette er side ${chunk.pageOffset + 1} til ${chunk.pageOffset + chunk.pageCount} av kjeldefila.` : 'Dette er heile kjeldefila.';
       const prompt = `Analyser desse musikknotane for eit skulemusikkorps. Returner berre data i skjemaet.\nFinn korrekt songtittel, komponist og arrangør frå tekst i notane. Identifiser kvar instrumentstemme og alle PDF-sidene som høyrer til stemma. Ei stemme kan gå over fleire sider. Bruk PDF-sidetal frå 1 i denne bolken, ikkje trykte sidetal. Skil mellom til dømes Fløyte 1 og Fløyte 2. Bruk norsk instrumentnamn når det er naturleg. Set fileName til nøyaktig dette kjeldefilnamnet: ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1. ${rangeText}`;
-      const result = await services.analysisModel.generateContent([prompt, {
+      const result = await withOperationTimeout(services.analysisModel.generateContent([prompt, {
         inlineData: { mimeType: 'application/pdf', data: await fileToBase64(chunk.file) }
-      }]);
+      }]), 120000, "AI-analysen brukte for lang tid. Prøv igjen.");
       analyses.push({ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: chunk.pageOffset });
     }
   }

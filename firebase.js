@@ -1,8 +1,21 @@
-import * as core from "./firebase-core.js?v=24";
+import * as core from "./firebase-core.js?v=25";
 
-export * from "./firebase-core.js?v=24";
+export * from "./firebase-core.js?v=25";
 
 const EMAIL_PDF_SERVICE_URL = "https://ssml-email-pdf-1091683313021.europe-west1.run.app";
+
+async function fetchWithTimeout(resource, options = {}, timeoutMs = 90000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(resource, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("PDF-behandlinga brukte for lang tid. Prøv igjen.");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function isAiJsonSyntaxError(error) {
   const message = String(error?.message || error || "");
@@ -74,7 +87,7 @@ async function splitCombinedPdfOnServer(song, file) {
   for (let start = 1; start <= pageCount; start += maxPages) {
     const end = Math.min(start + maxPages - 1, pageCount);
     const pages = Array.from({ length: end - start + 1 }, (_, index) => start + index);
-    const response = await fetch(`${EMAIL_PDF_SERVICE_URL}/compress`, {
+    const response = await fetchWithTimeout(`${EMAIL_PDF_SERVICE_URL}/compress`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -85,7 +98,7 @@ async function splitCombinedPdfOnServer(song, file) {
         fileName: `${file.name.replace(/\.pdf$/i, "")}-ai-${start}-${end}.pdf`,
         pages
       })
-    });
+    }, 90000);
 
     if (!response.ok) {
       let message = `Serveren klarte ikkje å klargjere side ${start}–${end}.`;
