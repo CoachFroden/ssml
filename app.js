@@ -1,4 +1,4 @@
-import { initFirebase, isFirebaseConfigured, signIn, signOutUser, observeAuth, fetchSongs, saveSong, queuePdfEnhancements, addSongPart, replacePartPdf, updateSongParts, updateSongMetadata, deleteSongPart, deleteSong, analyzeSongPdf, analyzeNewInstrumentPdf, applySongAnalysis } from "./firebase.js?v=24";
+import { initFirebase, isFirebaseConfigured, signIn, signOutUser, observeAuth, fetchSongs, saveSong, queuePdfEnhancements, addSongPart, replacePartPdf, updateSongParts, updateSongMetadata, deleteSongPart, deleteSong, analyzeSongPdf, analyzeNewInstrumentPdf, applySongAnalysis } from "./firebase.js?v=25";
 import { enhancePdfFiles } from "./pdf-enhance.js?v=1";
 
 const $ = (selector, root = document) => root.querySelector(selector);
