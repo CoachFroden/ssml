@@ -112,5 +112,6 @@ googleButton?.addEventListener("click", async () => {
   }
 });
 
-import("./ui-enhancements.js?v=1").catch(error => console.error("Kunne ikkje laste UI-forbetringar", error));
-import("./home-hero.js?v=1").catch(error => console.error("Kunne ikkje laste ny forside", error));
+import("./ui-enhancements.js?v=2").catch(error => console.error("Kunne ikkje laste UI-forbetringar", error));
+import("./home-hero.js?v=2").catch(error => console.error("Kunne ikkje laste ny forside", error));
+import("./compact-song-list.js?v=1").catch(error => console.error("Kunne ikkje laste kompakt songliste", error));
