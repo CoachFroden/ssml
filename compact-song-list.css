@@ -1,0 +1,68 @@
+#song-list-shell:has(.compact-song-list) {
+  overflow: hidden;
+  border: 1px solid #dfe7e3;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.compact-song-list {
+  display: grid;
+}
+
+.compact-song-row {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 54px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid #edf1ef;
+  background: #fff;
+  color: #17302d;
+  text-align: left;
+  cursor: pointer;
+}
+
+.compact-song-row:last-child {
+  border-bottom: 0;
+}
+
+.compact-song-row:hover,
+.compact-song-row:focus-visible {
+  background: #f7faf8;
+}
+
+.compact-song-title {
+  color: #153f3a;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.compact-song-meta {
+  overflow: hidden;
+  color: #6d7c79;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  #song-list-shell:has(.compact-song-list) {
+    border-radius: 12px;
+  }
+
+  .compact-song-row {
+    min-height: 50px;
+    padding: 9px 12px;
+  }
+
+  .compact-song-title {
+    font-size: 0.94rem;
+  }
+
+  .compact-song-meta {
+    font-size: 0.76rem;
+  }
+}
