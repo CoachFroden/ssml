@@ -113,7 +113,7 @@ googleButton?.addEventListener("click", async () => {
 });
 
 import("./ui-enhancements.js?v=2").catch(error => console.error("Kunne ikkje laste UI-forbetringar", error));
-import("./home-hero.js?v=2").catch(error => console.error("Kunne ikkje laste ny forside", error));
+import("./home-hero.js?v=3").catch(error => console.error("Kunne ikkje laste ny forside", error));
 import("./compact-song-list.js?v=1").catch(error => console.error("Kunne ikkje laste kompakt songliste", error));
 
 const songDetailStyles = document.createElement("link");
@@ -121,3 +121,18 @@ songDetailStyles.rel = "stylesheet";
 songDetailStyles.href = "./song-detail-polish.css?v=1";
 songDetailStyles.dataset.ssmlSongDetail = "true";
 document.head.append(songDetailStyles);
+
+// Bunnmenyen høyrer berre til sjølve appen, aldri innloggingssida.
+const appShell = document.querySelector("#app-shell");
+function syncBottomNavVisibility() {
+  const nav = document.querySelector(".ssml-bottom-nav");
+  if (!nav || !appShell) return;
+  nav.hidden = appShell.classList.contains("hidden");
+}
+if (appShell) {
+  const observer = new MutationObserver(syncBottomNavVisibility);
+  observer.observe(appShell, { attributes: true, attributeFilter: ["class"] });
+  const navObserver = new MutationObserver(syncBottomNavVisibility);
+  navObserver.observe(document.body, { childList: true });
+  syncBottomNavVisibility();
+}
