@@ -1,0 +1,241 @@
+/* Visuell opprydding på sangdetalj – funksjonar er uendra. */
+
+#song-view .detail-header {
+  align-items: center;
+}
+
+#song-view .detail-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 310px;
+  align-items: stretch;
+}
+
+#song-view .detail-actions > span {
+  grid-column: 1 / -1;
+  justify-self: end;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.11);
+  color: rgba(255,255,255,.88);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+#song-view .detail-actions .btn {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: .88rem;
+}
+
+#song-view .detail-actions .btn-danger {
+  background: rgba(255,255,255,.08);
+  color: #ffe8e8;
+  border-color: rgba(255,210,210,.36);
+}
+
+#song-view .detail-actions .btn-danger:hover {
+  background: rgba(255,235,235,.14);
+  border-color: rgba(255,220,220,.55);
+}
+
+#song-view .parts-panel,
+#song-view .preview-panel {
+  border-radius: 16px;
+}
+
+#song-view .parts-panel > .preview-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+#song-view .parts-panel > .preview-toolbar h2 {
+  margin: 0;
+}
+
+#song-view .parts-panel > .preview-toolbar .text-btn,
+#song-view #select-all-parts {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--green);
+  font-size: .84rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+#song-view .parts-panel > .preview-toolbar .text-btn:hover,
+#song-view #select-all-parts:hover {
+  background: var(--paper);
+  border-color: #bfd0c9;
+}
+
+#song-view .part-selection-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+#song-view .part-selection-tools .btn,
+#song-view .part-selection-tools #select-all-parts {
+  width: 100%;
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: 10px;
+  font-size: .86rem;
+  line-height: 1.15;
+}
+
+#song-view .part-selection-tools #share-selected-parts {
+  grid-column: 1 / -1 !important;
+}
+
+#song-view .part-selection-tools .btn-ghost {
+  background: #fff;
+}
+
+#song-view .part-select-row {
+  margin-top: 7px;
+}
+
+#song-view .part-check {
+  border-radius: 10px;
+}
+
+#song-view .part-btn {
+  min-height: 48px;
+  border-radius: 10px;
+  margin: 0;
+  padding: 9px 11px;
+}
+
+#song-view .preview-panel > .preview-toolbar {
+  align-items: flex-start;
+}
+
+#song-view .preview-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 8px;
+  width: min(100%, 390px);
+}
+
+#song-view .preview-actions .btn {
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: .82rem;
+  line-height: 1.15;
+}
+
+#song-view .preview-actions #open-print {
+  grid-column: 1 / -1;
+}
+
+#song-view .preview-actions .btn-danger {
+  background: #fff;
+}
+
+@media (max-width: 850px) {
+  #song-view .detail-header {
+    padding: 22px 20px;
+    align-items: flex-start;
+  }
+
+  #song-view .detail-header h1 {
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+    line-height: 1.08;
+  }
+
+  #song-view .detail-actions {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #song-view .detail-actions > span {
+    justify-self: start;
+  }
+
+  #song-view .parts-layout {
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  #song-view .parts-panel,
+  #song-view .preview-panel {
+    padding: 16px;
+  }
+
+  #song-view .parts-panel > .preview-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  #song-view .parts-panel > .preview-toolbar #map-parts {
+    grid-column: 2;
+  }
+
+  #song-view .preview-panel > .preview-toolbar {
+    display: block;
+  }
+
+  #song-view .preview-actions {
+    width: 100%;
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  #song-view .detail-header {
+    gap: 16px;
+    border-radius: 16px;
+  }
+
+  #song-view .detail-actions .btn {
+    min-height: 40px;
+    font-size: .82rem;
+  }
+
+  #song-view .parts-panel > .preview-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #song-view .parts-panel > .preview-toolbar h2 {
+    grid-column: 1 / -1;
+  }
+
+  #song-view .parts-panel > .preview-toolbar .text-btn {
+    width: 100%;
+  }
+
+  #song-view .part-selection-tools {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #song-view .part-selection-tools #share-selected-parts {
+    grid-column: 1 / -1 !important;
+  }
+
+  #song-view .preview-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #song-view .preview-actions .btn {
+    min-height: 42px;
+  }
+}
