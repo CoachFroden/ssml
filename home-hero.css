@@ -1,0 +1,130 @@
+/* SSML forside – roleg og identitetsberande toppseksjon */
+
+.ssml-home-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 330px);
+  align-items: center;
+  gap: clamp(24px, 5vw, 64px);
+  min-height: 250px;
+  padding: clamp(28px, 5vw, 52px);
+  overflow: hidden;
+  border: 1px solid #dbe7e2;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(214, 166, 63, 0.15), transparent 28%),
+    radial-gradient(circle at 75% 88%, rgba(31, 91, 82, 0.08), transparent 33%),
+    linear-gradient(135deg, #f8fbfa 0%, #ffffff 64%);
+  box-shadow: 0 14px 38px rgba(21, 63, 58, 0.07);
+}
+
+.ssml-home-hero::before {
+  content: "";
+  position: absolute;
+  inset: auto -70px -115px auto;
+  width: 250px;
+  height: 250px;
+  border: 1px solid rgba(21, 63, 58, 0.07);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.ssml-hero-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 690px;
+}
+
+.ssml-hero-copy .eyebrow {
+  margin-bottom: 10px;
+  letter-spacing: 0.09em;
+}
+
+.ssml-hero-copy h1 {
+  margin: 0;
+  color: #153f3a;
+  font-family: Manrope, sans-serif;
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.ssml-hero-copy > p:last-child {
+  max-width: 560px;
+  margin: 17px 0 0;
+  color: #61736f;
+  font-size: clamp(1rem, 1.6vw, 1.12rem);
+  line-height: 1.6;
+}
+
+.ssml-hero-visual {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+}
+
+.ssml-hero-visual svg {
+  width: min(100%, 300px);
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 16px 24px rgba(21, 63, 58, 0.10));
+}
+
+@media (max-width: 800px) {
+  .ssml-home-hero {
+    grid-template-columns: minmax(0, 1fr) 150px;
+    gap: 18px;
+    min-height: 205px;
+    padding: 27px 24px;
+  }
+
+  .ssml-hero-copy h1 {
+    font-size: clamp(2rem, 8vw, 3rem);
+  }
+
+  .ssml-hero-visual {
+    min-height: 140px;
+  }
+}
+
+@media (max-width: 620px) {
+  .ssml-home-hero {
+    display: block;
+    min-height: 0;
+    padding: 24px 20px 22px;
+    border-radius: 20px;
+  }
+
+  .ssml-hero-copy .eyebrow {
+    margin-bottom: 8px;
+    font-size: 0.72rem;
+  }
+
+  .ssml-hero-copy h1 {
+    font-size: clamp(2.15rem, 12vw, 3rem);
+  }
+
+  .ssml-hero-copy > p:last-child {
+    margin-top: 12px;
+    padding-right: 74px;
+    font-size: 0.94rem;
+    line-height: 1.5;
+  }
+
+  .ssml-hero-visual {
+    position: absolute;
+    right: -12px;
+    bottom: 2px;
+    width: 108px;
+    min-height: auto;
+    opacity: 0.72;
+  }
+
+  .ssml-hero-visual svg {
+    width: 108px;
+    filter: none;
+  }
+}
