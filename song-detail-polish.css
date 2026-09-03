@@ -152,6 +152,10 @@
 }
 
 @media (max-width: 850px) {
+  #song-view {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+
   #song-view .detail-header {
     padding: 22px 20px;
     align-items: flex-start;
@@ -198,6 +202,24 @@
     width: 100%;
     margin-top: 12px;
   }
+
+  /* Viktig mobilhandling: utskrift er alltid innan rekkevidde medan ein kryssar av stemmer. */
+  #song-view #print-selected-parts {
+    position: fixed;
+    z-index: 40;
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: max(14px, env(safe-area-inset-bottom, 0px));
+    width: auto;
+    min-height: 52px;
+    border-radius: 14px;
+    box-shadow: 0 12px 30px rgba(14, 55, 49, .24), 0 2px 8px rgba(14, 55, 49, .12);
+  }
+
+  #song-view #print-selected-parts:disabled {
+    opacity: .72;
+    box-shadow: 0 8px 20px rgba(14, 55, 49, .14);
+  }
 }
 
 @media (max-width: 520px) {
@@ -224,11 +246,11 @@
   }
 
   #song-view .part-selection-tools {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   #song-view .part-selection-tools #share-selected-parts {
-    grid-column: 1 / -1 !important;
+    grid-column: 1 !important;
   }
 
   #song-view .preview-actions {
