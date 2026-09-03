@@ -111,3 +111,5 @@ googleButton?.addEventListener("click", async () => {
     googleButton.textContent = originalText;
   }
 });
+
+import("./ui-enhancements.js?v=1").catch(error => console.error("Kunne ikkje laste UI-forbetringar", error));
