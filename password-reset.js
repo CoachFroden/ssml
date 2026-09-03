@@ -115,3 +115,9 @@ googleButton?.addEventListener("click", async () => {
 import("./ui-enhancements.js?v=2").catch(error => console.error("Kunne ikkje laste UI-forbetringar", error));
 import("./home-hero.js?v=2").catch(error => console.error("Kunne ikkje laste ny forside", error));
 import("./compact-song-list.js?v=1").catch(error => console.error("Kunne ikkje laste kompakt songliste", error));
+
+const songDetailStyles = document.createElement("link");
+songDetailStyles.rel = "stylesheet";
+songDetailStyles.href = "./song-detail-polish.css?v=1";
+songDetailStyles.dataset.ssmlSongDetail = "true";
+document.head.append(songDetailStyles);
