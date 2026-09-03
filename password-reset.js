@@ -113,3 +113,4 @@ googleButton?.addEventListener("click", async () => {
 });
 
 import("./ui-enhancements.js?v=1").catch(error => console.error("Kunne ikkje laste UI-forbetringar", error));
+import("./home-hero.js?v=1").catch(error => console.error("Kunne ikkje laste ny forside", error));
