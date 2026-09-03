@@ -3,6 +3,17 @@ import { firebaseConfig } from "./firebase-core.js?v=26";
 const button = document.querySelector("#forgot-password");
 const emailInput = document.querySelector("#email");
 const status = document.querySelector("#password-reset-status");
+const demoButton = document.querySelector("#demo-login");
+
+let googleButton = document.querySelector("#google-login");
+if (!googleButton && demoButton) {
+  googleButton = document.createElement("button");
+  googleButton.id = "google-login";
+  googleButton.className = "btn btn-ghost btn-wide";
+  googleButton.type = "button";
+  googleButton.textContent = "Logg inn med Google";
+  demoButton.before(googleButton);
+}
 
 function showStatus(message, isError = false) {
   if (!status) return;
@@ -18,6 +29,16 @@ function resetErrorMessage(code = "") {
   return "Kunne ikkje sende e-post for nytt passord. Prøv igjen.";
 }
 
+function googleErrorMessage(code = "") {
+  if (code.includes("popup-closed-by-user")) return "Google-innlogginga vart avbroten. Prøv igjen.";
+  if (code.includes("cancelled-popup-request")) return "Google-innlogginga vart avbroten. Prøv igjen.";
+  if (code.includes("unauthorized-domain")) return "Dette domenet er ikkje godkjent for Google-innlogging i Firebase. Legg coachfroden.github.io til under Authentication → Settings → Authorized domains.";
+  if (code.includes("operation-not-allowed")) return "Google-innlogging er ikkje slått på i Firebase Authentication.";
+  if (code.includes("network-request-failed")) return "Kunne ikkje kontakte Google/Firebase. Kontroller nettet og prøv igjen.";
+  if (code.includes("account-exists-with-different-credential")) return "Denne e-postadressa er knytt til ein annan innloggingsmetode i Firebase.";
+  return `Google-innlogginga mislukkast${code ? ` (${code})` : ""}.`;
+}
+
 async function getAuthService() {
   const [appModule, authModule] = await Promise.all([
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
@@ -30,6 +51,9 @@ async function getAuthService() {
 
   return { auth: authModule.getAuth(app), authModule };
 }
+
+// Last modulane tidleg, slik at popupen framleis blir opna direkte frå brukartrykket.
+const authServicePromise = getAuthService();
 
 button?.addEventListener("click", async () => {
   const email = emailInput?.value.trim() || "";
@@ -45,7 +69,7 @@ button?.addEventListener("click", async () => {
   showStatus("Sender lenke for nytt passord …");
 
   try {
-    const { auth, authModule } = await getAuthService();
+    const { auth, authModule } = await authServicePromise;
     await authModule.sendPasswordResetEmail(auth, email);
     showStatus("Viss e-postadressa er registrert, får du straks ein e-post med lenke for å lage nytt passord. Sjekk også søppelpost.");
   } catch (error) {
@@ -54,5 +78,36 @@ button?.addEventListener("click", async () => {
   } finally {
     button.disabled = false;
     button.textContent = originalText;
+  }
+});
+
+googleButton?.addEventListener("click", async () => {
+  const originalText = googleButton.textContent;
+  googleButton.disabled = true;
+  googleButton.textContent = "Opnar Google …";
+  showStatus("Vel Google-kontoen du bruker for SSML.");
+
+  try {
+    const { auth, authModule } = await authServicePromise;
+    const provider = new authModule.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    try {
+      await authModule.signInWithPopup(auth, provider);
+    } catch (error) {
+      const code = String(error?.code || "");
+      if (code.includes("popup-blocked") || code.includes("operation-not-supported-in-this-environment")) {
+        showStatus("Sender deg vidare til Google for innlogging …");
+        await authModule.signInWithRedirect(auth, provider);
+        return;
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error("Google sign-in failed", error);
+    showStatus(googleErrorMessage(error?.code), true);
+  } finally {
+    googleButton.disabled = false;
+    googleButton.textContent = originalText;
   }
 });
