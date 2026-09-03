@@ -56,5 +56,96 @@ function enhanceHomeHero() {
     </div>`;
 }
 
+function loadHomeNavigationStyles() {
+  if (document.querySelector('#ssml-home-navigation-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'ssml-home-navigation-styles';
+  style.textContent = `
+    .ssml-home-button {
+      display: inline-grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      margin: 0 0 16px;
+      padding: 0;
+      border: 1px solid #d6e1dd;
+      border-radius: 11px;
+      background: #fff;
+      color: #17564d;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(21,63,58,.045);
+      transition: background .15s ease, border-color .15s ease, transform .15s ease;
+    }
+    .ssml-home-button:hover {
+      background: #f3f8f6;
+      border-color: #b9cec6;
+      transform: translateY(-1px);
+    }
+    .ssml-home-button:focus-visible {
+      outline: 3px solid rgba(32,102,91,.16);
+      outline-offset: 2px;
+    }
+    .ssml-home-button svg {
+      width: 19px;
+      height: 19px;
+      display: block;
+    }
+    @media (max-width: 520px) {
+      .ssml-home-button {
+        width: 38px;
+        height: 38px;
+        margin-bottom: 14px;
+        border-radius: 10px;
+      }
+    }
+  `;
+  document.head.append(style);
+}
+
+function goToOverview() {
+  const homeNav = document.querySelector('.sidebar .nav-item[data-view="home"]');
+  if (homeNav) homeNav.click();
+}
+
+function createHomeButton() {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'ssml-home-button';
+  button.setAttribute('aria-label', 'Til oversikt');
+  button.title = 'Til oversikt';
+  button.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M3.5 10.6 12 3.8l8.5 6.8v9a1 1 0 0 1-1 1h-5.2v-6.1H9.7v6.1H4.5a1 1 0 0 1-1-1v-9Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    </svg>`;
+  button.addEventListener('click', goToOverview);
+  return button;
+}
+
+function ensureHomeButton(view) {
+  if (!view || view.id === 'home-view') return;
+  if (!view.classList.contains('view')) return;
+  if (view.querySelector('.ssml-home-button')) return;
+
+  const existingBack = view.querySelector('.back-btn');
+  const button = createHomeButton();
+
+  if (existingBack) existingBack.replaceWith(button);
+  else view.prepend(button);
+}
+
+function ensureHomeNavigation() {
+  document.querySelectorAll('.view').forEach(ensureHomeButton);
+}
+
+function observeViews() {
+  const main = document.querySelector('#app-shell main');
+  if (!main) return;
+  const observer = new MutationObserver(() => ensureHomeNavigation());
+  observer.observe(main, { childList: true, subtree: true });
+}
+
 loadHeroStyles();
 enhanceHomeHero();
+loadHomeNavigationStyles();
+ensureHomeNavigation();
+observeViews();
