@@ -116,6 +116,7 @@ import("./home-hero.js?v=4").catch(error => console.error("Kunne ikkje laste ny 
 import("./compact-song-list.js?v=1").catch(error => console.error("Kunne ikkje laste kompakt songliste", error));
 import("./homepage-profile-fixes.js?v=2").catch(error => console.error("Kunne ikkje laste hero-/kontaktforbetringar", error));
 import("./contacts-ui-polish.js?v=1").catch(error => console.error("Kunne ikkje laste kontaktgrensesnitt", error));
+import("./contacts-logout.js?v=1").catch(error => console.error("Kunne ikkje laste utloggingsknappen", error));
 import("./mobile-viewport-fix.js?v=1").catch(error => console.error("Kunne ikkje laste mobilfiks", error));
 import("./print-selected-mobile-fix.js?v=1").catch(error => console.error("Kunne ikkje laste utskriftsfiks", error));
 
