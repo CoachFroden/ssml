@@ -1,4 +1,4 @@
-name: Clean share button label
+name: Simplify mobile PDF preview
 
 on:
   push:
@@ -14,28 +14,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Remove stale share counter
+      - name: Show one preview page on mobile
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
 
-          share_path = Path('share-links.js')
-          text = share_path.read_text(encoding='utf-8')
-          old = 'const label = `↗ Del noter (${count})`;'
-          new = 'const label = "↗ Del noter";'
-          if old not in text:
-              raise SystemExit('share button label anchor not found')
-          text = text.replace(old, new, 1)
-          share_path.write_text(text, encoding='utf-8')
+          app_path = Path('app.js')
+          text = app_path.read_text(encoding='utf-8')
+
+          old_pages = 'const previewPages=state.visiblePages;'
+          new_pages = 'const previewPages=isMobilePreview()?state.visiblePages.slice(0,1):state.visiblePages;'
+          if old_pages not in text:
+              raise SystemExit('single-part preview anchor not found')
+          text = text.replace(old_pages, new_pages, 1)
+
+          old_title = '$("#preview-title").textContent=`${part.name} · ${state.visiblePages.length} ${state.visiblePages.length===1?"side":"sider"}`;'
+          new_title = '$("#preview-title").textContent=isMobilePreview()?`${part.name} · viser side 1 av ${state.visiblePages.length}`:`${part.name} · ${state.visiblePages.length} ${state.visiblePages.length===1?"side":"sider"}`;'
+          if old_title not in text:
+              raise SystemExit('preview title anchor not found')
+          text = text.replace(old_title, new_title, 1)
+          app_path.write_text(text, encoding='utf-8')
+
+          css_path = Path('selection.css')
+          css = css_path.read_text(encoding='utf-8')
+          old_marker = '/* Mobile multi-page strip */'
+          if old_marker not in css:
+              raise SystemExit('mobile strip CSS marker not found')
+          css = css.split(old_marker, 1)[0].rstrip() + '''\n\n/* Mobile single-page preview */\n@media (max-width: 850px) {\n  #thumbnail-grid.thumbnail-grid {\n    display: grid;\n    grid-template-columns: minmax(0, 1fr);\n    overflow: visible;\n    padding: .15rem 0 .6rem;\n  }\n\n  #thumbnail-grid .page-thumb-wrap {\n    width: min(100%, 290px);\n    margin: 0 auto;\n  }\n\n  #thumbnail-grid .page-thumb {\n    width: 100%;\n  }\n\n  #thumbnail-grid .page-thumb small {\n    color: var(--ink);\n    font-weight: 800;\n    line-height: 1.25;\n  }\n\n  #thumbnail-grid .pdf-page-number {\n    display: block;\n    margin-top: .12rem;\n    color: var(--muted);\n    font-size: .67rem;\n    font-weight: 500;\n  }\n}\n'''
+          css_path.write_text(css, encoding='utf-8')
 
           index_path = Path('index.html')
           index = index_path.read_text(encoding='utf-8')
-          match = re.search(r'share-links\.js\?v=(\d+)', index)
-          if match:
-              version = int(match.group(1)) + 1
-              index = index[:match.start(1)] + str(version) + index[match.end(1):]
+
+          def bump(pattern, value):
+              match = re.search(pattern, value)
+              if not match:
+                  raise SystemExit(f'cache version anchor not found: {pattern}')
+              number = int(match.group(1)) + 1
+              return value[:match.start(1)] + str(number) + value[match.end(1):]
+
+          index = bump(r'app\.js\?v=(\d+)', index)
+          index = bump(r'selection\.css\?v=(\d+)', index)
           index_path.write_text(index, encoding='utf-8')
           PY
 
@@ -44,6 +65,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add share-links.js index.html
-          git commit -m "Simplify share button label" || exit 0
+          git add app.js selection.css index.html
+          git commit -m "Show one PDF preview page on mobile" || exit 0
           git push
