@@ -140,3 +140,44 @@
   .preview-actions { width: 100%; justify-content: stretch; }
   .preview-actions .btn { flex: 1; }
 }
+
+
+/* Mobile multi-page strip */
+@media (max-width: 850px) {
+  #thumbnail-grid.thumbnail-grid {
+    display: grid;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(126px, 42vw);
+    gap: .75rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: .15rem .1rem .8rem;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #thumbnail-grid .page-thumb-wrap {
+    min-width: 0;
+    scroll-snap-align: start;
+  }
+
+  #thumbnail-grid .page-thumb {
+    width: 100%;
+  }
+
+  #thumbnail-grid .page-thumb small {
+    color: var(--ink);
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  #thumbnail-grid .pdf-page-number {
+    display: block;
+    margin-top: .12rem;
+    color: var(--muted);
+    font-size: .67rem;
+    font-weight: 500;
+  }
+}
