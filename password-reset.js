@@ -52,7 +52,6 @@ async function getAuthService() {
   return { auth: authModule.getAuth(app), authModule };
 }
 
-// Last modulane tidleg, slik at popupen framleis blir opna direkte frå brukartrykket.
 const authServicePromise = getAuthService();
 
 button?.addEventListener("click", async () => {
@@ -115,7 +114,7 @@ googleButton?.addEventListener("click", async () => {
 import("./ui-enhancements.js?v=2").catch(error => console.error("Kunne ikkje laste UI-forbetringar", error));
 import("./home-hero.js?v=4").catch(error => console.error("Kunne ikkje laste ny forside", error));
 import("./compact-song-list.js?v=1").catch(error => console.error("Kunne ikkje laste kompakt songliste", error));
-import("./homepage-profile-fixes.js?v=1").catch(error => console.error("Kunne ikkje laste hero-/kontaktforbetringar", error));
+import("./homepage-profile-fixes.js?v=2").catch(error => console.error("Kunne ikkje laste hero-/kontaktforbetringar", error));
 
 const songDetailStyles = document.createElement("link");
 songDetailStyles.rel = "stylesheet";
@@ -123,7 +122,6 @@ songDetailStyles.href = "./song-detail-polish.css?v=1";
 songDetailStyles.dataset.ssmlSongDetail = "true";
 document.head.append(songDetailStyles);
 
-// Bunnmenyen høyrer berre til sjølve appen, aldri innloggingssida.
 const appShell = document.querySelector("#app-shell");
 function syncBottomNavVisibility() {
   const nav = document.querySelector(".ssml-bottom-nav");
