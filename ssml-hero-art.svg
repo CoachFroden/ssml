@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 520" role="img" aria-labelledby="title desc">
+  <title id="title">SSML notearkiv</title>
+  <desc id="desc">Grønn mappe med noteark og musikknoter</desc>
+  <defs>
+    <linearGradient id="halo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f5fbf7"/>
+      <stop offset="1" stop-color="#cfe4dc"/>
+    </linearGradient>
+    <linearGradient id="folder" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17685c"/>
+      <stop offset="1" stop-color="#083f39"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#001d19" flood-opacity=".24"/>
+    </filter>
+  </defs>
+
+  <circle cx="282" cy="238" r="186" fill="url(#halo)" opacity=".98"/>
+  <circle cx="434" cy="78" r="28" fill="#d9aa50"/>
+  <path d="M77 360C37 322 30 277 46 238c29 17 52 39 67 66-2-42 7-81 30-115 31 24 48 56 53 95 13-42 37-75 72-96 17 37 17 77 1 119" fill="#8fb8aa" opacity=".78"/>
+  <path d="M39 361c57-15 105-6 143 28-45 15-91 9-143-28Z" fill="#0d5c52" opacity=".94"/>
+
+  <g filter="url(#shadow)">
+    <rect x="145" y="108" width="267" height="248" rx="24" fill="#eef6f2" transform="rotate(-8 278 232)"/>
+    <rect x="121" y="128" width="287" height="248" rx="24" fill="#ffffff" transform="rotate(5 264 252)"/>
+    <rect x="112" y="151" width="286" height="246" rx="24" fill="#fffef9"/>
+
+    <g stroke="#acc8bf" stroke-width="4" opacity=".85">
+      <path d="M154 225h204"/><path d="M154 239h204"/><path d="M154 253h204"/><path d="M154 267h204"/><path d="M154 281h204"/>
+    </g>
+
+    <g fill="#0b574d">
+      <ellipse cx="217" cy="265" rx="13" ry="9" transform="rotate(-18 217 265)"/>
+      <rect x="226" y="217" width="6" height="48" rx="3"/>
+      <path d="M229 217c26 2 33 12 35 24-15-8-25-7-35-3Z"/>
+
+      <ellipse cx="286" cy="246" rx="13" ry="9" transform="rotate(-18 286 246)"/>
+      <rect x="295" y="196" width="6" height="50" rx="3"/>
+      <path d="M298 196c27 2 34 12 36 24-16-8-26-7-36-3Z"/>
+
+      <ellipse cx="340" cy="281" rx="13" ry="9" transform="rotate(-18 340 281)"/>
+      <rect x="349" y="229" width="6" height="52" rx="3"/>
+      <path d="M352 229c25 2 32 12 34 23-15-7-25-6-34-2Z"/>
+    </g>
+
+    <path d="M81 324h136l25 28h201v126H81Z" fill="url(#folder)"/>
+    <path d="M81 324h136l25 28h201" fill="none" stroke="#77a99c" stroke-width="3" opacity=".7"/>
+
+    <g transform="translate(262 377)">
+      <circle cx="-47" cy="29" r="12" fill="#d9aa50"/>
+      <path d="M-37 28c19-5 26-18 35-36 0 19-2 36-14 49-7 8-14 11-21 12Z" fill="#edf8f4"/>
+      <path d="M2 27c24-5 42-14 58-28-10 18-28 30-55 39Z" fill="#b8d6cd"/>
+      <path d="M8 42c21-3 39-10 54-22-10 16-26 26-49 32Z" fill="#8ebcaf"/>
+    </g>
+    <text x="260" y="447" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="800" letter-spacing="4" fill="#fffdf6">SSML</text>
+  </g>
+
+  <g fill="#d9aa50">
+    <circle cx="440" cy="168" r="10"/>
+    <rect x="447" y="116" width="6" height="54" rx="3" transform="rotate(13 450 143)"/>
+    <path d="M450 117c24 3 34 12 39 24-17-8-29-7-41-2Z"/>
+  </g>
+  <g fill="#edf8f4">
+    <ellipse cx="424" cy="221" rx="13" ry="9" transform="rotate(-17 424 221)"/>
+    <rect x="433" y="170" width="6" height="51" rx="3"/>
+    <path d="M436 170c24 2 34 12 37 24-16-8-27-7-37-2Z"/>
+  </g>
+</svg>
