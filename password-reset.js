@@ -116,6 +116,7 @@ import("./home-hero.js?v=4").catch(error => console.error("Kunne ikkje laste ny 
 import("./compact-song-list.js?v=1").catch(error => console.error("Kunne ikkje laste kompakt songliste", error));
 import("./homepage-profile-fixes.js?v=2").catch(error => console.error("Kunne ikkje laste hero-/kontaktforbetringar", error));
 import("./contacts-ui-polish.js?v=1").catch(error => console.error("Kunne ikkje laste kontaktgrensesnitt", error));
+import("./mobile-viewport-fix.js?v=1").catch(error => console.error("Kunne ikkje laste mobilfiks", error));
 
 const songDetailStyles = document.createElement("link");
 songDetailStyles.rel = "stylesheet";
