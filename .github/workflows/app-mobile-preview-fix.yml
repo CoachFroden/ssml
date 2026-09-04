@@ -1,4 +1,4 @@
-name: Fix song deletion preview cleanup
+name: Improve mobile multi-page preview
 
 on:
   push:
@@ -13,36 +13,57 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch deletion cleanup
+
+      - name: Patch mobile page preview
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           app_path = Path('app.js')
           text = app_path.read_text(encoding='utf-8')
 
-          old = '''async function handleDeleteSong(){const song=state.activeSong;if(!song||!confirm(`Slette «${song.title}» og alle PDF-filene? Dette kan ikkje angrast.`))return;const button=$("#delete-song");button.disabled=true;button.textContent="Slettar …";try{if(state.demo){const stored=loadLocalSongs().filter(item=>item.id!==song.id);localStorage.setItem("ssml-demo-songs",JSON.stringify(stored));}else await deleteSong(song);state.songs=state.songs.filter(item=>item.id!==song.id);clearPreviewPdfCache();state.activeSong=null;state.activePart=null;renderAll();showView("archive");toast(`«${song.title}» er sletta.`);}catch(error){console.error(error);button.disabled=false;button.textContent="Slett sang";toast("Kunne ikkje slette songen og PDF-filene.","error");}}'''
-          new = '''async function handleDeleteSong(){const song=state.activeSong;if(!song||!confirm(`Slette «${song.title}» og alle PDF-filene? Dette kan ikkje angrast.`))return;const button=$("#delete-song");button.disabled=true;button.textContent="Slettar …";try{state.previewVersion++;clearPreviewPdfCache();if(state.demo){const stored=loadLocalSongs().filter(item=>item.id!==song.id);localStorage.setItem("ssml-demo-songs",JSON.stringify(stored));}else await deleteSong(song);state.songs=state.songs.filter(item=>item.id!==song.id);state.activeSong=null;state.activePart=null;renderAll();showView("archive");toast(`«${song.title}» er sletta.`);}catch(error){console.error(error);button.disabled=false;button.textContent="Slett sang";toast("Kunne ikkje slette songen og PDF-filene.","error");}}'''
+          old_preview = 'const previewPages=isMobilePreview()?state.visiblePages.slice(0,1):state.visiblePages;'
+          new_preview = '$("#preview-title").textContent=`${part.name} · ${state.visiblePages.length} ${state.visiblePages.length===1?"side":"sider"}`;const previewPages=state.visiblePages;'
+          if old_preview not in text:
+              raise SystemExit('mobile preview anchor not found')
+          text = text.replace(old_preview, new_preview, 1)
 
-          if old not in text:
-              raise SystemExit('handleDeleteSong anchor not found')
-          text = text.replace(old, new, 1)
+          old_label = 'thumb.insertAdjacentHTML("beforeend",`<small>Side ${pageNo}</small>`);'
+          new_label = 'const pagePosition=Math.max(0,pages.indexOf(pageNo))+1;const pdfLabel=pageNo!==pagePosition?`<span class="pdf-page-number">PDF-side ${pageNo}</span>`:"";thumb.insertAdjacentHTML("beforeend",`<small>Side ${pagePosition} av ${pages.length}${pdfLabel}</small>`);'
+          if old_label not in text:
+              raise SystemExit('page label anchor not found')
+          text = text.replace(old_label, new_label, 1)
           app_path.write_text(text, encoding='utf-8')
+
+          css_path = Path('selection.css')
+          css = css_path.read_text(encoding='utf-8')
+          marker = '/* Mobile multi-page strip */'
+          if marker not in css:
+              css += '''\n\n/* Mobile multi-page strip */\n@media (max-width: 850px) {\n  #thumbnail-grid.thumbnail-grid {\n    display: grid;\n    grid-template-columns: none;\n    grid-auto-flow: column;\n    grid-auto-columns: minmax(126px, 42vw);\n    gap: .75rem;\n    overflow-x: auto;\n    overflow-y: hidden;\n    padding: .15rem .1rem .8rem;\n    scroll-snap-type: x proximity;\n    overscroll-behavior-x: contain;\n    -webkit-overflow-scrolling: touch;\n  }\n\n  #thumbnail-grid .page-thumb-wrap {\n    min-width: 0;\n    scroll-snap-align: start;\n  }\n\n  #thumbnail-grid .page-thumb {\n    width: 100%;\n  }\n\n  #thumbnail-grid .page-thumb small {\n    color: var(--ink);\n    font-weight: 800;\n    line-height: 1.25;\n  }\n\n  #thumbnail-grid .pdf-page-number {\n    display: block;\n    margin-top: .12rem;\n    color: var(--muted);\n    font-size: .67rem;\n    font-weight: 500;\n  }\n}\n'''
+          css_path.write_text(css, encoding='utf-8')
 
           index_path = Path('index.html')
           index = index_path.read_text(encoding='utf-8')
-          if 'app.js?v=24' in index:
-              index = index.replace('app.js?v=24', 'app.js?v=25', 1)
-          elif 'app.js?v=23' in index:
-              index = index.replace('app.js?v=23', 'app.js?v=25', 1)
+
+          def bump(pattern, value):
+              match = re.search(pattern, value)
+              if not match:
+                  return value
+              number = int(match.group(1)) + 1
+              return value[:match.start(1)] + str(number) + value[match.end(1):]
+
+          index = bump(r'app\.js\?v=(\d+)', index)
+          index = bump(r'selection\.css\?v=(\d+)', index)
           index_path.write_text(index, encoding='utf-8')
           PY
+
       - name: Commit patch
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app.js index.html
-          git commit -m "Stop PDF preview before deleting song" || exit 0
+          git add app.js selection.css index.html
+          git commit -m "Show all note pages clearly on mobile" || exit 0
           git push
