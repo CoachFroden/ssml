@@ -141,26 +141,18 @@
   .preview-actions .btn { flex: 1; }
 }
 
-
-/* Mobile multi-page strip */
+/* Mobile single-page preview */
 @media (max-width: 850px) {
   #thumbnail-grid.thumbnail-grid {
     display: grid;
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(126px, 42vw);
-    gap: .75rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: .15rem .1rem .8rem;
-    scroll-snap-type: x proximity;
-    overscroll-behavior-x: contain;
-    -webkit-overflow-scrolling: touch;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: visible;
+    padding: .15rem 0 .6rem;
   }
 
   #thumbnail-grid .page-thumb-wrap {
-    min-width: 0;
-    scroll-snap-align: start;
+    width: min(100%, 290px);
+    margin: 0 auto;
   }
 
   #thumbnail-grid .page-thumb {
