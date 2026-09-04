@@ -1,0 +1,92 @@
+const PART_ORDER = [
+  { rank: 0, pattern: /partitur|full score|score|conductor|dirigent/ },
+  { rank: 10, pattern: /piccolo|pikkolo|\bpicc\.?\b/ },
+  { rank: 20, pattern: /fløyte|floyte|flute/ },
+  { rank: 30, pattern: /oboe|\bobo\b/ },
+  { rank: 40, pattern: /engelsk horn|english horn|cor anglais/ },
+  { rank: 50, pattern: /fagott|bassoon/ },
+  { rank: 51, pattern: /kontrafagott|contrabassoon/ },
+  { rank: 60, pattern: /(^|\s)(ess|eb|e-flat|e flat|e♭)[-\s]*(klarinett|clarinet)/ },
+  { rank: 70, pattern: /klarinett|clarinet/ },
+  { rank: 80, pattern: /kontra[-\s]*altklarinett|contra[-\s]*alto clarinet/ },
+  { rank: 81, pattern: /altklarinett|alto clarinet/ },
+  { rank: 90, pattern: /kontrabassklarinett|contrabass clarinet/ },
+  { rank: 91, pattern: /bassklarinett|bass clarinet/ },
+  { rank: 100, pattern: /sopransaksofon|soprano sax/ },
+  { rank: 110, pattern: /altsaksofon|alto sax/ },
+  { rank: 120, pattern: /tenorsaksofon|tenor sax/ },
+  { rank: 130, pattern: /barytonsaksofon|baritonsaksofon|baritone sax|bari sax/ },
+  { rank: 140, pattern: /althorn|alto horn|tenorhorn|tenor horn|french horn|f-horn|\bhorn\b/ },
+  { rank: 150, pattern: /kornett|cornet/ },
+  { rank: 160, pattern: /flygelhorn|flugelhorn/ },
+  { rank: 170, pattern: /trompet|trumpet/ },
+  { rank: 180, pattern: /trombone/ },
+  { rank: 190, pattern: /basstrombone|bass trombone/ },
+  { rank: 200, pattern: /baryton|baritone|eufonium|euphonium/ },
+  { rank: 210, pattern: /tuba/ },
+  { rank: 220, pattern: /strykebass|string bass|double bass|contrabass|kontrabass/ },
+  { rank: 230, pattern: /elektrisk bass|electric bass|bass guitar/ },
+  { rank: 240, pattern: /pauker|timpani/ },
+  { rank: 250, pattern: /melodisk slagverk|mallet|xylophone|xylofon|glockenspiel|bells|klokkespill|vibraphone|vibes|vibrafon|marimba/ },
+  { rank: 260, pattern: /slagverk|percussion/ },
+  { rank: 270, pattern: /trommesett|drum set|drumset|drums/ }
+];
+
+function normalized(value = "") {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function rankFor(name = "") {
+  const text = normalized(name);
+  const match = PART_ORDER.find(item => item.pattern.test(text));
+  const voice = Number(text.match(/\b([1-9])\b/)?.[1] || 0);
+  return (match?.rank ?? 9999) * 100 + voice;
+}
+
+function rowName(row, type) {
+  if (type === "review") return row.querySelector(".review-part-name")?.value || "";
+  return row.querySelector("strong")?.textContent || "";
+}
+
+function sortContainer(container, selector, type) {
+  if (!container) return;
+  const rows = [...container.querySelectorAll(`:scope > ${selector}`)];
+  if (rows.length < 2) return;
+
+  const sorted = [...rows].sort((a, b) => {
+    const nameA = rowName(a, type);
+    const nameB = rowName(b, type);
+    return rankFor(nameA) - rankFor(nameB)
+      || nameA.localeCompare(nameB, "no", { numeric: true });
+  });
+
+  if (rows.every((row, index) => row === sorted[index])) return;
+  const fragment = document.createDocumentFragment();
+  sorted.forEach(row => fragment.append(row));
+  container.append(fragment);
+}
+
+let scheduled = false;
+function sortInstrumentLists() {
+  scheduled = false;
+  sortContainer(document.querySelector("#part-list"), ".part-select-row", "list");
+  sortContainer(document.querySelector("#review-parts"), ".review-part-row", "review");
+}
+
+function scheduleSort() {
+  if (scheduled) return;
+  scheduled = true;
+  requestAnimationFrame(sortInstrumentLists);
+}
+
+const observer = new MutationObserver(scheduleSort);
+observer.observe(document.body, { childList: true, subtree: true });
+document.addEventListener("input", event => {
+  if (event.target?.classList?.contains("review-part-name")) scheduleSort();
+});
+
+scheduleSort();
