@@ -95,7 +95,7 @@ function updateButtonState() {
   const button = document.querySelector("#share-selected-parts");
   if (!button || creatingShare) return;
   const count = selectedRows().length;
-  const label = `↗ Del noter (${count})`;
+  const label = "↗ Del noter";
   if (button.disabled !== (count === 0)) button.disabled = count === 0;
   if (button.textContent !== label) button.textContent = label;
 }
