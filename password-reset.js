@@ -119,6 +119,7 @@ import("./contacts-ui-polish.js?v=1").catch(error => console.error("Kunne ikkje 
 import("./contacts-logout.js?v=1").catch(error => console.error("Kunne ikkje laste utloggingsknappen", error));
 import("./mobile-viewport-fix.js?v=1").catch(error => console.error("Kunne ikkje laste mobilfiks", error));
 import("./print-selected-mobile-fix.js?v=1").catch(error => console.error("Kunne ikkje laste utskriftsfiks", error));
+import("./instrument-order-fix.js?v=1").catch(error => console.error("Kunne ikkje laste instrumentrekkefølge", error));
 
 const songDetailStyles = document.createElement("link");
 songDetailStyles.rel = "stylesheet";
