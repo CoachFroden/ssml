@@ -120,7 +120,7 @@ import("./contacts-logout.js?v=1").catch(error => console.error("Kunne ikkje las
 import("./mobile-viewport-fix.js?v=1").catch(error => console.error("Kunne ikkje laste mobilfiks", error));
 import("./print-selected-mobile-fix.js?v=1").catch(error => console.error("Kunne ikkje laste utskriftsfiks", error));
 import("./instrument-order-fix.js?v=2").catch(error => console.error("Kunne ikkje laste instrumentrekkefølge", error));
-import("./mobile-safe-print.js?v=1").catch(error => console.error("Kunne ikkje laste trygg mobilutskrift", error));
+import("./mobile-safe-print-v2.js?v=1").catch(error => console.error("Kunne ikkje laste trygg A4-mobilutskrift", error));
 
 const songDetailStyles = document.createElement("link");
 songDetailStyles.rel = "stylesheet";
