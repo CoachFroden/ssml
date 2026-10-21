@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="features.css?v=10">
   <link rel="stylesheet" href="actions.css?v=10">
   <link rel="stylesheet" href="selection.css?v=12">
-  <link rel="stylesheet" href="/ssml/test/simple-ui.css?v=16">
+  <link rel="stylesheet" href="/ssml/test/simple-ui.css?v=17">
 </head>
 <body>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
@@ -144,32 +144,33 @@
   <script type="module" src="password-reset.js?v=1"></script>
 
   <script>
-  /* Mobil: snarvegar i paneloverskriftene, ikkje flytande over innhaldet. */
+  /* Mobil: fast navigasjon i eiga rad over bunnmenyen. */
   (()=>{
-    const jump=selector=>document.querySelector(selector)?.scrollIntoView({behavior:'smooth',block:'start'});
     function install(){
-      const root=document.getElementById('song-detail');
-      const parts=root?.querySelector('.parts-panel');
-      const preview=root?.querySelector('.preview-panel');
-      if(!parts||!preview)return;
-      if(!parts.querySelector('.ssml-inline-jump')){
-        const b=document.createElement('button');b.type='button';b.className='ssml-inline-jump';b.textContent='Sjå notane ↓';
-        b.addEventListener('click',()=>jump('#song-detail .preview-panel'));
-        parts.querySelector('.preview-toolbar')?.appendChild(b);
-      }
-      if(!preview.querySelector('.ssml-inline-jump')){
-        const b=document.createElement('button');b.type='button';b.className='ssml-inline-jump';b.textContent='↑ Til stemmene';
-        b.addEventListener('click',()=>jump('#song-detail .parts-panel'));
-        preview.querySelector('.preview-toolbar')?.prepend(b);
-      }
-    }
-    function start(){
-      const root=document.getElementById('song-detail');if(!root)return;
-      new MutationObserver(()=>{if(root.querySelector('.parts-panel')&&!root.querySelector('.parts-panel .ssml-inline-jump'))install();}).observe(root,{childList:true});
-      install();
+      const detail=document.getElementById('song-detail');
+      if(!detail)return;
+      detail.querySelectorAll('.ssml-inline-jump').forEach(el=>el.remove());
       document.getElementById('ssml-mobile-score-jump')?.remove();
+      if(document.getElementById('ssml-score-switch'))return;
+      const bar=document.createElement('nav');
+      bar.id='ssml-score-switch';
+      bar.setAttribute('aria-label','Hopp mellom stemmer og notar');
+      bar.innerHTML='<button type="button" data-target="parts">↑ Stemmer</button><button type="button" data-target="preview">↓ Notar</button>';
+      bar.addEventListener('click',e=>{
+        const b=e.target.closest('button[data-target]');if(!b)return;
+        const panel=detail.querySelector(b.dataset.target==='parts'?'.parts-panel':'.preview-panel');
+        panel?.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+      document.body.appendChild(bar);
+      const update=()=>{
+        const active=!detail.classList.contains('hidden') && detail.getClientRects().length>0 && !!detail.querySelector('.parts-panel') && !!detail.querySelector('.preview-panel');
+        bar.classList.toggle('is-visible',active);
+      };
+      new MutationObserver(update).observe(detail,{childList:true,attributes:true,attributeFilter:['class']});
+      new MutationObserver(update).observe(document.getElementById('app-shell')||document.body,{subtree:true,attributes:true,attributeFilter:['class']});
+      update();
     }
-    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
   })();
   </script>
 </body>
