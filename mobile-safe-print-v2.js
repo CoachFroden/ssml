@@ -203,21 +203,37 @@ async function buildA4Pdf(specs, win) {
 }
 
 function openNativePdf(win, blob) {
-  // Opne den ferdige PDF-en direkte i iPhone sin innebygde PDF-visar.
-  // Den førebudde fana vart opna synkront ved trykk, så Safari blokkerer ho ikkje.
   const url = URL.createObjectURL(blob);
-  try {
-    win.location.replace(url);
-  } catch (error) {
-    // Reserve dersom nettlesaren nektar navigasjon til blob-URL.
-    const doc = win.document;
-    doc.body.innerHTML = "";
-    const link = doc.createElement("a");
-    link.href = url;
-    link.textContent = "Opne PDF";
-    link.style.cssText = "display:block;margin:50px auto;padding:20px;text-align:center;font:20px system-ui";
-    doc.body.append(link);
-  }
+  const doc = win.document;
+  doc.body.innerHTML = "";
+  doc.body.style.cssText = "margin:0;padding:20px;font:16px -apple-system,system-ui,sans-serif;background:#f7f8f5;color:#174a43;text-align:center";
+  const status = doc.createElement("p");
+  status.textContent = "Opnar utskrift …";
+  const open = doc.createElement("a");
+  open.href = url;
+  open.textContent = "Opne PDF og skriv ut";
+  open.style.cssText = "display:inline-block;margin:14px;padding:14px 20px;border-radius:12px;background:#174a43;color:white;text-decoration:none;font-weight:700";
+  const frame = doc.createElement("iframe");
+  frame.src = url;
+  frame.title = "Notar til utskrift";
+  frame.style.cssText = "display:block;width:100%;height:70vh;border:0;background:white";
+  doc.body.append(status, open, frame);
+  let attempted = false;
+  const attempt = () => {
+    if (attempted) return;
+    attempted = true;
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      status.textContent = "Dersom utskriftsvindauget ikkje opna seg, trykk «Opne PDF og skriv ut».";
+    } catch (error) {
+      status.textContent = "Nettlesaren støttar ikkje direkte utskrift her. Trykk «Opne PDF og skriv ut».";
+    }
+  };
+  frame.addEventListener("load", attempt, {once:true});
+  setTimeout(() => {
+    if (!attempted) status.textContent = "Trykk «Opne PDF og skriv ut» dersom utskriftsvindauget ikkje kjem.";
+  }, 3500);
   setTimeout(() => URL.revokeObjectURL(url), 30 * 60 * 1000);
 }
 
