@@ -97,6 +97,52 @@ function partPages(part, source, pageOverride = null) {
   return [...new Set(pages)].filter(page => page >= 1 && page <= source.getPageCount());
 }
 
+async function buildRenderedPdf(specs, win) {
+  const pdfjs = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+  const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
+  const output = await PDFDocument.create();
+  const cache = new Map();
+  for (const spec of specs) {
+    const url = sourceUrl(spec.part);
+    if (!url) throw new Error("Manglar PDF for " + spec.part.name);
+    let source = cache.get(url);
+    if (!source) {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error("Kunne ikkje hente notene.");
+      source = await pdfjs.getDocument({ data: new Uint8Array(await response.arrayBuffer()) }).promise;
+      cache.set(url, source);
+    }
+    const pages = Number.isFinite(spec.pageOverride) ? [spec.pageOverride] :
+      (spec.part.pageNumbers?.length ? spec.part.pageNumbers.map(Number) :
+      Array.from({length: source.numPages}, (_, i) => i + 1));
+    const valid = [...new Set(pages)].filter(n => Number.isInteger(n) && n >= 1 && n <= source.numPages);
+    if (!valid.length) throw new Error("Ingen gyldige sider for " + spec.part.name);
+    for (let copy = 0; copy < Math.max(1, Number(spec.copies) || 1); copy++) {
+      for (const number of valid) {
+        setStatus(win, "Klargjer " + spec.part.name + ", side " + number);
+        const page = await source.getPage(number);
+        const viewport = page.getViewport({ scale: 1.7 });
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        await page.render({ canvasContext: canvas.getContext("2d", {alpha:false}), viewport }).promise;
+        const jpeg = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", .9));
+        if (!jpeg) throw new Error("Kunne ikkje klargjere notesida.");
+        const image = await output.embedJpg(await jpeg.arrayBuffer());
+        const scale = Math.min((A4_WIDTH - 16) / image.width, (A4_HEIGHT - 16) / image.height);
+        const width = image.width * scale, height = image.height * scale;
+        output.addPage([A4_WIDTH, A4_HEIGHT]).drawImage(image, {
+          x:(A4_WIDTH-width)/2, y:(A4_HEIGHT-height)/2, width, height
+        });
+        canvas.width = canvas.height = 1;
+      }
+    }
+  }
+  const bytes = await output.save();
+  return { blob:new Blob([bytes], {type:"application/pdf"}), pageCount:output.getPageCount() };
+}
+
 async function buildA4Pdf(specs, win) {
   const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
   const output = await PDFDocument.create();
@@ -192,7 +238,14 @@ async function runPrint({ names, pageOverride = null, copies = 1, title = "Noter
       copies: parts.length === 1 ? copies : 1
     }));
     // Never fall back to the entire source PDF: it may contain every instrument.
-    const printResult = await buildA4Pdf(specs, popup);
+    let printResult;
+    try {
+      printResult = await buildA4Pdf(specs, popup);
+    } catch (error) {
+      console.warn("PDF-kopiering feila; prøver siderendering", error);
+      setStatus(popup, "Prøver alternativ metode for dei valde sidene …");
+      printResult = await buildRenderedPdf(specs, popup);
+    }
     const { blob, pageCount } = printResult;
     openNativePdf(popup, blob, pageCount, title);
     message(`Klargjorde ${pageCount} A4-side${pageCount === 1 ? "" : "r"} for utskrift.`);
