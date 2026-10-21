@@ -19,17 +19,15 @@ function clean(value = "") {
   return String(value).trim().toLocaleLowerCase("no");
 }
 
-function selectedNames() {
+function selectedIds() {
   return [...document.querySelectorAll("#part-list .part-select-row")]
     .filter(row => row.querySelector('input[type="checkbox"]')?.checked)
-    .map(row => row.querySelector("strong")?.textContent?.trim())
-    .filter(Boolean);
+    .map(row => row.dataset.partId).filter(Boolean);
 }
-
-function activeName() {
-  const selected = selectedNames();
+function activeId() {
+  const selected = selectedIds();
   if (selected.length === 1) return selected[0];
-  return document.querySelector("#part-list .part-btn.active strong")?.textContent?.trim() || "";
+  return document.querySelector("#part-list .part-btn.active")?.closest(".part-select-row")?.dataset.partId || "";
 }
 
 function currentPdfPage() {
@@ -76,13 +74,13 @@ async function getSong() {
   return { id: snapshot.id, ...snapshot.data() };
 }
 
-function resolveParts(song, names) {
-  const available = [...(song.parts || [])];
-  return names.map(name => {
-    const index = available.findIndex(part => clean(part.name) === clean(name));
-    if (index < 0) return null;
-    return available.splice(index, 1)[0];
-  }).filter(Boolean);
+function resolveParts(song, ids) {
+  const byId = new Map((song.parts || []).map(part => [String(part.id), part]));
+  return ids.map(id => {
+    const part = byId.get(String(id));
+    if (!part) throw new Error("Ei vald stemme finst ikkje lenger i arkivet. Last sida på nytt.");
+    return part;
+  });
 }
 
 function sourceUrl(part) {
@@ -93,7 +91,7 @@ function partPages(part, source, pageOverride = null) {
   if (Number.isFinite(pageOverride)) return pageOverride >= 1 && pageOverride <= source.getPageCount() ? [pageOverride] : [];
   const pages = Array.isArray(part.pageNumbers) && part.pageNumbers.length
     ? part.pageNumbers.map(Number).filter(Number.isFinite)
-    : Array.from({ length: source.getPageCount() }, (_, index) => index + 1);
+    : (() => { throw new Error("«" + part.name + "» manglar sidetildeling. Kontroller instrumentet før utskrift."); })();
   return [...new Set(pages)].filter(page => page >= 1 && page <= source.getPageCount());
 }
 
@@ -115,7 +113,7 @@ async function buildRenderedPdf(specs, win) {
     }
     const pages = Number.isFinite(spec.pageOverride) ? [spec.pageOverride] :
       (spec.part.pageNumbers?.length ? spec.part.pageNumbers.map(Number) :
-      Array.from({length: source.numPages}, (_, i) => i + 1));
+      (() => { throw new Error("«" + spec.part.name + "» manglar sidetildeling."); })());
     const valid = [...new Set(pages)].filter(n => Number.isInteger(n) && n >= 1 && n <= source.numPages);
     if (!valid.length) throw new Error("Ingen gyldige sider for " + spec.part.name);
     for (let copy = 0; copy < Math.max(1, Number(spec.copies) || 1); copy++) {
@@ -244,12 +242,12 @@ function openNativePdf(win, blob, pageCount, title = "Noter") {
   setTimeout(() => URL.revokeObjectURL(url), 30 * 60 * 1000);
 }
 
-async function runPrint({ names, pageOverride = null, copies = 1, title = "Noter" }) {
+async function runPrint({ ids, pageOverride = null, copies = 1, title = "Noter" }) {
   const popup = openPreparing(title);
   if (!popup) return message("Nettlesaren blokkerte utskriftsvindauget. Prøv igjen.", "error");
   try {
     const song = await getSong();
-    const parts = resolveParts(song, names);
+    const parts = resolveParts(song, ids);
     if (!parts.length) throw new Error("Fann ikkje dei valde stemmene.");
     const specs = parts.map(part => ({
       part,
@@ -284,28 +282,28 @@ function interceptClick(event) {
   if (!target) return;
 
   if (target.closest("#print-selected-parts")) {
-    const names = selectedNames();
-    if (!names.length) return;
+    const ids = selectedIds();
+    if (!ids.length) return;
     event.preventDefault(); event.stopImmediatePropagation();
-    runPrint({ names, title: document.querySelector("#song-detail h1")?.textContent || "Noter" });
+    runPrint({ ids, title: document.querySelector("#song-detail h1")?.textContent || "Noter" });
     return;
   }
 
   if (target.closest("#open-print")) {
-    const names = selectedNames();
-    if (names.length > 1) {
+    const ids = selectedIds();
+    if (ids.length > 1) {
       event.preventDefault(); event.stopImmediatePropagation();
-      runPrint({ names, title: document.querySelector("#song-detail h1")?.textContent || "Noter" });
+      runPrint({ ids, title: document.querySelector("#song-detail h1")?.textContent || "Noter" });
     }
     return;
   }
 
   if (target.closest("#print-current-page")) {
-    const name = activeName();
+    const name = activeId();
     const page = currentPdfPage();
     if (!name || !page) return;
     event.preventDefault(); event.stopImmediatePropagation();
-    runPrint({ names: [name], pageOverride: page, title: `${document.querySelector("#song-detail h1")?.textContent || "Noter"} – ${name}` });
+    runPrint({ ids: [name], pageOverride: page, title: `${document.querySelector("#song-detail h1")?.textContent || "Noter"} – ${name}` });
   }
 }
 
@@ -313,12 +311,12 @@ document.addEventListener("click", interceptClick, true);
 
 document.addEventListener("submit", event => {
   if (!isMobile() || event.target?.id !== "print-form") return;
-  const name = activeName();
+  const name = activeId();
   if (!name) return;
   const choice = document.querySelector("#page-choice")?.value || "all";
   const copies = Math.max(1, Number(document.querySelector("#copy-count")?.value || 1));
   const pageOverride = choice === "all" ? null : Number(choice);
   event.preventDefault(); event.stopImmediatePropagation();
   document.querySelector("#print-dialog")?.close();
-  runPrint({ names: [name], pageOverride, copies, title: `${document.querySelector("#song-detail h1")?.textContent || "Noter"} – ${name}` });
+  runPrint({ ids: [name], pageOverride, copies, title: `${document.querySelector("#song-detail h1")?.textContent || "Noter"} – ${name}` });
 }, true);
