@@ -42,3 +42,60 @@
 #app-shell main:has(.ssml-stage-home:not(.hidden)){overflow:hidden}
 @media(min-width:851px){.ssml-stage-home{height:calc(100dvh - 76px)!important;min-height:0!important}.ssml-stage-background{background-size:auto 100%;background-position:center center}}
 @media(max-width:850px){.ssml-stage-home{height:calc(100dvh - 76px)!important;min-height:0!important}.ssml-stage-background{background-size:auto 100%;background-position:center top}}
+
+
+/* SSML 2026 – samanhengande marineblaa/gull design for testversjonen */
+:root{--ink:#f6f1e8;--green:#103b61;--green-2:#d5a547;--mint:#132e49;--paper:#081a30;--white:#132b45;--line:#36516b;--muted:#b6c5d3;--gold:#d5a547;--shadow:0 18px 45px #0005;color-scheme:dark}
+html,body{background:#081a30;color:#f6f1e8}
+#app-shell,#app-shell main{background:#081a30;color:#f6f1e8}
+#app-shell .sidebar{background:linear-gradient(180deg,#07172a,#113b5c);border-right:1px solid #35516a}
+#app-shell .sidebar .nav-item.active,#app-shell .sidebar .nav-item:hover{background:#d5a547;color:#0b1b2d}
+#app-shell .topbar{background:#0e2740;border-bottom:1px solid #34516c}
+#app-shell .global-search{background:#152f49;border:1px solid #3a5670;color:#e6d8b6}
+#app-shell .global-search input{color:#f6f1e8}
+#app-shell .global-search input::placeholder,#app-shell #archive-search::placeholder{color:#aebccc}
+#app-shell .global-search kbd{background:#233e57;color:#f6f1e8;border-color:#49647c}
+#app-shell .page-heading h1,#app-shell .page-wrap h1,#app-shell .page-wrap h2{color:#f5e9ce}
+#app-shell .page-heading p,#app-shell .page-wrap .muted,#app-shell .result-count{color:#b7c7d5}
+#app-shell .eyebrow.green,#app-shell .green{color:#e4bc69}
+#app-shell .song-card,#app-shell .parts-panel,#app-shell .preview-panel,#app-shell .filter-bar,#app-shell .empty-state{background:#102941;border:1px solid #37536d;color:#f5f0e7;box-shadow:0 6px 22px #0002}
+#app-shell .song-card h3,#app-shell .parts-panel h2,#app-shell .preview-panel h2{color:#fff2d4}
+#app-shell .song-card p,#app-shell .song-meta{color:#c4d1de}
+#app-shell .song-card:hover{border-color:#d5a547;box-shadow:0 9px 25px #0005}
+#app-shell .song-card .cover{background:linear-gradient(125deg,#0b2744,#244b69)}
+#app-shell .song-card .cover-badge{background:#d5a547;color:#091b2d}
+#app-shell .detail-header{background:linear-gradient(125deg,#102b48,#1b4a6b);border:1px solid #a9823c}
+#app-shell .part-btn,#app-shell .part-check{background:#193650;color:#f6f1e8;border-color:#48627a}
+#app-shell .part-btn.active,#app-shell .part-btn.selected,#app-shell .part-check:has(input:checked){background:#514529;border-color:#d5a547}
+#app-shell .part-check input{accent-color:#d5a547}
+#app-shell .btn-primary,.modal .btn-primary{background:#d5a547;color:#0b1d30;border:1px solid #e2bd6d;box-shadow:0 5px 16px #0004;font-weight:800}
+#app-shell .btn-primary:hover,.modal .btn-primary:hover{background:#e9be62}
+#app-shell .btn-ghost,.modal .btn-ghost{background:#1a3550;color:#f7f0e6;border:1px solid #547087}
+#app-shell .back-btn,#app-shell .text-btn{color:#e9bd67}
+#app-shell .filter-bar input,#app-shell .filter-bar select{background:#183650;border-color:#4b6680;color:#fff;font-size:16px}
+#app-shell .filter-bar input:focus{border-color:#d5a547;box-shadow:0 0 0 3px #d5a54733}
+#app-shell .page-wrap{padding-bottom:110px}
+.modal{background:#102941;color:#f7f0e6;border:1px solid #5a6e7c}
+.modal::backdrop{background:#030c1cbd}
+.modal header,.modal footer{background:#102941}
+.modal input:not([type=radio]):not([type=file]),.modal select,.modal textarea{background:#1b3953!important;color:#fff!important;border-color:#557087!important}
+.modal .icon-btn{background:#25445f;color:#fff}
+.modal .muted,.modal .form-help{color:#bdcbd7}
+.modal .drop-zone,.modal .radio-card,.modal .info-note,.modal .append-review,.modal .part-editor-row{background:#17354f;color:#f5f0e7;border-color:#48637b}
+.modal .enhance-option{color:#f5f0e7}
+.login-view{background:#081a30}
+.login-art{background:linear-gradient(140deg,#07182b,#123d61)}
+.login-panel{background:#102941;color:#f6f1e8}
+.login-card input{background:#1b3953;color:#fff;border-color:#537087}
+.login-card .muted{color:#b7c7d5}
+.page-modal,.page-modal header,.page-modal footer{background:#081a30}
+.page-modal canvas,.page-thumb canvas{background:white}
+/* Forsidebiletet er eit kvadratisk illustrasjonsbilete med teikna meny.
+   Vis heile toppdelen, skjul den teikna menyen og bruk eksisterande ekte bunnmeny. */
+#app-shell .ssml-stage-home{height:calc(100dvh - 76px)!important;min-height:0!important;max-height:calc(100dvh - 76px);overflow:hidden;background:#07182b}
+#app-shell .ssml-stage-background{inset:0;background-image:url('/ssml/ssml.png');background-repeat:no-repeat;background-size:auto 100%;background-position:center top;mask-image:linear-gradient(to bottom,#000 0%,#000 65%,transparent 82%);-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 65%,transparent 82%)}
+#app-shell .ssml-stage-home:before{height:32%;background:linear-gradient(transparent,#07182b 80%)}
+#app-shell .ssml-stage-navigation{display:none!important}
+#app-shell main:has(.ssml-stage-home:not(.hidden)) .topbar{display:none}
+@media(max-width:850px){#app-shell .page-wrap{padding:1.1rem .9rem 105px}#app-shell .ssml-stage-home{height:calc(100dvh - 74px)!important;max-height:calc(100dvh - 74px)}#app-shell .ssml-stage-background{background-size:100% auto;background-position:center top}#app-shell .filter-bar{flex-direction:column}#app-shell .filter-bar select{width:100%}.modal footer{background:#102941}}
+@media(min-width:851px){#app-shell .ssml-stage-background{background-size:auto 100%;background-position:center top}}
