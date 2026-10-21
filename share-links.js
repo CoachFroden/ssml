@@ -196,7 +196,7 @@ function makeShareItems(song, selectedParts, original) {
 }
 
 function sharePageUrl(token) {
-  const url = new URL("./share.html", window.location.href);
+  const url = new URL("/ssml/share.html", window.location.origin);
   url.searchParams.set("id", token);
   return url.toString();
 }
