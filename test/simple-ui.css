@@ -33,3 +33,12 @@
 #app-shell main:has(.ssml-stage-home:not(.hidden)){background:#071528}
 @media(min-width:851px){.ssml-stage-home{min-height:100dvh}.ssml-stage-background{background-size:contain;background-color:#071528}}
 @media(max-width:850px){.ssml-stage-home{min-height:100dvh}.ssml-stage-navigation{bottom:max(16px,env(safe-area-inset-bottom));width:calc(100% - 24px)}.ssml-stage-background{background-position:center top}}
+
+/* v7: ingen ekstra navigasjon; appens eksisterende bunnmeny brukes. */
+.ssml-stage-navigation{display:none!important}
+.ssml-stage-home{height:calc(100dvh - 76px)!important;min-height:0!important;max-height:calc(100dvh - 76px);overflow:hidden!important}
+.ssml-stage-background{background-position:center 40%;background-size:auto 100%;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 69%,transparent 88%);mask-image:linear-gradient(to bottom,#000 0%,#000 69%,transparent 88%)}
+.ssml-stage-home:before{height:24%;background:linear-gradient(transparent,#071528 85%)}
+#app-shell main:has(.ssml-stage-home:not(.hidden)){overflow:hidden}
+@media(min-width:851px){.ssml-stage-home{height:calc(100dvh - 76px)!important;min-height:0!important}.ssml-stage-background{background-size:auto 100%;background-position:center center}}
+@media(max-width:850px){.ssml-stage-home{height:calc(100dvh - 76px)!important;min-height:0!important}.ssml-stage-background{background-size:auto 100%;background-position:center top}}
