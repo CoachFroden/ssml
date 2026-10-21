@@ -21,7 +21,7 @@
 
 /* Testforside: ekte knappar framfor bilde, ikkje statiske knappar i biletfila */
 .ssml-stage-home{position:relative;min-height:calc(100dvh - 78px);width:100%;overflow:hidden;background:#071528}
-.ssml-stage-background{position:absolute;inset:0;background-image:url('/ssml/ssml.png');background-position:center center;background-size:cover;background-repeat:no-repeat}
+.ssml-stage-background{position:absolute;inset:0;background-image:url('/ssml/ssml-pc.jpg');background-position:center center;background-size:cover;background-repeat:no-repeat}
 .ssml-stage-home:before{content:"";position:absolute;z-index:1;left:0;right:0;bottom:0;height:31%;background:linear-gradient(transparent 0%,#071528 56%,#071528 100%);pointer-events:none}
 .ssml-stage-navigation{position:absolute;z-index:2;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(92%,560px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:12px;border:1px solid #b6c2d27a;border-radius:25px;background:#0b1a2fe8;box-shadow:0 15px 50px #0009;backdrop-filter:blur(12px)}
 .ssml-stage-link{appearance:none;border:0;background:transparent;color:#fff;min-height:70px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;font:inherit;border-radius:15px}
@@ -93,7 +93,7 @@ html,body{background:#081a30;color:#f6f1e8}
 /* Forsidebiletet er eit kvadratisk illustrasjonsbilete med teikna meny.
    Vis heile toppdelen, skjul den teikna menyen og bruk eksisterande ekte bunnmeny. */
 #app-shell .ssml-stage-home{height:calc(100dvh - 76px)!important;min-height:0!important;max-height:calc(100dvh - 76px);overflow:hidden;background:#07182b}
-#app-shell .ssml-stage-background{inset:0;background-image:url('/ssml/ssml.png');background-repeat:no-repeat;background-size:auto 100%;background-position:center top;mask-image:linear-gradient(to bottom,#000 0%,#000 65%,transparent 82%);-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 65%,transparent 82%)}
+#app-shell .ssml-stage-background{inset:0;background-image:url('/ssml/ssml-pc.jpg');background-repeat:no-repeat;background-size:auto 100%;background-position:center top;mask-image:linear-gradient(to bottom,#000 0%,#000 65%,transparent 82%);-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 65%,transparent 82%)}
 #app-shell .ssml-stage-home:before{height:32%;background:linear-gradient(transparent,#07182b 80%)}
 #app-shell .ssml-stage-navigation{display:none!important}
 #app-shell main:has(.ssml-stage-home:not(.hidden)) .topbar{display:none}
@@ -147,3 +147,9 @@ body .ssml-bottom-nav button:focus-visible{outline:3px solid #f4d182;outline-off
 #app-shell .ssml-my-profile-badge{background:#3e3524!important;color:#f4cc79!important}
 #app-shell #ssml-save-profile{background:#d5a547!important;color:#091b2c!important}
 @media(max-width:700px){body .ssml-bottom-nav{bottom:max(8px,env(safe-area-inset-bottom))!important;width:calc(100% - 18px)!important;min-height:72px!important;padding:6px!important;gap:2px!important}body .ssml-bottom-nav button{min-height:57px!important;font-size:.68rem!important}body .ssml-bottom-nav button svg{width:22px!important;height:22px!important}}
+
+
+/* v10: eigne bilete for PC og mobil. Den fungerande bunnmenyen ligg over illustrasjonen. */
+#app-shell .ssml-stage-background{background-image:url('/ssml/ssml-pc.jpg')!important;background-repeat:no-repeat!important;background-position:center center!important;background-size:cover!important;-webkit-mask-image:none!important;mask-image:none!important}
+#app-shell .ssml-stage-home:before{background:linear-gradient(to bottom,transparent 68%,#071528 100%)!important;height:100%!important}
+@media(max-width:850px){#app-shell .ssml-stage-background{background-image:url('/ssml/ssml-mobil.jpg')!important;background-position:center center!important;background-size:cover!important}}
