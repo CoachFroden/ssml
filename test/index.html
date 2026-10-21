@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="features.css?v=10">
   <link rel="stylesheet" href="actions.css?v=10">
   <link rel="stylesheet" href="selection.css?v=12">
-  <link rel="stylesheet" href="/ssml/test/simple-ui.css?v=1">
+  <link rel="stylesheet" href="/ssml/test/simple-ui.css?v=2">
 </head>
 <body>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
@@ -67,18 +67,19 @@
       </header>
 
       <section id="home-view" class="view page-wrap">
-        <div class="welcome"><div><p class="eyebrow green">SSML Noter</p><h1>Finn notane du treng</h1><p>Søk etter eit stykke, vel instrument og skriv ut eller del notane.</p></div><button class="btn btn-primary" data-action="open-import">＋ Legg til ny song</button></div>
+        <div class="test-hero"><span class="test-pill">NY TESTVERSJON</span><h1>Finn noter. Skriv ut. Del.</h1><p>Alt du treng til øving og konsert – på eitt sted.</p><button id="test-open-archive" type="button" class="btn btn-primary">Finn musikkstykke →</button></div>
+        <div class="welcome"><div><p class="eyebrow green">Sist lagt til</p><h1>Finn notane du treng</h1><p>Søk etter eit stykke, vel instrument og skriv ut eller del notane.</p></div><button class="btn btn-primary" data-action="open-import">＋ Legg til ny song</button></div>
         <div class="stats-grid">
           <article class="stat-card"><span class="stat-icon green-bg">♫</span><div><strong id="song-count">0</strong><small>Songar i arkivet</small></div></article>
           <article class="stat-card"><span class="stat-icon gold-bg">♬</span><div><strong id="part-count">0</strong><small>Stemmer totalt</small></div></article>
           <article class="stat-card"><span class="stat-icon blue-bg">▧</span><div><strong id="pdf-count">0</strong><small>PDF-filer</small></div></article>
         </div>
-        <div class="section-heading"><div><h2>Sist lagt til</h2><p>Dei siste notane i arkivet</p></div><button class="text-btn" data-view="archive">Sjå heile arkivet →</button></div>
+        <div class="section-heading"><div><h2>Nyleg i arkivet</h2><p>Dei siste notane i arkivet</p></div><button class="text-btn" data-view="archive">Sjå heile arkivet →</button></div>
         <div id="recent-grid" class="song-grid"></div>
       </section>
 
       <section id="archive-view" class="view page-wrap hidden">
-        <div class="page-heading"><div><p class="eyebrow green">Finn notane</p><h1>Notearkiv</h1><p>Søk, filtrer og opne notar frå heile repertoaret.</p></div><button class="btn btn-primary" data-action="open-import">＋ Importer notar</button></div>
+        <div class="test-archive-intro"><span class="test-pill">NOTEARKIV</span><h1>Kva skal vi spele?</h1><p>Søk etter tittel eller komponist, og vel stemmene du treng.</p></div><div class="page-heading"><div><p class="eyebrow green">Finn notane</p><h1>Notearkiv</h1><p>Søk, filtrer og opne notar frå heile repertoaret.</p></div><button class="btn btn-primary" data-action="open-import">＋ Importer notar</button></div>
         <div class="filter-bar"><div class="inline-search"><span>⌕</span><input id="archive-search" type="search" placeholder="Søk i arkivet …"></div><select id="archive-sort" aria-label="Sorter"><option value="newest">Nyaste først</option><option value="title">Tittel A–Å</option><option value="composer">Komponist A–Å</option></select></div>
         <p id="result-count" class="result-count"></p>
         <div id="archive-grid" class="song-grid"></div>
@@ -146,5 +147,6 @@
   <script type="module" src="mobile-safe-print-v2.js?v=20261021-5"></script>
   <script type="module" src="share-links.js?v=6"></script>
   <script type="module" src="password-reset.js?v=1"></script>
+<script src="/ssml/test/test-ui.js?v=1" defer></script>
 </body>
 </html>
