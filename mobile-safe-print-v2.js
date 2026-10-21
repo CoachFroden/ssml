@@ -122,12 +122,31 @@ async function buildRenderedPdf(specs, win) {
       for (const number of valid) {
         setStatus(win, "Klargjer " + spec.part.name + ", side " + number);
         const page = await source.getPage(number);
-        const viewport = page.getViewport({ scale: 1.7 });
+        const base = page.getViewport({ scale: 1 });
+        const scaleFactor = Math.min(1.35, 1800 / Math.max(base.width, base.height));
+        const viewport = page.getViewport({ scale: scaleFactor });
         const canvas = document.createElement("canvas");
         canvas.width = Math.ceil(viewport.width);
         canvas.height = Math.ceil(viewport.height);
-        await page.render({ canvasContext: canvas.getContext("2d", {alpha:false}), viewport }).promise;
-        const jpeg = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", .9));
+        const renderTask = page.render({ canvasContext: canvas.getContext("2d", {alpha:false}), viewport });
+        let timeoutId;
+        try {
+          await Promise.race([
+            renderTask.promise,
+            new Promise((_, reject) => {
+              timeoutId = setTimeout(() => {
+                renderTask.cancel();
+                reject(new Error("PDF-sida tok for lang tid. Prøv færre sider om gongen."));
+              }, 25000);
+            })
+          ]);
+        } finally {
+          clearTimeout(timeoutId);
+        }
+        const jpeg = await Promise.race([
+          new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", .82)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Kunne ikkje gjere notesida klar på iPhone.")), 15000))
+        ]);
         if (!jpeg) throw new Error("Kunne ikkje klargjere notesida.");
         const image = await output.embedJpg(await jpeg.arrayBuffer());
         const scale = Math.min((A4_WIDTH - 16) / image.width, (A4_HEIGHT - 16) / image.height);
