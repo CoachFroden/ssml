@@ -165,7 +165,22 @@ async function runPrint({ names, pageOverride = null, copies = 1, title = "Noter
       pageOverride: parts.length === 1 ? pageOverride : null,
       copies: parts.length === 1 ? copies : 1
     }));
-    const { blob, pageCount } = await buildA4Pdf(specs, popup);
+    let printResult;
+    try {
+      printResult = await buildA4Pdf(specs, popup);
+    } catch (pdfError) {
+      console.warn("PDF-samansetting feila; opnar original-PDF", pdfError);
+      if (specs.length === 1 && specs[0].copies === 1 && specs[0].pageOverride === null) {
+        const url = sourceUrl(specs[0].part);
+        if (!url) throw pdfError;
+        setStatus(popup, "Opnar originalnoten for utskrift …");
+        popup.location.replace(url);
+        message("Opna original-PDF. Bruk Del → Skriv ut.");
+        return;
+      }
+      throw pdfError;
+    }
+    const { blob, pageCount } = printResult;
     openNativePdf(popup, blob, pageCount);
     message(`Klargjorde ${pageCount} A4-side${pageCount === 1 ? "" : "r"} for utskrift.`);
   } catch (error) {
