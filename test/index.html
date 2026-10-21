@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="features.css?v=10">
   <link rel="stylesheet" href="actions.css?v=10">
   <link rel="stylesheet" href="selection.css?v=12">
-  <link rel="stylesheet" href="/ssml/test/simple-ui.css?v=14">
+  <link rel="stylesheet" href="/ssml/test/simple-ui.css?v=15">
 </head>
 <body>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
@@ -144,34 +144,32 @@
   <script type="module" src="password-reset.js?v=1"></script>
 
   <script>
-  /* Berre testversjonen: snarvegar mellom stemmeliste og notevising på mobil. */
+  /* Mobil: fast snarveg over botnmenyen, berre i stemmevisinga. */
   (() => {
-    const go = selector => {
-      const target = document.querySelector(selector);
-      if (!target) return;
-      target.scrollIntoView({behavior:'smooth',block:'start'});
-    };
-    const install = () => {
-      const aside = document.querySelector('#song-detail .parts-panel');
-      const preview = document.querySelector('#song-detail .preview-panel');
-      if (!aside || !preview) return;
-      if (!aside.querySelector('.ssml-jump-to-preview')) {
-        const button = document.createElement('button');
-        button.type='button';button.className='ssml-mobile-jump ssml-jump-to-preview';
-        button.textContent='↓ Sjå valde notar';
-        button.addEventListener('click',()=>go('#song-detail .preview-panel'));
-        aside.querySelector('.part-selection-tools')?.insertAdjacentElement('afterend',button);
-      }
-      if (!preview.querySelector('.ssml-jump-to-parts')) {
-        const button = document.createElement('button');
-        button.type='button';button.className='ssml-mobile-jump ssml-jump-to-parts';
-        button.textContent='↑ Tilbake til stemmene';
-        button.addEventListener('click',()=>go('#song-detail .parts-panel'));
-        preview.prepend(button);
-      }
-    };
-    const observer = new MutationObserver(() => {if(document.querySelector('#song-detail .parts-panel:not(:has(.ssml-jump-to-preview))')) install();});
-    document.addEventListener('DOMContentLoaded',()=>{install();const detail=document.querySelector('#song-detail');if(detail)observer.observe(detail,{childList:true,subtree:false});});
+    function setup(){
+      if(document.getElementById('ssml-mobile-score-jump')) return;
+      const b=document.createElement('button');
+      b.id='ssml-mobile-score-jump';b.type='button';b.textContent='↓ Sjå notane';
+      b.style.cssText='display:none;position:fixed;right:14px;bottom:calc(104px + env(safe-area-inset-bottom));z-index:1000;background:#d5a547;color:#091b2c;border:2px solid #f4d68b;border-radius:24px;padding:13px 18px;font:800 15px sans-serif;box-shadow:0 6px 24px #0009;cursor:pointer';
+      document.body.appendChild(b);
+      let showingPreview=false;
+      b.addEventListener('click',()=>{
+        const target=document.querySelector(showingPreview?'#song-detail .parts-panel':'#song-detail .preview-panel');
+        if(!target)return;
+        target.scrollIntoView({behavior:'smooth',block:'start'});
+        showingPreview=!showingPreview;
+        b.textContent=showingPreview?'↑ Til stemmene':'↓ Sjå notane';
+      });
+      const refresh=()=>{
+        const visible=window.matchMedia('(max-width:850px)').matches && !!document.querySelector('#song-view:not(.hidden) #song-detail .preview-panel');
+        b.style.display=visible?'block':'none';
+        if(!visible){showingPreview=false;b.textContent='↓ Sjå notane';}
+      };
+      new MutationObserver(refresh).observe(document.getElementById('song-view'),{attributes:true,attributeFilter:['class'],childList:true,subtree:true});
+      window.addEventListener('resize',refresh);
+      refresh();
+    }
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
   })();
   </script>
 </body>
