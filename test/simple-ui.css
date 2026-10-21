@@ -160,3 +160,14 @@ body .ssml-bottom-nav button:focus-visible{outline:3px solid #f4d182;outline-off
 #app-shell .parts-layout .btn-primary{background:#d5a547!important;color:#0b1d30!important}
 #app-shell .parts-layout h1,#app-shell .parts-layout h2,#app-shell .parts-layout h3,#app-shell .parts-layout strong{color:#f6e5c2}
 #app-shell .page-thumb,#app-shell .page-thumb canvas,#app-shell .preview-panel canvas,#app-shell .page-modal canvas{background:#fff!important}
+
+/* v12: mobilforside utan lys stripe og med meir balansert bildeplassering. */
+@media(max-width:850px){
+ html,body,body #app-shell,body #app-shell main{background:#071528!important}
+ body #app-shell main:has(#home-view:not(.hidden)){padding-bottom:0!important;min-height:100dvh!important;overflow:hidden!important}
+ body #app-shell #home-view:has(.ssml-stage-home){padding:0!important;margin:0!important;background:#071528!important;max-width:none!important}
+ body #app-shell .ssml-stage-home{height:100dvh!important;max-height:100dvh!important;min-height:100dvh!important;background:#071528!important}
+ body #app-shell .ssml-stage-background{background-image:url('/ssml/ssml-mobil.jpg')!important;background-position:center top!important;background-size:100% auto!important}
+ body #app-shell .ssml-stage-home:before{background:linear-gradient(to bottom,transparent 55%,#071528 92%)!important}
+ body .ssml-bottom-nav{bottom:max(12px,env(safe-area-inset-bottom))!important}
+}
