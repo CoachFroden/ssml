@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="features.css?v=10">
   <link rel="stylesheet" href="actions.css?v=10">
   <link rel="stylesheet" href="selection.css?v=12">
-  <link rel="stylesheet" href="/ssml/test/simple-ui.css?v=13">
+  <link rel="stylesheet" href="/ssml/test/simple-ui.css?v=14">
 </head>
 <body>
   <div id="toast-region" class="toast-region" aria-live="polite"></div>
@@ -142,5 +142,37 @@
   <script type="module" src="mobile-safe-print-v2.js?v=20261021-5"></script>
   <script type="module" src="share-links.js?v=6"></script>
   <script type="module" src="password-reset.js?v=1"></script>
+
+  <script>
+  /* Berre testversjonen: snarvegar mellom stemmeliste og notevising på mobil. */
+  (() => {
+    const go = selector => {
+      const target = document.querySelector(selector);
+      if (!target) return;
+      target.scrollIntoView({behavior:'smooth',block:'start'});
+    };
+    const install = () => {
+      const aside = document.querySelector('#song-detail .parts-panel');
+      const preview = document.querySelector('#song-detail .preview-panel');
+      if (!aside || !preview) return;
+      if (!aside.querySelector('.ssml-jump-to-preview')) {
+        const button = document.createElement('button');
+        button.type='button';button.className='ssml-mobile-jump ssml-jump-to-preview';
+        button.textContent='↓ Sjå valde notar';
+        button.addEventListener('click',()=>go('#song-detail .preview-panel'));
+        aside.querySelector('.part-selection-tools')?.insertAdjacentElement('afterend',button);
+      }
+      if (!preview.querySelector('.ssml-jump-to-parts')) {
+        const button = document.createElement('button');
+        button.type='button';button.className='ssml-mobile-jump ssml-jump-to-parts';
+        button.textContent='↑ Tilbake til stemmene';
+        button.addEventListener('click',()=>go('#song-detail .parts-panel'));
+        preview.prepend(button);
+      }
+    };
+    const observer = new MutationObserver(() => {if(document.querySelector('#song-detail .parts-panel:not(:has(.ssml-jump-to-preview))')) install();});
+    document.addEventListener('DOMContentLoaded',()=>{install();const detail=document.querySelector('#song-detail');if(detail)observer.observe(detail,{childList:true,subtree:false});});
+  })();
+  </script>
 </body>
 </html>
