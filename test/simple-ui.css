@@ -179,3 +179,6 @@ body .ssml-bottom-nav button:focus-visible{outline:3px solid #f4d182;outline-off
  #app-shell .ssml-jump-to-parts{background:#193650;color:#f5e9ce}
  #app-shell #song-detail .preview-panel,#app-shell #song-detail .parts-panel{scroll-margin-top:16px}
 }
+
+/* v15: Den flytande snarvegen er synleg over den faste menyen. */
+@media(min-width:851px){#ssml-mobile-score-jump{display:none!important}}
