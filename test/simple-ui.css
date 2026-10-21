@@ -1,30 +1,20 @@
-/* SSML test: notearkivet er hovudsida, ikkje ein ekstra framside. */
-#archive-view .page-heading{display:none}
-#archive-view .filter-bar{background:#fff;border:1px solid #d9e5df;border-radius:14px;padding:1rem;display:flex;gap:.6rem;align-items:center}
-#archive-search{font-size:16px;min-height:52px}
-#archive-view .song-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.65rem}
-#archive-view .song-card{box-shadow:none;border:1px solid #dce4e1;border-radius:12px}
-#archive-view .song-card .cover{display:none}
-#archive-view .song-card-body{padding:1rem}
-#archive-view .song-card h3{font-size:1.05rem;line-height:1.35}
-#archive-view .song-meta{margin-top:.35rem}
-#archive-view .result-count{margin:1rem 0 .6rem}
-#song-view .detail-header{background:#fff}
-#song-view .detail-actions{opacity:.7}
-#song-view .part-select-row{border-radius:10px}
-#song-view #print-selected-parts{min-height:48px}
+/* SSML: enklare mobilvisning og tydelegare notearkiv */
+.song-card .cover{height:72px}.song-card .cover:after{font-size:5rem;top:-20px}
+.song-card h3{font-size:1.08rem;line-height:1.4}
+.song-card:focus-visible,.btn:focus-visible,.part-btn:focus-visible{outline:3px solid #d6a84e;outline-offset:2px}
+#archive-search{font-size:16px}
 @media(max-width:850px){
-.page-wrap{padding:1rem .8rem 4rem}
-#archive-view .filter-bar{flex-direction:column;align-items:stretch;padding:.75rem;gap:.5rem}
-#archive-view .inline-search{width:100%}
-#archive-view #archive-sort{width:100%;min-height:44px}
-#archive-view .song-grid{grid-template-columns:1fr}
-#archive-view .song-card-body{padding:1rem}
-#song-view .detail-header{padding:1rem}
-#song-view .detail-header h1{font-size:1.5rem}
-#song-view .parts-layout{display:flex;flex-direction:column;gap:.75rem}
-#song-view .parts-panel,#song-view .preview-panel{padding:.85rem}
-#song-view .part-btn{min-height:48px}
-#song-view .preview-actions{flex-wrap:wrap}
-#song-view .detail-actions{margin-top:.5rem}
+.topbar{height:66px}.page-wrap{padding:1.1rem 1rem 5rem}
+.welcome{gap:1rem}.welcome h1{font-size:1.75rem;line-height:1.2}
+.stats-grid{display:none}.section-heading{margin-top:1.5rem}
+.song-grid{gap:.6rem}.song-card .cover{display:none}.song-card-body{padding:1rem 1.1rem}
+.song-card p{margin-bottom:.6rem}.song-meta{padding-top:.5rem}
+.detail-header{padding:1.25rem;border-radius:12px}.detail-header h1{font-size:1.65rem;overflow-wrap:anywhere}
+.parts-layout{gap:.8rem;margin-top:.8rem}.parts-panel,.preview-panel{padding:1rem}
+.part-btn{min-height:50px}.part-check{min-width:42px}.part-select-row{grid-template-columns:42px minmax(0,1fr)}
+.part-selection-tools{grid-template-columns:1fr 1fr}#print-selected-parts{min-height:48px}
+.preview-actions .btn{min-height:44px}.filter-bar{padding:.5rem}
+.modal{width:calc(100% - 1rem);max-height:94dvh}.modal form{padding:1rem;max-height:94dvh}
+.modal footer{position:sticky;bottom:-1rem;background:white;padding:1rem 0;z-index:2}
 }
+@media(max-width:520px){.part-selection-tools{grid-template-columns:1fr 1fr}.welcome>.btn{width:auto}.preview-toolbar{flex-wrap:wrap}.preview-actions{justify-content:flex-start}}
