@@ -208,37 +208,42 @@ function openNativePdf(win, blob, pageCount, title = "Noter") {
   const file = new File([blob], filename, { type: "application/pdf" });
   const doc = win.document;
   doc.body.innerHTML = "";
-  doc.body.style.cssText = "margin:0;padding:18px;font-family:-apple-system,system-ui,sans-serif;background:#f7f8f5;color:#174a43;text-align:center";
+  doc.body.style.cssText = "margin:0;padding:20px 14px;font-family:-apple-system,system-ui,sans-serif;background:#f7f8f5;color:#174a43;text-align:center";
   const heading = doc.createElement("h2");
   heading.textContent = "Notane er klare";
   const info = doc.createElement("p");
-  info.textContent = pageCount + " sider. Trykk «Del PDF» og vel «Skriv ut» eller «Lagre i Filer».";
+  info.textContent = pageCount + " sider. Opne PDF-en og bruk delingsknappen i Safari for å velje «Skriv ut».";
+  const open = doc.createElement("a");
+  open.href = url;
+  open.textContent = "Opne PDF for utskrift";
+  open.style.cssText = "display:inline-block;padding:15px 20px;margin:8px;border-radius:12px;background:#174a43;color:white;font-size:17px;font-weight:700;text-decoration:none";
   const share = doc.createElement("button");
+  share.type = "button";
   share.textContent = "Del PDF";
-  share.style.cssText = "padding:15px 24px;border:0;border-radius:12px;background:#174a43;color:white;font-size:17px;font-weight:700";
+  share.style.cssText = "display:inline-block;padding:14px 18px;margin:8px;border:1px solid #174a43;border-radius:12px;background:white;color:#174a43;font-size:16px";
   const save = doc.createElement("a");
   save.href = url;
   save.download = filename;
   save.textContent = "Lagre PDF";
-  save.style.cssText = "display:inline-block;margin:12px;padding:12px;color:#174a43";
+  save.style.cssText = "display:block;margin:12px;color:#174a43";
   const preview = doc.createElement("iframe");
   preview.src = url;
   preview.title = "Førehandsvising av notar";
-  preview.style.cssText = "display:block;width:100%;height:65vh;border:1px solid #ddd;background:white";
+  preview.style.cssText = "display:block;width:100%;height:60vh;border:1px solid #ddd;background:white";
   share.addEventListener("click", async () => {
     try {
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: filename });
+      if (win.navigator.share && win.navigator.canShare?.({ files: [file] })) {
+        await win.navigator.share({ files: [file], title: filename });
       } else {
-        save.click();
+        info.textContent = "Direkte deling er ikkje støtta her. Trykk «Opne PDF for utskrift», og bruk delingsknappen i Safari.";
       }
     } catch (error) {
       if (error.name !== "AbortError") {
-        info.textContent = "Kunne ikkje dele direkte. Vel «Lagre PDF», opne fila i Filer og skriv ut derfrå.";
+        info.textContent = "Deling vart stoppa av nettlesaren. Trykk «Opne PDF for utskrift», og bruk delingsknappen i Safari.";
       }
     }
   });
-  doc.body.append(heading, info, share, save, preview);
+  doc.body.append(heading, info, open, share, save, preview);
   setTimeout(() => URL.revokeObjectURL(url), 30 * 60 * 1000);
 }
 
