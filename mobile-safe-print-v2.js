@@ -122,19 +122,10 @@ async function buildA4Pdf(specs, win) {
 
     for (let copy = 0; copy < copies; copy++) {
       for (const pageNumber of pages) {
-        const sourcePage = source.getPage(pageNumber - 1);
-        const embedded = await output.embedPage(sourcePage);
-        const sourceWidth = sourcePage.getWidth();
-        const sourceHeight = sourcePage.getHeight();
-        const availableWidth = A4_WIDTH - PAGE_MARGIN * 2;
-        const availableHeight = A4_HEIGHT - PAGE_MARGIN * 2;
-        const scale = Math.min(availableWidth / sourceWidth, availableHeight / sourceHeight);
-        const width = sourceWidth * scale;
-        const height = sourceHeight * scale;
-        const x = (A4_WIDTH - width) / 2;
-        const y = (A4_HEIGHT - height) / 2;
-        const page = output.addPage([A4_WIDTH, A4_HEIGHT]);
-        page.drawPage(embedded, { x, y, width, height });
+        // Copy the source page directly. embedPage can fail on some uploaded PDFs
+        // with "Expected instance ... undefined" in pdf-lib.
+        const [page] = await output.copyPages(source, [pageNumber - 1]);
+        output.addPage(page);
       }
     }
   }
