@@ -182,3 +182,12 @@ body .ssml-bottom-nav button:focus-visible{outline:3px solid #f4d182;outline-off
 
 /* v15: Den flytande snarvegen er synleg over den faste menyen. */
 @media(min-width:851px){#ssml-mobile-score-jump{display:none!important}}
+
+/* v16: snarvegar i stemme- og notepanel, utan å dekke utskriftsknappar. */
+.ssml-inline-jump{display:none!important}
+@media(max-width:850px){
+ #app-shell #song-detail .ssml-inline-jump{display:inline-flex!important;align-items:center;justify-content:center;min-height:42px;padding:9px 13px;border:1px solid #d5a547;border-radius:12px;background:#d5a547;color:#091b2c;font:800 14px 'DM Sans',sans-serif;white-space:nowrap;cursor:pointer}
+ #app-shell #song-detail .parts-panel>.preview-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+ #app-shell #song-detail .preview-panel>.preview-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+ #app-shell #song-detail .parts-panel,#app-shell #song-detail .preview-panel{scroll-margin-top:12px}
+}
