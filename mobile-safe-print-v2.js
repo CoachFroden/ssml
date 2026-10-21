@@ -27,6 +27,8 @@ function selectedNames() {
 }
 
 function activeName() {
+  const selected = selectedNames();
+  if (selected.length === 1) return selected[0];
   return document.querySelector("#part-list .part-btn.active strong")?.textContent?.trim() || "";
 }
 
@@ -88,7 +90,7 @@ function sourceUrl(part) {
 }
 
 function partPages(part, source, pageOverride = null) {
-  if (Number.isFinite(pageOverride)) return [pageOverride];
+  if (Number.isFinite(pageOverride)) return pageOverride >= 1 && pageOverride <= source.getPageCount() ? [pageOverride] : [];
   const pages = Array.isArray(part.pageNumbers) && part.pageNumbers.length
     ? part.pageNumbers.map(Number).filter(Number.isFinite)
     : Array.from({ length: source.getPageCount() }, (_, index) => index + 1);
@@ -194,7 +196,7 @@ async function runPrint({ names, pageOverride = null, copies = 1, title = "Noter
       printResult = await buildA4Pdf(specs, popup);
     } catch (pdfError) {
       console.warn("PDF-samansetting feila; opnar original-PDF", pdfError);
-      if (specs.length === 1 && specs[0].copies === 1 && specs[0].pageOverride === null) {
+      if (specs.length === 1 && specs[0].copies === 1 && specs[0].pageOverride === null && !Array.isArray(specs[0].part.pageNumbers)) {
         const url = sourceUrl(specs[0].part);
         if (!url) throw pdfError;
         setStatus(popup, "Opnar originalnoten for utskrift …");
