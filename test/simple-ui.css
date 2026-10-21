@@ -152,7 +152,7 @@ body .ssml-bottom-nav button:focus-visible{outline:3px solid #f4d182;outline-off
 /* v10: eigne bilete for PC og mobil. Den fungerande bunnmenyen ligg over illustrasjonen. */
 #app-shell .ssml-stage-background{background-image:url('/ssml/ssml-pc.jpg')!important;background-repeat:no-repeat!important;background-position:center center!important;background-size:cover!important;-webkit-mask-image:none!important;mask-image:none!important}
 #app-shell .ssml-stage-home:before{background:linear-gradient(to bottom,transparent 68%,#071528 100%)!important;height:100%!important}
-@media(max-width:850px){#app-shell .ssml-stage-background{background-image:url('/ssml/ssml-mobil.jpg')!important;background-position:center center!important;background-size:cover!important}}
+@media(max-width:850px){#app-shell .ssml-stage-background{background-image:url('/ssml/ssml-mobil.png')!important;background-position:center center!important;background-size:cover!important}}
 
 /* v11: Fjern kvite kontrollflater i stemmevisninga, men bevar kvitt notepapir. */
 #app-shell .parts-layout .preview-panel, #app-shell .parts-layout .parts-panel, #app-shell .preview-toolbar, #app-shell .preview-header, #app-shell .preview-actions, #app-shell .part-detail-header, #app-shell .part-header, #app-shell .part-actions, #app-shell .part-toolbar, #app-shell .part-selection-tools{background-color:#102941!important;color:#f5f0e8!important}
@@ -167,7 +167,7 @@ body .ssml-bottom-nav button:focus-visible{outline:3px solid #f4d182;outline-off
  body #app-shell main:has(#home-view:not(.hidden)){padding-bottom:0!important;min-height:100dvh!important;overflow:hidden!important}
  body #app-shell #home-view:has(.ssml-stage-home){padding:0!important;margin:0!important;background:#071528!important;max-width:none!important}
  body #app-shell .ssml-stage-home{height:100dvh!important;max-height:100dvh!important;min-height:100dvh!important;background:#071528!important}
- body #app-shell .ssml-stage-background{background-image:url('/ssml/ssml-mobil.jpg')!important;background-position:center top!important;background-size:100% auto!important}
+ body #app-shell .ssml-stage-background{background-image:url('/ssml/ssml-mobil.png')!important;background-position:center top!important;background-size:100% auto!important}
  body #app-shell .ssml-stage-home:before{background:linear-gradient(to bottom,transparent 55%,#071528 92%)!important}
  body .ssml-bottom-nav{bottom:max(12px,env(safe-area-inset-bottom))!important}
 }
