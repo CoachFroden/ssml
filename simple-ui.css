@@ -1,0 +1,20 @@
+/* SSML: enklare mobilvisning og tydelegare notearkiv */
+.song-card .cover{height:72px}.song-card .cover:after{font-size:5rem;top:-20px}
+.song-card h3{font-size:1.08rem;line-height:1.4}
+.song-card:focus-visible,.btn:focus-visible,.part-btn:focus-visible{outline:3px solid #d6a84e;outline-offset:2px}
+#archive-search{font-size:16px}
+@media(max-width:850px){
+.topbar{height:66px}.page-wrap{padding:1.1rem 1rem 5rem}
+.welcome{gap:1rem}.welcome h1{font-size:1.75rem;line-height:1.2}
+.stats-grid{display:none}.section-heading{margin-top:1.5rem}
+.song-grid{gap:.6rem}.song-card .cover{display:none}.song-card-body{padding:1rem 1.1rem}
+.song-card p{margin-bottom:.6rem}.song-meta{padding-top:.5rem}
+.detail-header{padding:1.25rem;border-radius:12px}.detail-header h1{font-size:1.65rem;overflow-wrap:anywhere}
+.parts-layout{gap:.8rem;margin-top:.8rem}.parts-panel,.preview-panel{padding:1rem}
+.part-btn{min-height:50px}.part-check{min-width:42px}.part-select-row{grid-template-columns:42px minmax(0,1fr)}
+.part-selection-tools{grid-template-columns:1fr 1fr}#print-selected-parts{min-height:48px}
+.preview-actions .btn{min-height:44px}.filter-bar{padding:.5rem}
+.modal{width:calc(100% - 1rem);max-height:94dvh}.modal form{padding:1rem;max-height:94dvh}
+.modal footer{position:sticky;bottom:-1rem;background:white;padding:1rem 0;z-index:2}
+}
+@media(max-width:520px){.part-selection-tools{grid-template-columns:1fr 1fr}.welcome>.btn{width:auto}.preview-toolbar{flex-wrap:wrap}.preview-actions{justify-content:flex-start}}
