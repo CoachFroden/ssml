@@ -232,14 +232,14 @@ async function runPrint({ ids, pageOverride = null, copies = 1, title = "Noter" 
       pageOverride: parts.length === 1 ? pageOverride : null,
       copies: parts.length === 1 ? copies : 1
     }));
-    // Never fall back to the entire source PDF: it may contain every instrument.
+    // Keep the original PDF pages and never rasterize an entire score on iPhone.
+    // A failed PDF copy must not silently start a long, cancellable render job.
     let printResult;
     try {
       printResult = await buildA4Pdf(specs, popup);
     } catch (error) {
-      console.warn("PDF-kopiering feila; prøver siderendering", error);
-      setStatus(popup, "Prøver alternativ metode for dei valde sidene …");
-      printResult = await buildRenderedPdf(specs, popup);
+      console.error("PDF-kopiering feila", error);
+      throw new Error("Kunne ikkje hente ut dei valde instrumentsidene frå PDF-en. Prøv ei anna stemme, eller kontroller sidetildelinga i arkivet.");
     }
     const { blob, pageCount } = printResult;
     await openNativePdf(popup, blob, pageCount, title);
