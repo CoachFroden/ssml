@@ -202,39 +202,57 @@ async function buildA4Pdf(specs, win) {
   return { blob: new Blob([bytes], { type: "application/pdf" }), pageCount: expectedPages };
 }
 
-function openNativePdf(win, blob) {
+async function openNativePdf(win, blob, pageCount) {
+  // Safari on iPhone often ignores print() on a PDF iframe. Render selected
+  // PDF pages as ordinary HTML images so the browser can print the page itself.
   const url = URL.createObjectURL(blob);
   const doc = win.document;
-  doc.body.innerHTML = "";
-  doc.body.style.cssText = "margin:0;padding:20px;font:16px -apple-system,system-ui,sans-serif;background:#f7f8f5;color:#174a43;text-align:center";
-  const status = doc.createElement("p");
-  status.textContent = "Opnar utskrift …";
-  const open = doc.createElement("a");
-  open.href = url;
-  open.textContent = "Opne PDF og skriv ut";
-  open.style.cssText = "display:inline-block;margin:14px;padding:14px 20px;border-radius:12px;background:#174a43;color:white;text-decoration:none;font-weight:700";
-  const frame = doc.createElement("iframe");
-  frame.src = url;
-  frame.title = "Notar til utskrift";
-  frame.style.cssText = "display:block;width:100%;height:70vh;border:0;background:white";
-  doc.body.append(status, open, frame);
-  let attempted = false;
-  const attempt = () => {
-    if (attempted) return;
-    attempted = true;
-    try {
-      frame.contentWindow.focus();
-      frame.contentWindow.print();
-      status.textContent = "Dersom utskriftsvindauget ikkje opna seg, trykk «Opne PDF og skriv ut».";
-    } catch (error) {
-      status.textContent = "Nettlesaren støttar ikkje direkte utskrift her. Trykk «Opne PDF og skriv ut».";
+  doc.head.innerHTML = '<meta name="viewport" content="width=device-width,initial-scale=1"><title>SSML – Skriv ut notar</title><style>@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;background:#edf1f2;font-family:-apple-system,system-ui,sans-serif;color:#173d39}.controls{position:sticky;top:0;z-index:2;background:#102941;color:white;padding:12px;text-align:center}.controls button{border:0;border-radius:10px;padding:13px 24px;background:#d5a547;color:#081a30;font-size:17px;font-weight:800}.controls a{color:white;display:inline-block;margin-left:12px}.sheet{width:210mm;height:297mm;background:white;margin:12px auto;overflow:hidden;page-break-after:always;break-after:page}.sheet:last-child{page-break-after:auto;break-after:auto}.sheet img{display:block;width:100%;height:100%;object-fit:contain}@media screen and (max-width:850px){.sheet{width:100%;height:auto;aspect-ratio:210/297;margin:8px auto}}@media print{html,body{background:white!important;margin:0!important;padding:0!important}.controls{display:none!important}.sheet{width:210mm!important;height:297mm!important;margin:0!important;box-shadow:none!important}img{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>';
+  doc.body.innerHTML = '<div class="controls"><button type="button" id="ssml-print-now">Skriv ut notar</button><a id="ssml-pdf-fallback">Opne PDF</a><p id="ssml-print-status">Klargjer utskrift …</p></div><div id="ssml-print-pages"></div>';
+  const fallback = doc.getElementById("ssml-pdf-fallback");
+  fallback.href = url;
+  const status = doc.getElementById("ssml-print-status");
+  const button = doc.getElementById("ssml-print-now");
+  button.disabled = true;
+  button.addEventListener("click", () => win.print());
+  const imageUrls = [];
+  try {
+    const pdfjs = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");
+    pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+    const pdf = await pdfjs.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise;
+    for(let i=1;i<=pdf.numPages;i++){
+      status.textContent = "Klargjer side " + i + " av " + pdf.numPages + " …";
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({scale:2});
+      const canvas = doc.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      await page.render({canvasContext:canvas.getContext("2d",{alpha:false}),viewport}).promise;
+      const imageBlob = await new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
+      if(!imageBlob)throw new Error("Kunne ikkje lage utskriftsbilete.");
+      const imageUrl = URL.createObjectURL(imageBlob);
+      imageUrls.push(imageUrl);
+      const sheet = doc.createElement("div");
+      sheet.className = "sheet";
+      const img = doc.createElement("img");
+      img.src = imageUrl;
+      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;});
+      sheet.append(img);
+      doc.getElementById("ssml-print-pages").append(sheet);
+      canvas.width=canvas.height=1;
     }
-  };
-  frame.addEventListener("load", attempt, {once:true});
-  setTimeout(() => {
-    if (!attempted) status.textContent = "Trykk «Opne PDF og skriv ut» dersom utskriftsvindauget ikkje kjem.";
-  }, 3500);
-  setTimeout(() => URL.revokeObjectURL(url), 30 * 60 * 1000);
+    status.textContent = pdf.numPages + " notesider klare.";
+    button.disabled = false;
+    // The browser may suppress automatic print after async work; the button
+    // remains available for a single-tap native print dialog.
+    win.focus();
+    win.print();
+  }catch(error){
+    console.error("HTML-utskrift feila",error);
+    status.textContent = "Direkte utskrift er ikkje tilgjengeleg her. Trykk «Opne PDF».";
+    button.disabled = true;
+  }
+  setTimeout(()=>{URL.revokeObjectURL(url);imageUrls.forEach(u=>URL.revokeObjectURL(u));},30*60*1000);
 }
 
 async function runPrint({ ids, pageOverride = null, copies = 1, title = "Noter" }) {
@@ -259,7 +277,7 @@ async function runPrint({ ids, pageOverride = null, copies = 1, title = "Noter" 
       printResult = await buildRenderedPdf(specs, popup);
     }
     const { blob, pageCount } = printResult;
-    openNativePdf(popup, blob, pageCount, title);
+    await openNativePdf(popup, blob, pageCount, title);
     message(`Klargjorde ${pageCount} A4-side${pageCount === 1 ? "" : "r"} for utskrift.`);
   } catch (error) {
     console.error("Mobilutskrift feila", error);
