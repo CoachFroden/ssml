@@ -137,20 +137,44 @@ async function buildA4Pdf(specs, win) {
   return { blob: new Blob([bytes], { type: "application/pdf" }), pageCount: expectedPages };
 }
 
-function openNativePdf(win, blob, pageCount) {
+function openNativePdf(win, blob, pageCount, title = "Noter") {
   const url = URL.createObjectURL(blob);
-  setStatus(win, `Ferdig: ${pageCount} A4-sider. Opnar PDF …`);
-  setTimeout(() => {
+  const filename = (String(title).replace(/[^a-zA-Z0-9æøåÆØÅ _-]/g, "").trim() || "Noter") + ".pdf";
+  const file = new File([blob], filename, { type: "application/pdf" });
+  const doc = win.document;
+  doc.body.innerHTML = "";
+  doc.body.style.cssText = "margin:0;padding:18px;font-family:-apple-system,system-ui,sans-serif;background:#f7f8f5;color:#174a43;text-align:center";
+  const heading = doc.createElement("h2");
+  heading.textContent = "Notane er klare";
+  const info = doc.createElement("p");
+  info.textContent = pageCount + " sider. Trykk «Del PDF» og vel «Skriv ut» eller «Lagre i Filer».";
+  const share = doc.createElement("button");
+  share.textContent = "Del PDF";
+  share.style.cssText = "padding:15px 24px;border:0;border-radius:12px;background:#174a43;color:white;font-size:17px;font-weight:700";
+  const save = doc.createElement("a");
+  save.href = url;
+  save.download = filename;
+  save.textContent = "Lagre PDF";
+  save.style.cssText = "display:inline-block;margin:12px;padding:12px;color:#174a43";
+  const preview = doc.createElement("iframe");
+  preview.src = url;
+  preview.title = "Førehandsvising av notar";
+  preview.style.cssText = "display:block;width:100%;height:65vh;border:1px solid #ddd;background:white";
+  share.addEventListener("click", async () => {
     try {
-      win.location.replace(url);
-      setTimeout(() => {
-        try { win.focus(); win.print(); } catch {}
-      }, 900);
-    } catch {
-      win.location.href = url;
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+      } else {
+        save.click();
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        info.textContent = "Kunne ikkje dele direkte. Vel «Lagre PDF», opne fila i Filer og skriv ut derfrå.";
+      }
     }
-  }, 120);
-  setTimeout(() => URL.revokeObjectURL(url), 15 * 60 * 1000);
+  });
+  doc.body.append(heading, info, share, save, preview);
+  setTimeout(() => URL.revokeObjectURL(url), 30 * 60 * 1000);
 }
 
 async function runPrint({ names, pageOverride = null, copies = 1, title = "Noter" }) {
@@ -181,7 +205,7 @@ async function runPrint({ names, pageOverride = null, copies = 1, title = "Noter
       throw pdfError;
     }
     const { blob, pageCount } = printResult;
-    openNativePdf(popup, blob, pageCount);
+    openNativePdf(popup, blob, pageCount, title);
     message(`Klargjorde ${pageCount} A4-side${pageCount === 1 ? "" : "r"} for utskrift.`);
   } catch (error) {
     console.error("Mobilutskrift feila", error);
