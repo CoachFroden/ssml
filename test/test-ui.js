@@ -1,0 +1,1 @@
+document.addEventListener('DOMContentLoaded',()=>{document.getElementById('test-open-archive')?.addEventListener('click',()=>{document.querySelector('[data-view="archive"]')?.click();setTimeout(()=>document.getElementById('archive-search')?.focus(),80)});});
