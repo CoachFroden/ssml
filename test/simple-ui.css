@@ -18,3 +18,18 @@
 .modal footer{position:sticky;bottom:-1rem;background:white;padding:1rem 0;z-index:2}
 }
 @media(max-width:520px){.part-selection-tools{grid-template-columns:1fr 1fr}.welcome>.btn{width:auto}.preview-toolbar{flex-wrap:wrap}.preview-actions{justify-content:flex-start}}
+
+/* Testforside: ekte knappar framfor bilde, ikkje statiske knappar i biletfila */
+.ssml-stage-home{position:relative;min-height:calc(100dvh - 78px);width:100%;overflow:hidden;background:#071528}
+.ssml-stage-background{position:absolute;inset:0;background-image:url('/ssml/ssml.png');background-position:center center;background-size:cover;background-repeat:no-repeat}
+.ssml-stage-home:before{content:"";position:absolute;z-index:1;left:0;right:0;bottom:0;height:31%;background:linear-gradient(transparent 0%,#071528 56%,#071528 100%);pointer-events:none}
+.ssml-stage-navigation{position:absolute;z-index:2;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(92%,560px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:12px;border:1px solid #b6c2d27a;border-radius:25px;background:#0b1a2fe8;box-shadow:0 15px 50px #0009;backdrop-filter:blur(12px)}
+.ssml-stage-link{appearance:none;border:0;background:transparent;color:#fff;min-height:70px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;font:inherit;border-radius:15px}
+.ssml-stage-link:first-child{background:#c79a43;color:#071528}
+.ssml-stage-link span{font-size:1.65rem;line-height:1.1}.ssml-stage-link strong{font-size:.9rem}
+.ssml-stage-link:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.ssml-stage-hidden-data{display:none}
+#app-shell main:has(.ssml-stage-home:not(.hidden)) .topbar{display:none}
+#app-shell main:has(.ssml-stage-home:not(.hidden)){background:#071528}
+@media(min-width:851px){.ssml-stage-home{min-height:100dvh}.ssml-stage-background{background-size:contain;background-color:#071528}}
+@media(max-width:850px){.ssml-stage-home{min-height:100dvh}.ssml-stage-navigation{bottom:max(16px,env(safe-area-inset-bottom));width:calc(100% - 24px)}.ssml-stage-background{background-position:center top}}
