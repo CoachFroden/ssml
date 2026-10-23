@@ -171,35 +171,33 @@ async function openNativePdf(win, blob, pageCount, title) {
 
 async function runPrint({ ids, pageOverride = null, copies = 1, title = "Noter" }) {
   const popup = openPreparing(title);
-  if (!popup) return message("Nettlesaren blokkerte utskriftsvindauget. Prøv igjen.", "error");
+  if (!popup) return message("Nettlesaren blokkerte PDF-vindauget.", "error");
   try {
     const song = await getSong();
     const parts = resolveParts(song, ids);
-    if (!parts.length) throw new Error("Fann ikkje dei valde stemmene.");
-    const specs = parts.map(part => ({
-      part,
-      pageOverride: parts.length === 1 ? pageOverride : null,
-      copies: parts.length === 1 ? copies : 1
-    }));
-    // Keep the original PDF pages and never rasterize an entire score on iPhone.
-    // A failed PDF copy must not silently start a long, cancellable render job.
-    let printResult;
-    try {
-      printResult = await buildA4Pdf(specs, popup);
-    } catch (error) {
-      console.error("PDF-klargjering feila", error);
-      throw new Error("Kunne ikkje klargjere dei valde notesidene. Kontroller sidetildelinga eller prøv færre sider.");
-    }
-    const { blob, pageCount } = printResult;
-    await openNativePdf(popup, blob, pageCount, title);
-    message(`Klargjorde ${pageCount} noteside${pageCount === 1 ? "" : "r"} for utskrift.`);
+    if (!parts.length) throw new Error("Ingen stemmer er valde.");
+    // Opening the source PDF directly avoids Safari canvas/PDF-lib hangs.
+    // A source PDF can contain several instruments, so NEVER silently print all pages.
+    const urls = [...new Set(parts.map(sourceUrl))];
+    if (urls.some(url => !url)) throw new Error("Ei stemme manglar PDF.");
+    const instructions = parts.map(part => {
+      const pages = Number.isFinite(pageOverride) && parts.length === 1 ? [pageOverride] : part.pageNumbers;
+      if (!Array.isArray(pages) || !pages.length) throw new Error("«" + part.name + "» manglar sidetildeling.");
+      return {name:part.name, pages:[...new Set(pages.map(Number))]};
+    });
+    const escape = text => String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    const grouped = urls.map(url => {
+      const matching = parts.filter(part => sourceUrl(part) === url);
+      const pages = [...new Set(instructions.filter(item => matching.some(part => part.name === item.name)).flatMap(item => item.pages))].sort((a,b)=>a-b);
+      return {url,pages};
+    });
+    popup.document.open();
+    popup.document.write(`<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Utskrift av notar</title><style>body{background:#081a30;color:#f5e7ca;font:16px -apple-system,Arial,sans-serif;padding:22px;margin:0}main{max-width:500px;margin:auto}h1{font-size:1.4rem}p,li{line-height:1.6}a{display:block;padding:16px;margin:16px 0;background:#d5a547;color:#081a30;border-radius:12px;text-align:center;font-weight:700;text-decoration:none}.pages{background:#122d48;border:1px solid #405b73;border-radius:12px;padding:14px;margin:12px 0;overflow-wrap:anywhere}strong{color:#fff}</style></head><body><main><h1>Opne original-PDF for utskrift</h1><p>Dette opnar notene direkte, utan konvertering som kan gi blanke sider eller låse telefonen.</p><p><strong>Viktig:</strong> PDF-en kan innehalde fleire instrument. Vel berre sidene som står under, i utskriftsmenyen. Ikkje vel «Alle» med mindre heile PDF-en skal skrivast ut.</p>${grouped.map((item,i)=>`<div class="pages"><strong>PDF ${i+1} – sider: ${item.pages.join(", ")}</strong><a href="${escape(item.url)}" target="_self">Opne original-PDF ${i+1}</a></div>`).join("")}<p>Etter opning: Del → Skriv ut → vel oppgitte sider. Kopiar: ${Number(copies)||1}.</p></main></body></html>`);
+    popup.document.close();
   } catch (error) {
-    console.error("Mobilutskrift feila", error);
-    const text = !navigator.onLine
-      ? "Telefonen er utan nett. Slå på nett og prøv igjen."
-      : (error?.message || "Kunne ikkje klargjere notene for utskrift.");
-    setStatus(popup, text);
-    message(text, "error");
+    console.error("Mobilutskrift feila",error);
+    setStatus(popup,error.message||"Kunne ikkje opne PDF.");
+    message(error.message||"Kunne ikkje opne PDF.","error");
   }
 }
 
