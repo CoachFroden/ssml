@@ -94,7 +94,7 @@ async function handleImport(event){
   state.pendingSong=null;state.pendingAnalysis=null;
   const proposed={...base,parts:sourceFiles.map(file=>({name:file.name.replace(/\.pdf$/i,""),fileName:file.name,pageNumbers:[]}))};
   openAnalysisReview(base,proposed);
-  $(".review-part-row").forEach((row,index)=>{row.dataset.sourceIndex=String(index);row.dataset.originalFile=sourceFiles[index].name;});
+  $$(".review-part-row").forEach((row,index)=>{row.dataset.sourceIndex=String(index);row.dataset.originalFile=sourceFiles[index].name;});
   $("#ai-review-dialog .analysis-status").innerHTML="<span>✓</span><p><strong>Kontroller før opplasting</strong><br><small>Ingen PDF-filer er lagra enno. Rett instrumentnamna og trykk Godkjenn og lagre.</small></p>";
   $("#ai-review-dialog .eyebrow").textContent="Før lagring";
   $$(".review-part-pages").forEach(input=>{input.required=false;input.closest("label").style.display="none";});
