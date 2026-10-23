@@ -200,3 +200,18 @@ body .ssml-bottom-nav button:focus-visible{outline:3px solid #f4d182;outline-off
  #ssml-score-switch button{flex:1;min-height:42px;border:1px solid #d5a547;border-radius:10px;background:#193650;color:#f5e9ce;font-weight:800;font-size:14px}
  #ssml-score-switch button:last-child{background:#d5a547;color:#091b2c}
 }
+
+/* v18: PC-vising av Favorittar/Kontaktar – heil bakgrunn, lesbar tekst og jamne kort. */
+@media(min-width:851px){
+ html,body,body #app-shell,body #app-shell main{background:#081a30!important;min-height:100vh}
+ body #app-shell main{min-height:100dvh!important}
+ body #app-shell #favorites-view,body #app-shell #contacts-view{min-height:100dvh!important;background:#081a30!important;padding-bottom:130px!important}
+ body #app-shell .ssml-favorites-grid{align-items:stretch!important}
+ body #app-shell .ssml-favorites-grid>*{height:100%!important;min-height:125px!important}
+}
+body #app-shell .ssml-favorites-grid h3,
+body #app-shell .ssml-favorites-grid strong,
+body #app-shell .ssml-favorites-grid a,
+body #app-shell .ssml-favorites-grid .song-title{color:#f7e7c7!important}
+body #app-shell .ssml-favorites-grid p,
+body #app-shell .ssml-favorites-grid small{color:#b9cad9!important}
