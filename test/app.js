@@ -87,7 +87,7 @@ async function handleImport(event){
  event.preventDefault();
  if(!state.files.length){toast("Vel minst éi PDF-fil.","error");return;}
  const enteredTitle=$("#song-title").value.trim();
- const base={title:enteredTitle||state.files[0].name.replace(/\.pdf$/i,""),composer:$("#composer").value.trim(),arranger:$("#arranger").value.trim(),mode:$("input[name=pdf-mode]:checked").value,createdAt:new Date().toISOString()};
+ const base={title:enteredTitle||state.files[0].name.replace(/\.pdf$/i,""),composer:$("#composer").value.trim(),arranger:$("#arranger").value.trim(),mode:(()=>{const chosen=$("input[name=pdf-mode]:checked").value;return chosen==="auto"?(state.files.length>1?"separate":"combined"):chosen;})(),createdAt:new Date().toISOString()};
  const sourceFiles=[...state.files];
  if(base.mode==="separate"){
   state.pendingImport={base,sourceFiles,enhance:$("#enhance-scans").checked};
