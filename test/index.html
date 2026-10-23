@@ -99,6 +99,7 @@
       </div>
       <fieldset><legend>Korleis skal PDF-filene handsamast?</legend>
 <label class="radio-card"><input type="radio" name="pdf-mode" value="auto" checked><span><strong>Automatisk (tilrådd)</strong><small>Fleire PDF-ar blir separate stemmer. Éin PDF blir analysert for instrument.</small></span></label>
+<label class="radio-card"><input type="radio" name="pdf-mode" value="split"><span><strong>Del samla PDF i enkeltsider</strong><small>Éi PDF blir delt til éi PDF per side. Du gir kvar side instrumentnamn før lagring.</small></span></label>
 <label class="radio-card"><input type="radio" name="pdf-mode" value="combined"><span><strong>Samla PDF (overstyr)</strong><small>Analyser instrument og sider i éi PDF.</small></span></label>
 <label class="radio-card"><input type="radio" name="pdf-mode" value="separate"><span><strong>Separate stemmer (overstyr)</strong><small>Kvar PDF er éi stemme, også om det berre er éi fil.</small></span></label>
 </fieldset>
@@ -143,7 +144,7 @@
   </dialog>
 
   <template id="empty-template"><div class="empty-state"><span>♫</span><h3>Ingen notar her enno</h3><p>Importer den første songen for å kome i gang.</p><button class="btn btn-primary" data-action="open-import">＋ Importer notar</button></div></template>
-  <script type="module" src="/ssml/test/app.js?v=13"></script>
+  <script type="module" src="/ssml/test/app.js?v=14"></script>
   <script type="module" src="/ssml/test/mobile-reliable-print.js?v=4"></script>
   <script type="module" src="share-links.js?v=7"></script>
   <script type="module" src="password-reset.js?v=1"></script>
