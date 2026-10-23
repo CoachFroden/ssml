@@ -215,3 +215,19 @@ body #app-shell .ssml-favorites-grid a,
 body #app-shell .ssml-favorites-grid .song-title{color:#f7e7c7!important}
 body #app-shell .ssml-favorites-grid p,
 body #app-shell .ssml-favorites-grid small{color:#b9cad9!important}
+
+/* v19: Kontrast og konsekvent marineblaa stil paa kontaktsida. */
+body #app-shell #contacts-view .ssml-contact-grid *,
+body #app-shell #contacts-view .ssml-contact-grid a,
+body #app-shell #contacts-view .ssml-contact-grid strong,
+body #app-shell #contacts-view .ssml-contact-grid h3{color:#f5e7ca!important}
+body #app-shell #contacts-view .ssml-contact-grid p,
+body #app-shell #contacts-view .ssml-contact-grid small{color:#bbcad8!important}
+body #app-shell #contacts-view .ssml-contact-grid a[href^="tel:"],
+body #app-shell #contacts-view .ssml-contact-grid a[href^="mailto:"]{color:#eac16f!important;text-decoration-color:#eac16f80}
+body #app-shell #contacts-view .ssml-my-profile,
+body #app-shell #contacts-view .ssml-my-profile *,
+body #app-shell #contacts-view .ssml-my-profile summary{background-color:#122d48!important;color:#f5e7ca!important;border-color:#405b73!important}
+body #app-shell #contacts-view .ssml-my-profile small,
+body #app-shell #contacts-view .ssml-my-profile p{color:#bbcad8!important}
+body #app-shell #contacts-view .ssml-my-profile input{background:#1d3b56!important;color:#fff!important}
