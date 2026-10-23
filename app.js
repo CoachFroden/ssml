@@ -82,7 +82,7 @@ function renderCards(container,songs){ container.innerHTML="";if(!songs.length){
 
 function addFiles(fileList){ const pdfs=[...fileList].filter(file=>file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf")); const rejected=[...fileList].length-pdfs.length;if(rejected)toast(`${rejected} fil(er) vart hoppa over fordi dei ikkje er PDF.`,"error");state.files=[...state.files,...pdfs].filter((file,index,all)=>all.findIndex(x=>x.name===file.name&&x.size===file.size)===index);renderFiles(); }
 function renderFiles(){ const list=$("#file-list");list.innerHTML="";state.files.forEach((file,index)=>{const row=document.createElement("div");row.className="file-row";row.innerHTML=`<div><strong>▧ ${escapeHtml(file.name)}</strong><small>${(file.size/1048576).toFixed(1)} MB</small></div><button type="button" aria-label="Fjern">×</button>`;row.querySelector("button").addEventListener("click",()=>{state.files.splice(index,1);renderFiles();});list.append(row);}); }
-async function handleImport(event){ event.preventDefault();if(!state.files.length){toast("Vel minst éi PDF-fil.","error");return;}const button=$("#save-song");button.disabled=true;button.textContent=state.demo?"Lagrar …":"Lastar opp originalar …";const enteredTitle=$("#song-title").value.trim();const base={title:enteredTitle||state.files[0].name.replace(/\.pdf$/i,""),composer:$("#composer").value.trim(),arranger:$("#arranger").value.trim(),mode:$("input[name=pdf-mode]:checked").value,createdAt:new Date().toISOString()};const sourceFiles=[...state.files];try{let song;if(state.demo){song={id:`local-${Date.now()}`,...base,parts:sourceFiles.map((file,index)=>({id:`local-part-${Date.now()}-${index}`,name:base.mode==="combined"?"Samla partitur":file.name.replace(/\.pdf$/i,""),fileName:file.name,url:URL.createObjectURL(file),pageCount:null}))};saveLocalMetadata(song);state.songs.unshift(song);finishImportUi();openSong(song.id);toast("Demo-import er lagra utan AI-analyse.");return;}song=await saveSong(base,sourceFiles,[]);state.pendingSong=song;if($("#enhance-scans").checked){button.textContent="Legg PDF-forbetring i kø …";try{song.parts=await queuePdfEnhancements(song);toast("Originalane er lagra. PDF-forbetringa køyrer trygt i bakgrunnen.");}catch(queueError){console.error(queueError);toast("Originalane er lagra, men PDF-forbetringa kunne ikkje leggjast i kø.","error");}}button.textContent="AI analyserer filene …";toast("PDF-ane er lasta opp. AI analyserer notane …");const analysis=await analyzeSongPdf(song,sourceFiles);state.pendingAnalysis=analysis;finishImportUi();openAnalysisReview(song,analysis);}catch(error){console.error(error);if(state.pendingSong&&!state.songs.some(x=>x.id===state.pendingSong.id)){state.songs.unshift(state.pendingSong);renderAll();finishImportUi();}toast(aiErrorMessage(error),"error");}finally{button.disabled=false;button.textContent="Lagre i arkivet";} }
+async function handleImport(event){ event.preventDefault();if(!state.files.length){toast("Vel minst éi PDF-fil.","error");return;}const button=$("#save-song");button.disabled=true;button.textContent=state.demo?"Lagrar …":"Lastar opp originalar …";const enteredTitle=$("#song-title").value.trim();const base={title:enteredTitle||state.files[0].name.replace(/\.pdf$/i,""),composer:$("#composer").value.trim(),arranger:$("#arranger").value.trim(),mode:$("input[name=pdf-mode]:checked").value,createdAt:new Date().toISOString()};const sourceFiles=[...state.files];try{let song;if(state.demo){song={id:`local-${Date.now()}`,...base,parts:sourceFiles.map((file,index)=>({id:`local-part-${Date.now()}-${index}`,name:base.mode==="combined"?"Samla partitur":file.name.replace(/\.pdf$/i,""),fileName:file.name,url:URL.createObjectURL(file),pageCount:null}))};saveLocalMetadata(song);state.songs.unshift(song);finishImportUi();openSong(song.id);toast("Demo-import er lagra utan AI-analyse.");return;}song=await saveSong(base,sourceFiles,[]);state.pendingSong=song;if($("#enhance-scans").checked){button.textContent="Legg PDF-forbetring i kø …";try{song.parts=await queuePdfEnhancements(song);toast("Originalane er lagra. PDF-forbetringa køyrer trygt i bakgrunnen.");}catch(queueError){console.error(queueError);toast("Originalane er lagra, men PDF-forbetringa kunne ikkje leggjast i kø.","error");}}if(base.mode==="separate"){state.songs.unshift(song);finishImportUi();openSong(song.id);toast("PDF-stemmene er lagra utan AI-analyse. Du kan endre instrumentnamna etterpå.");return;}button.textContent="AI analyserer filene …";toast("PDF-ane er lasta opp. AI analyserer notane …");const analysis=await analyzeSongPdf(song,sourceFiles);state.pendingAnalysis=analysis;finishImportUi();openAnalysisReview(song,analysis);}catch(error){console.error(error);if(state.pendingSong&&!state.songs.some(x=>x.id===state.pendingSong.id)){state.songs.unshift(state.pendingSong);renderAll();finishImportUi();}toast(aiErrorMessage(error),"error");}finally{button.disabled=false;button.textContent="Lagre i arkivet";} }
 async function reanalyzeSavedSong(){
   const song=state.activeSong;
   if(!song||state.demo){toast("AI-analyse krev eit lagra musikkstykke i Firebase.","error");return;}
@@ -206,24 +206,20 @@ async function saveNewInstrument(event){
   event.preventDefault();const song=state.activeSong,file=state.newInstrumentFile;
   if(!song||!file){toast("Vel PDF-en til det nye instrumentet.","error");return;}
   if(state.demo){toast("Nye instrument kan berre leggjast til i Firebase-modus.","error");return;}
-  const button=$("#save-new-instrument");button.disabled=true;button.textContent="AI analyserer instrumentet …";
+  const suggested=file.name.replace(/\\.pdf$/i,"").replace(/[_-]+/g," ").trim();
+  const name=prompt("Namn på instrument/stemme:",suggested);
+  if(name===null)return;
+  if(!name.trim()){toast("Skriv inn namn på instrumentet.","error");return;}
+  const button=$("#save-new-instrument");button.disabled=true;button.textContent="Lastar opp …";
   try{
-    const analysis=await analyzeNewInstrumentPdf(song,file);
-    const detected=(analysis.parts||[]).find(part=>part.fileName===file.name)||(analysis.parts||[])[0];
-    const name=(detected?.name||[detected?.instrument,detected?.voice].filter(Boolean).join(" ")||file.name.replace(/\.pdf$/i,"")).trim();
-    if(analysis.title&&song.title&&!titlesProbablyMatch(analysis.title,song.title)){
-      const proceed=confirm(`AI fann tittelen «${analysis.title}», medan den opne songen er «${song.title}». Legg til «${name}» likevel?`);
-      if(!proceed)return;
-    }
-    button.textContent="Lastar opp …";
-    const result=await addSongPart(song.id,song.parts||[],file,name,analysis.sourcePageCount||1);
+    const result=await addSongPart(song.id,song.parts||[],file,name.trim(),null);
     song.parts=sortParts(result.parts);
     state.activePart=song.parts.find(part=>part.id===result.part.id)||result.part;
     state.selectedPartIds=new Set([state.activePart.id]);
     clearPreviewPdfCache();state.viewOriginal=false;state.newInstrumentFile=null;
     $("#add-instrument-dialog").close();renderSongDetail();await renderSelectedPreview();renderAll();toast(`«${name}» er lagt til i «${song.title}».`);
   }catch(error){console.error(error);toast(error.message||"Kunne ikkje leggje til instrumentet.","error");}
-  finally{button.disabled=false;button.textContent="Analyser og legg til";}
+  finally{button.disabled=false;button.textContent="Legg til stemme";}
 }
 
 function openAppendPagesDialog(){
