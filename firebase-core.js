@@ -37,16 +37,22 @@ async function fetchWithTimeout(resource, options = {}, timeoutMs = 45000) {
 
 export async function initFirebase() {
   if (!isFirebaseConfigured) return null;
-  const [{ initializeApp }, authModule, firestoreModule, storageModule, aiModule] = await Promise.all([
+  const [{ initializeApp }, authModule, firestoreModule, storageModule, aiModule, appCheckModule] = await Promise.all([
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-storage.js"),
-    import("https://www.gstatic.com/firebasejs/11.10.0/firebase-ai.js")
+    import("https://www.gstatic.com/firebasejs/11.10.0/firebase-ai.js"),
+    import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js")
   ]);
   const app = initializeApp(firebaseConfig);
-  // App Check er mellombels slått av. Firebase-konsollen står på «unenforced»,
-  // så tenestene kan brukast utan reCAPTCHA medan produksjonsoppsettet blir avklart.
+  // SSML er registrert med reCAPTCHA Enterprise (Fraud Defense) i Firebase App Check.
+  // Start App Check før Firebase AI Logic vert brukt. Ikkje slå på enforcement
+  // før verifiserte forespurnader er stadfesta i Firebase Console.
+  const appCheck = appCheckModule.initializeAppCheck(app, {
+    provider: new appCheckModule.ReCaptchaEnterpriseProvider("6Lcmc4UTaA7AADne_exwFX4KztkeeRO08_Pmon4i"),
+    isTokenAutoRefreshEnabled: true
+  });
   const ai = aiModule.getAI(app, { backend: new aiModule.GoogleAIBackend() });
   const responseSchema = aiModule.Schema.object({ properties: {
     title: aiModule.Schema.string(),
@@ -66,7 +72,7 @@ export async function initFirebase() {
     model: "gemini-2.5-flash",
     generationConfig: { responseMimeType: "application/json", responseSchema, temperature: 0.1, maxOutputTokens: 8192 }
   });
-  services = { app, ai, analysisModel, auth: authModule.getAuth(app), db: firestoreModule.getFirestore(app), storage: storageModule.getStorage(app), authModule, firestoreModule, storageModule };
+  services = { app, appCheck, ai, analysisModel, auth: authModule.getAuth(app), db: firestoreModule.getFirestore(app), storage: storageModule.getStorage(app), authModule, firestoreModule, storageModule };
   return services;
 }
 
