@@ -207,7 +207,7 @@
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js")
    ]);
    const app=getApp();
-   const appCheck=initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider("6LcFj_0tAAAAAJeemD4JOGTsouPnzDRU0oHCWAva"),isTokenAutoRefreshEnabled:false});
+   const appCheck=initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider("6LcFj_0tAAAAAJeemD4JOGTsouPnzDRU0oHCWAva"),isTokenAutoRefreshEnabled:true});
    const result=await getToken(appCheck,true);
    if(!result.token)throw new Error("Firebase returnerte ikkje noko token.");
    status.textContent="✓ App Check fungerer! Firebase returnerte eit token.";
