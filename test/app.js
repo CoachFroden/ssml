@@ -99,7 +99,7 @@ async function handleImport(event){
   $("#ai-review-dialog").classList.add("separate-pdf-review");
   $("#ai-review-dialog .analysis-status").innerHTML="<span>✓</span><p><strong>Kontroller før opplasting</strong><br><small>Ingen PDF-filer er lagra enno. Rett instrumentnamna og trykk Godkjenn og lagre.</small></p>";
   $("#ai-review-dialog .eyebrow").textContent="Før lagring";
-  $(".review-part-pages").forEach(input=>{input.required=false;input.disabled=true;input.closest("label").style.setProperty("display","none","important");});
+  $(".review-part-pages").forEach(input=>{input.required=false;input.removeAttribute("required");input.disabled=true;input.closest("label").style.setProperty("display","none","important");});
   return;
  }
  const button=$("#save-song");button.disabled=true;button.textContent=state.demo?"Lagrar …":"Lastar opp originalar …";
