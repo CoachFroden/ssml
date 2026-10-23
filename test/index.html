@@ -189,32 +189,6 @@
  update();
 })();
 </script>
-<script>
-/* Diagnostic UI is created synchronously, even if Firebase SDK fails to load. */
-(() => {
- const button=document.createElement("button");
- button.type="button";button.textContent="Test App Check";
- button.style.cssText="position:fixed;right:12px;top:12px;z-index:99999;background:#123f37;color:white;border:2px solid #d9b65c;border-radius:10px;padding:10px 14px;font:600 14px system-ui;cursor:pointer";
- const status=document.createElement("div");
- status.setAttribute("role","status");
- status.style.cssText="position:fixed;right:12px;top:62px;z-index:99999;max-width:min(360px,90vw);padding:12px;border-radius:10px;background:#fff;color:#183d37;box-shadow:0 4px 18px #0003;font:14px system-ui;display:none";
- document.body.append(button,status);
- button.addEventListener("click",async()=>{
-  button.disabled=true;status.style.display="block";status.textContent="Kontrollerer App Check-token …";
-  try {
-   const [{getApp},{initializeAppCheck,getToken,ReCaptchaEnterpriseProvider}]=await Promise.all([
-    import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
-    import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js")
-   ]);
-   const app=getApp();
-   const appCheck=initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider("6LcFj_0tAAAAAJeemD4JOGTsouPnzDRU0oHCWAva"),isTokenAutoRefreshEnabled:true});
-   const result=await getToken(appCheck,true);
-   if(!result.token)throw new Error("Firebase returnerte ikkje noko token.");
-   status.textContent="✓ App Check fungerer! Firebase returnerte eit token.";
-  }catch(error){console.error("SSML App Check test failed:",error);status.textContent="✗ App Check feila: "+(error?.message||String(error));}
-  finally{button.disabled=false;}
- });
-})();
-</script>
+
 </body>
 </html>
