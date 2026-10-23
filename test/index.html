@@ -202,11 +202,13 @@
  button.addEventListener("click",async()=>{
   button.disabled=true;status.style.display="block";status.textContent="Kontrollerer App Check-token …";
   try {
-   const [{getApp},{getAppCheck,getToken}]=await Promise.all([
+   const [{getApp},{initializeAppCheck,getToken,ReCaptchaEnterpriseProvider}]=await Promise.all([
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js"),
     import("https://www.gstatic.com/firebasejs/11.10.0/firebase-app-check.js")
    ]);
-   const result=await getToken(getAppCheck(getApp()),true);
+   const app=getApp();
+   const appCheck=initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider("6LcFj_0tAAAAAJeemD4JOGTsouPnzDRU0oHCWAva"),isTokenAutoRefreshEnabled:false});
+   const result=await getToken(appCheck,true);
    if(!result.token)throw new Error("Firebase returnerte ikkje noko token.");
    status.textContent="✓ App Check fungerer! Firebase returnerte eit token.";
   }catch(error){console.error("SSML App Check test failed:",error);status.textContent="✗ App Check feila: "+(error?.message||String(error));}
