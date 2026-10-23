@@ -31,11 +31,46 @@ async function makePdf(song,ids,pageOnly,copies){
   if(!part)throw Error("Fann ikkje den valde instrumentstemma.");
   const url=part.url||part.enhancedUrl||part.originalUrl;
   if(!url)throw Error("Manglar PDF for "+part.name);
-  if(!cache.has(url)){const response=await fetch(url);if(!response.ok)throw Error("Kunne ikkje laste PDF.");const loaded=await PDFDocument.load(await response.arrayBuffer(), { ignoreEncryption: true });if(loaded.isEncrypted)throw Error("Denne PDF-en er kryptert. Direkte kopiering kan gi blanke ark. Utskrift er stoppa for å unngå feil. Bruk original-PDF-en eller last opp ei ukryptert utgåve.");cache.set(url,loaded);}
-  const source=cache.get(url);
-  const pages=pageOnly!=null?[pageOnly]:part.pageNumbers?.length?part.pageNumbers:(song.mode==="combined"||song.mode==="mapped"||song.mode==="analyzed"?(()=>{throw Error("Stemma «"+part.name+"» manglar sidetildeling. Utskrift stoppa for å unngå heile partituret.");})():Array.from({length:source.getPageCount()},(_,i)=>i+1));
-  if(!pages.length||pages.some(p=>!Number.isInteger(Number(p))||Number(p)<1||Number(p)>source.getPageCount()))throw Error("Ugyldig sidetildeling for "+part.name);
-  for(let copy=0;copy<copies;copy++){const copied=await output.copyPages(source,pages.map(p=>Number(p)-1));copied.forEach(p=>output.addPage(p));count+=copied.length;}
+  if(!cache.has(url)){
+   const response=await fetch(url);if(!response.ok)throw Error("Kunne ikkje laste PDF.");
+   const bytes=await response.arrayBuffer();
+   let source=null;
+   try{source=await PDFDocument.load(bytes,{ignoreEncryption:true});}catch(error){console.warn("PDF-lib kan ikkje lese originalen, brukar PDF.js",error);}
+   if(source?.isEncrypted)source=null;
+   cache.set(url,{bytes,source});
+  }
+  const item=cache.get(url);
+  if(!item.source&&!item.pdfjs){
+   const pdfjs=await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");
+   pdfjs.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+   item.pdfjs=await pdfjs.getDocument({data:new Uint8Array(item.bytes.slice(0))}).promise;
+  }
+  const total=item.source?.getPageCount()||item.pdfjs.numPages;
+  const pages=pageOnly!=null?[pageOnly]:part.pageNumbers?.length?part.pageNumbers:(song.mode==="combined"||song.mode==="mapped"||song.mode==="analyzed"?(()=>{throw Error("Stemma «"+part.name+"» manglar sidetildeling.");})():Array.from({length:total},(_,i)=>i+1));
+  if(!pages.length||pages.some(p=>!Number.isInteger(Number(p))||Number(p)<1||Number(p)>total))throw Error("Ugyldig sidetildeling for "+part.name);
+  for(let copy=0;copy<copies;copy++){
+   if(item.source){
+    const copied=await output.copyPages(item.source,pages.map(p=>Number(p)-1));
+    copied.forEach(p=>output.addPage(p));count+=copied.length;
+   }else{
+    for(const number of pages){
+     const page=await item.pdfjs.getPage(Number(number));
+     const viewport=page.getViewport({scale:1.65});
+     const canvas=document.createElement("canvas");
+     canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+     const context=canvas.getContext("2d",{alpha:false});
+     context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
+     await page.render({canvasContext:context,viewport}).promise;
+     const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error("Kunne ikkje lage utskriftsbilete.")),"image/png"));
+     const image=await output.embedPng(await blob.arrayBuffer());
+     const sourceWidth=page.getViewport({scale:1}).width,sourceHeight=page.getViewport({scale:1}).height;
+     const sheet=output.addPage([sourceWidth,sourceHeight]);
+     sheet.drawImage(image,{x:0,y:0,width:sourceWidth,height:sourceHeight});
+     canvas.width=canvas.height=1;
+     count++;
+    }
+   }
+  }
  }
  if(!count)throw Error("Ingen sider vart valde.");
  return {blob:new Blob([await output.save()],{type:"application/pdf"}),count};
