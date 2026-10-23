@@ -91,18 +91,13 @@
   <dialog id="import-dialog" class="modal">
     <form id="import-form" method="dialog">
       <header><div><p class="eyebrow green">Nytt i arkivet</p><h2>Importer notar</h2></div><button class="icon-btn" type="button" data-close-dialog aria-label="Lukk">×</button></header>
-      <p class="muted" style="margin:12px 0 18px">Last opp originalfilene direkte. Har du éi PDF per instrument, kan du velje alle filene samtidig. SSML lagrar originalane utan å slå dei saman.</p>
+      <p class="muted" style="margin:12px 0 18px">Importer separate instrument-PDF-ar. Har du fått ein samla PDF, deler du han opp før du lastar opp. SSML lagrar kvar fil separat.</p>
       <div class="form-grid">
-        <label class="full">Tittel (valfritt)<input id="song-title" placeholder="Til dømes Cantina Band (kan fyllast inn etter analyse)"></label>
+        <label class="full">Songtittel<input id="song-title" required placeholder="Til dømes Cantina Band"></label>
         <label>Komponist<input id="composer" placeholder="Namn på komponist"></label>
         <label>Arrangør<input id="arranger" placeholder="Namn på arrangør"></label>
       </div>
-      <fieldset><legend>Korleis skal PDF-filene handsamast?</legend>
-<label class="radio-card"><input type="radio" name="pdf-mode" value="auto" checked><span><strong>Automatisk (tilrådd)</strong><small>Fleire PDF-ar blir separate stemmer. Éin PDF blir analysert for instrument.</small></span></label>
-<label class="radio-card"><input type="radio" name="pdf-mode" value="split"><span><strong>Del samla PDF i enkeltsider</strong><small>Éi PDF blir delt til éi PDF per side. Du gir kvar side instrumentnamn før lagring.</small></span></label>
-<label class="radio-card"><input type="radio" name="pdf-mode" value="combined"><span><strong>Samla PDF (overstyr)</strong><small>Analyser instrument og sider i éi PDF.</small></span></label>
-<label class="radio-card"><input type="radio" name="pdf-mode" value="separate"><span><strong>Separate stemmer (overstyr)</strong><small>Kvar PDF er éi stemme, også om det berre er éi fil.</small></span></label>
-</fieldset>
+      <p class="muted" style="margin:16px 0 8px"><strong>Éi PDF per instrument.</strong> Vel alle stemmene til songen samtidig. Du får kontrollere instrumentnamna før lagring.</p>
       <label id="drop-zone" class="drop-zone"><input id="pdf-files" type="file" accept="application/pdf,.pdf" multiple><span class="upload-icon">⇧</span><strong>Slepp PDF-filene her</strong><small>eller trykk for å velje fleire PDF-ar · maks 50 MB per fil</small></label>
       <div id="file-list" class="file-list"></div><p id="ssml-import-help" class="muted" aria-live="polite">Vel alle instrument-PDF-ane til same musikkstykke. Filene blir lagra kvar for seg.</p>
       <label class="enhance-option"><input id="enhance-scans" type="checkbox"><span><strong>Forbetre skanna notar automatisk</strong><small>Rettar opp skeive sider, fjernar mørke kantar og skuggar og aukar kontrasten. Digitale PDF-ar blir ikkje endra. Originalen blir alltid teken vare på.</small></span></label>
@@ -144,7 +139,7 @@
   </dialog>
 
   <template id="empty-template"><div class="empty-state"><span>♫</span><h3>Ingen notar her enno</h3><p>Importer den første songen for å kome i gang.</p><button class="btn btn-primary" data-action="open-import">＋ Importer notar</button></div></template>
-  <script type="module" src="/ssml/test/app.js?v=15"></script>
+  <script type="module" src="/ssml/test/app.js?v=16"></script>
   <script type="module" src="/ssml/test/mobile-reliable-print.js?v=4"></script>
   <script type="module" src="share-links.js?v=7"></script>
   <script type="module" src="password-reset.js?v=1"></script>
@@ -179,22 +174,7 @@
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
   })();
   </script>
-<script>
-(function(){
- const dialog=document.getElementById('import-dialog'),input=document.getElementById('pdf-files'),help=document.getElementById('ssml-import-help');
- if(!dialog||!input||!help)return;
- function update(){
-  const combined=dialog.querySelector('input[name="pdf-mode"]:checked')?.value==='combined';
-  const rows=dialog.querySelectorAll('#file-list .file-row');
-  help.textContent=combined
-   ? (rows.length>1?'Du har valt fleire filer. Vel «Separate instrument-PDF-ar» dersom kvar fil er ei eiga stemme.':'Samla PDF: SSML må finne instrumentsidene i den eine originalfila.')
-   : (rows.length?rows.length+' PDF-fil(er) valde. Kvar fil blir lagra som eigen original, og du kan kontrollere instrumentnamna etter opplasting.':'Vel alle instrument-PDF-ane til same musikkstykke. Filene blir lagra kvar for seg.');
- }
- dialog.querySelectorAll('input[name="pdf-mode"]').forEach(r=>r.addEventListener('change',update));
- new MutationObserver(update).observe(document.getElementById('file-list'),{childList:true});
- update();
-})();
-</script>
+
 
 </body>
 </html>
