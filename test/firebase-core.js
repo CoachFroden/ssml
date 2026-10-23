@@ -617,10 +617,10 @@ export async function analyzeSongPdf(song, sourceFiles) {
 
   const analyses = [];
   for (const file of analysisFiles) {
-    const chunks = await splitPdfForAi(file);
+    const chunks = await splitPdfForAiByPages(file, 3);
     for (const chunk of chunks) {
       const rangeText = chunk.pageCount ? `Dette er side ${chunk.pageOffset + 1} til ${chunk.pageOffset + chunk.pageCount} av kjeldefila.` : 'Dette er heile kjeldefila.';
-      const prompt = `Analyser desse musikknotane for eit skulemusikkorps. Returner berre data i skjemaet.\nFinn korrekt songtittel, komponist og arrangør frå tekst i notane. Identifiser kvar instrumentstemme og alle PDF-sidene som høyrer til stemma. Ei stemme kan gå over fleire sider. Bruk PDF-sidetal frå 1 i denne bolken, ikkje trykte sidetal. Skil mellom til dømes Fløyte 1 og Fløyte 2. Bruk norsk instrumentnamn når det er naturleg. Set fileName til nøyaktig dette kjeldefilnamnet: ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1. ${rangeText}`;
+      const prompt = `Analyser desse musikknotane for eit skulemusikkorps. Returner berre data i skjemaet.\nFinn korrekt songtittel, komponist og arrangør frå tekst i notane. Denne PDF-en har eitt instrument per side. Undersøk KVAR ENKELT side i denne bolken. Returner ei parts-oppføring for kvar side, med instrumentnamn frå toppen av den sida og pageNumbers som inneheld det lokale sidetalet (1, 2 eller 3). Dersom same instrument går over fleire sider, kan sidene samlast i éi oppføring. Ikkje returner tom parts-liste når det finst instrumentnotar. Bruk PDF-sidetal frå 1 i denne bolken, ikkje trykte sidetal. Skil mellom til dømes Fløyte 1 og Fløyte 2. Bruk norsk instrumentnamn når det er naturleg. Set fileName til nøyaktig dette kjeldefilnamnet: ${file.name}. Dersom noko ikkje finst, bruk tom tekst. Confidence skal vere mellom 0 og 1. ${rangeText}`;
       const result = await withOperationTimeout(services.analysisModel.generateContent([prompt, {
         inlineData: { mimeType: 'application/pdf', data: await fileToBase64(chunk.file) }
       }]), 120000, "AI-analysen brukte for lang tid. Prøv igjen.");
@@ -628,6 +628,21 @@ export async function analyzeSongPdf(song, sourceFiles) {
     }
   }
   return mergeSongAnalyses(analyses, song);
+}
+
+async function splitPdfForAiByPages(file, maxPages = 3) {
+  const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
+  const source = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: false });
+  const chunks = [];
+  for (let start = 0; start < source.getPageCount(); start += maxPages) {
+    const output = await PDFDocument.create();
+    const count = Math.min(maxPages, source.getPageCount() - start);
+    const pages = await output.copyPages(source, Array.from({ length: count }, (_, index) => start + index));
+    pages.forEach(page => output.addPage(page));
+    const bytes = await output.save({ useObjectStreams: true });
+    chunks.push({ file: new File([bytes], file.name, { type: "application/pdf" }), pageOffset: start, pageCount: count });
+  }
+  return chunks;
 }
 
 async function splitPdfForAi(file) {
