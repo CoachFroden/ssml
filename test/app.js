@@ -95,6 +95,8 @@ async function handleImport(event){
   const proposed={...base,parts:sourceFiles.map(file=>({name:file.name.replace(/\.pdf$/i,""),fileName:file.name,pageNumbers:[]}))};
   openAnalysisReview(base,proposed);
   lockImportReviewRows();
+  // Separate files each contain a complete instrument: no page-range fields.
+  $("#ai-review-dialog").classList.add("separate-pdf-review");
   $("#ai-review-dialog .analysis-status").innerHTML="<span>✓</span><p><strong>Kontroller før opplasting</strong><br><small>Ingen PDF-filer er lagra enno. Rett instrumentnamna og trykk Godkjenn og lagre.</small></p>";
   $("#ai-review-dialog .eyebrow").textContent="Før lagring";
   $(".review-part-pages").forEach(input=>{input.required=false;input.disabled=true;input.closest("label").style.setProperty("display","none","important");});
@@ -153,7 +155,7 @@ function aiErrorMessage(error){const text=String(error?.message||error);if(text.
 function saveLocalMetadata(song){ const stored=JSON.parse(localStorage.getItem("ssml-demo-songs")||"[]");stored.unshift({...song,parts:song.parts.map(part=>({...part,url:null}))});localStorage.setItem("ssml-demo-songs",JSON.stringify(stored.slice(0,20))); }
 function loadLocalSongs(){try{return JSON.parse(localStorage.getItem("ssml-demo-songs")||"[]");}catch{return[];}}
 
-function openAnalysisReview(song,analysis){$("#review-title").value=analysis.title||song.title;$("#review-composer").value=analysis.composer||song.composer||"";$("#review-arranger").value=analysis.arranger||song.arranger||"";const list=$("#review-parts");list.innerHTML="";(analysis.parts||[]).forEach(part=>addReviewPart(part));if(!analysis.parts?.length)addReviewPart({name:"Samla partitur",pageNumbers:[]});$("#ai-review-dialog").showModal();}
+function openAnalysisReview(song,analysis){$("#ai-review-dialog").classList.remove("separate-pdf-review");$("#review-title").value=analysis.title||song.title;$("#review-composer").value=analysis.composer||song.composer||"";$("#review-arranger").value=analysis.arranger||song.arranger||"";const list=$("#review-parts");list.innerHTML="";(analysis.parts||[]).forEach(part=>addReviewPart(part));if(!analysis.parts?.length)addReviewPart({name:"Samla partitur",pageNumbers:[]});$("#ai-review-dialog").showModal();}
 // Keep the upload review in the original PDF order, regardless of name edits.
 function lockImportReviewRows(){
  const list=$("#review-parts");
