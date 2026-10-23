@@ -31,7 +31,7 @@ async function makePdf(song,ids,pageOnly,copies){
   if(!part)throw Error("Fann ikkje den valde instrumentstemma.");
   const url=part.url||part.enhancedUrl||part.originalUrl;
   if(!url)throw Error("Manglar PDF for "+part.name);
-  if(!cache.has(url)){const response=await fetch(url);if(!response.ok)throw Error("Kunne ikkje laste PDF.");cache.set(url,await PDFDocument.load(await response.arrayBuffer()));}
+  if(!cache.has(url)){const response=await fetch(url);if(!response.ok)throw Error("Kunne ikkje laste PDF.");cache.set(url,await PDFDocument.load(await response.arrayBuffer(), { ignoreEncryption: true }));}
   const source=cache.get(url);
   const pages=pageOnly!=null?[pageOnly]:part.pageNumbers?.length?part.pageNumbers:Array.from({length:source.getPageCount()},(_,i)=>i+1);
   if(!pages.length||pages.some(p=>!Number.isInteger(Number(p))||Number(p)<1||Number(p)>source.getPageCount()))throw Error("Ugyldig sidetildeling for "+part.name);
