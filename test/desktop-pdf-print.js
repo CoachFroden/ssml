@@ -15,13 +15,15 @@ async function songData(){
  if(!snap.exists())throw Error("Fann ikkje songen i arkivet.");
  return snap.data();
 }
+function status(win,text){try{const el=win?.document?.getElementById("ssml-print-status");if(el)el.textContent=text;}catch{}}
+function timeout(promise,ms,label){let t;return Promise.race([promise,new Promise((_,reject)=>{t=setTimeout(()=>reject(Error(label+" tok for lang tid.")),ms)})]).finally(()=>clearTimeout(t));}
 function waiting(){
  const win=window.open("","_blank");
  if(!win)throw Error("Nettlesaren blokkerte utskriftsvindauget.");
- win.document.write('<!doctype html><html lang="no"><meta charset="utf-8"><title>SSML – utskrift</title><body style="font:16px Arial;background:#081a30;color:#f5e7ca;text-align:center;padding:60px"><h2>Klargjer originalnotar …</h2><p>Sidene blir kopierte utan kvalitetstap.</p></body></html>');
+ win.document.write('<!doctype html><html lang="no"><meta charset="utf-8"><title>SSML – utskrift</title><body style="font:16px Arial;background:#081a30;color:#f5e7ca;text-align:center;padding:60px"><h2>Klargjer notar …</h2><p id="ssml-print-status">Hentar PDF og kontrollerer sidene …</p></body></html>');
  return win;
 }
-async function makePdf(song,ids,pageOnly,copies){
+async function makePdf(song,ids,pageOnly,copies,win){
  const {PDFDocument}=await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
  const output=await PDFDocument.create(),cache=new Map();
  const byId=new Map((song.parts||[]).map(p=>[String(p.id),p]));
@@ -29,6 +31,7 @@ async function makePdf(song,ids,pageOnly,copies){
  for(const id of ids){
   const part=byId.get(String(id));
   if(!part)throw Error("Fann ikkje den valde instrumentstemma.");
+  status(win,"Hentar "+part.name+" …");
   const url=part.url||part.enhancedUrl||part.originalUrl;
   if(!url)throw Error("Manglar PDF for "+part.name);
   if(!cache.has(url)){
@@ -43,7 +46,7 @@ async function makePdf(song,ids,pageOnly,copies){
   if(!item.source&&!item.pdfjs){
    const pdfjs=await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");
    pdfjs.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
-   item.pdfjs=await pdfjs.getDocument({data:new Uint8Array(item.bytes.slice(0))}).promise;
+   item.pdfjs=await timeout(pdfjs.getDocument({data:new Uint8Array(item.bytes.slice(0))}).promise,45000,"Opning av PDF");
   }
   const total=item.source?.getPageCount()||item.pdfjs.numPages;
   const pages=pageOnly!=null?[pageOnly]:part.pageNumbers?.length?part.pageNumbers:(song.mode==="combined"||song.mode==="mapped"||song.mode==="analyzed"?(()=>{throw Error("Stemma «"+part.name+"» manglar sidetildeling.");})():Array.from({length:total},(_,i)=>i+1));
@@ -54,14 +57,15 @@ async function makePdf(song,ids,pageOnly,copies){
     copied.forEach(p=>output.addPage(p));count+=copied.length;
    }else{
     for(const number of pages){
-     const page=await item.pdfjs.getPage(Number(number));
+     status(win,"Klargjer "+part.name+" – PDF-side "+number+" ("+(count+1)+" ferdige etter denne) …");
+     const page=await timeout(item.pdfjs.getPage(Number(number)),30000,"Henting av PDF-side");
      const viewport=page.getViewport({scale:1.65});
      const canvas=document.createElement("canvas");
      canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
      const context=canvas.getContext("2d",{alpha:false});
      context.fillStyle="#fff";context.fillRect(0,0,canvas.width,canvas.height);
-     await page.render({canvasContext:context,viewport}).promise;
-     const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error("Kunne ikkje lage utskriftsbilete.")),"image/png"));
+     await timeout(page.render({canvasContext:context,viewport}).promise,45000,"Gjengiving av PDF-side");
+     const blob=await timeout(new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error("Kunne ikkje lage utskriftsbilete.")),"image/png")),20000,"Laging av utskriftsbilete");
      const image=await output.embedPng(await blob.arrayBuffer());
      const sourceWidth=page.getViewport({scale:1}).width,sourceHeight=page.getViewport({scale:1}).height;
      const sheet=output.addPage([sourceWidth,sourceHeight]);
@@ -73,10 +77,11 @@ async function makePdf(song,ids,pageOnly,copies){
   }
  }
  if(!count)throw Error("Ingen sider vart valde.");
- return {blob:new Blob([await output.save()],{type:"application/pdf"}),count};
+ status(win,"Lagrar utskrifts-PDF med "+count+" sider …");
+ return {blob:new Blob([await timeout(output.save(),90000,"Lagring av PDF")],{type:"application/pdf"}),count};
 }
 async function printJob(ids,pageOnly=null,copies=1){
- let win;try{win=waiting();const song=await songData();const {blob,count}=await makePdf(song,ids,pageOnly,copies);const url=URL.createObjectURL(blob);
+ let win;try{win=waiting();const song=await songData();const {blob,count}=await makePdf(song,ids,pageOnly,copies,win);const url=URL.createObjectURL(blob);
  const safe=title().replace(/[<>&"]/g,"");
  win.document.open();win.document.write(`<!doctype html><html lang="no"><head><meta charset="utf-8"><title>${safe} – ${count} sider</title><style>html,body{height:100%;margin:0;background:#081a30;color:#f5e7ca;font:15px Arial}.toolbar{height:58px;display:flex;gap:12px;align-items:center;justify-content:center}.toolbar button,.toolbar a{background:#d5a547;color:#081a30;padding:11px 17px;border:0;border-radius:8px;font-weight:bold;cursor:pointer;text-decoration:none}iframe{width:100%;height:calc(100% - 58px);border:0;background:white}</style></head><body><div class="toolbar"><span>${count} notesider</span><button id="print">Skriv ut PDF</button><a href="${url}" target="_blank">Opne PDF</a><span>Vel 1 kopi i dialogen</span></div><iframe id="pdf" src="${url}"></iframe></body></html>`);win.document.close();
  win.document.querySelector("#print").onclick=()=>{try{win.document.querySelector("#pdf").contentWindow.print();}catch{win.open(url,"_blank");}};
