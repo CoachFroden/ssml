@@ -50,7 +50,7 @@ export async function initFirebase() {
   // Start App Check før Firebase AI Logic vert brukt. Ikkje slå på enforcement
   // før verifiserte forespurnader er stadfesta i Firebase Console.
   const appCheck = appCheckModule.initializeAppCheck(app, {
-    provider: new appCheckModule.ReCaptchaEnterpriseProvider("6Lcmc4UTaA7AADne_exwFX4KztkeeRO08_Pmon4i"),
+    provider: new appCheckModule.ReCaptchaEnterpriseProvider("6LcFj_0tAAAAAJeemD4JOGTsouPnzDRU0oHCWAva"),
     isTokenAutoRefreshEnabled: true
   });
   const ai = aiModule.getAI(app, { backend: new aiModule.GoogleAIBackend() });
