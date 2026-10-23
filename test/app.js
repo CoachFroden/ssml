@@ -94,7 +94,7 @@ async function handleImport(event){
   state.pendingSong=null;state.pendingAnalysis=null;
   const proposed={...base,parts:sourceFiles.map(file=>({name:file.name.replace(/\.pdf$/i,""),fileName:file.name,pageNumbers:[]}))};
   openAnalysisReview(base,proposed);
-  $$(".review-part-row").forEach((row,index)=>{row.dataset.sourceIndex=String(index);row.dataset.originalFile=sourceFiles[index].name;});
+  lockImportReviewRows();
   $("#ai-review-dialog .analysis-status").innerHTML="<span>✓</span><p><strong>Kontroller før opplasting</strong><br><small>Ingen PDF-filer er lagra enno. Rett instrumentnamna og trykk Godkjenn og lagre.</small></p>";
   $("#ai-review-dialog .eyebrow").textContent="Før lagring";
   $$(".review-part-pages").forEach(input=>{input.required=false;input.closest("label").style.display="none";});
@@ -154,6 +154,29 @@ function saveLocalMetadata(song){ const stored=JSON.parse(localStorage.getItem("
 function loadLocalSongs(){try{return JSON.parse(localStorage.getItem("ssml-demo-songs")||"[]");}catch{return[];}}
 
 function openAnalysisReview(song,analysis){$("#review-title").value=analysis.title||song.title;$("#review-composer").value=analysis.composer||song.composer||"";$("#review-arranger").value=analysis.arranger||song.arranger||"";const list=$("#review-parts");list.innerHTML="";(analysis.parts||[]).forEach(part=>addReviewPart(part));if(!analysis.parts?.length)addReviewPart({name:"Samla partitur",pageNumbers:[]});$("#ai-review-dialog").showModal();}
+// Keep the upload review in the original PDF order, regardless of name edits.
+function lockImportReviewRows(){
+ const list=$("#review-parts");
+ const rows=$(".review-part-row",list);
+ list.style.setProperty("display","flex","important");
+ list.style.setProperty("flex-direction","column","important");
+ rows.forEach((row,index)=>{
+  row.dataset.sourceIndex=String(index);
+  row.dataset.originalFile=state.pendingImport.sourceFiles[index]?.name||"";
+  row.style.setProperty("order",String(index),"important");
+ });
+ // Preserve a stable association with each PDF even if another script moves nodes.
+ if(state.importReviewObserver)state.importReviewObserver.disconnect();
+ state.importReviewObserver=new MutationObserver(()=>{
+  if(!state.pendingImport)return;
+  for(const row of rows){
+   if(row.parentElement!==list)continue;
+   const index=Number(row.dataset.sourceIndex);
+   row.style.setProperty("order",String(index),"important");
+  }
+ });
+ state.importReviewObserver.observe(list,{childList:true});
+}
 function addReviewPart(part={}){const row=document.createElement("div");row.className="part-editor-row review-part-row";const pages=(part.pageNumbers||[]).join(", ");row.dataset.fileName=part.fileName||"";row.dataset.confidence=part.confidence??0;row.innerHTML=`<label>Instrument/stemme<input class="review-part-name" required value="${escapeHtml(part.name||[part.instrument,part.voice].filter(Boolean).join(" "))}" placeholder="Fløyte 1"></label><label>PDF-sider<input class="review-part-pages" required value="${escapeHtml(pages)}" placeholder="1, 2"></label><button class="icon-btn" type="button" aria-label="Fjern">×</button>`;row.querySelector("button").addEventListener("click",()=>row.remove());const nameInput=row.querySelector(".review-part-name");nameInput.setAttribute("autocomplete","off");nameInput.spellcheck=false;for(const type of ["input","change","keyup"]){nameInput.addEventListener(type,event=>event.stopPropagation());}$("#review-parts").append(row);}
 async function confirmAnalysis(event){
  if(state.pendingImport){
