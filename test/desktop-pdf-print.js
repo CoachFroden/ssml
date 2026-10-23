@@ -56,7 +56,7 @@ document.addEventListener("click",e=>{
  let ids,page=null;
  if(target.id==="print-selected-parts")ids=checked();
  else if(target.id==="open-print"){if(checked().length>1)ids=checked();else return;}
- else{ids=[active()];const match=document.querySelector("#page-modal-count")?.textContent?.match(/PDF-side\\s+(\\d+)/i);page=match?Number(match[1]):null;}
+ else{ids=[active()];const match=document.querySelector("#page-modal-count")?.textContent?.match(/PDF-side\s+(\d+)/i);page=match?Number(match[1]):null;}
  if(!ids?.length)return;
  e.preventDefault();e.stopImmediatePropagation();printJob(ids,page);
 },true);
