@@ -624,10 +624,18 @@ export async function analyzeSongPdf(song, sourceFiles) {
       const result = await withOperationTimeout(services.analysisModel.generateContent([prompt, {
         inlineData: { mimeType: 'application/pdf', data: await fileToBase64(chunk.file) }
       }]), 120000, "AI-analysen brukte for lang tid. Prøv igjen.");
-      analyses.push({ data: JSON.parse(result.response.text()), fileName: file.name, pageOffset: chunk.pageOffset });
+      const rawResponse = result.response.text();
+      const parsedResponse = JSON.parse(rawResponse);
+      console.info("SSML AI-analyse, PDF-bolk", { fileName: file.name, firstPage: chunk.pageOffset + 1, pages: chunk.pageCount, partCount: parsedResponse.parts?.length ?? 0, response: parsedResponse });
+      analyses.push({ data: parsedResponse, fileName: file.name, pageOffset: chunk.pageOffset });
     }
   }
-  return mergeSongAnalyses(analyses, song);
+  const merged = mergeSongAnalyses(analyses, song);
+  if (!merged.parts.length) {
+    const counts = analyses.map(item => `${item.pageOffset + 1}: ${item.data?.parts?.length ?? "manglar"} stemmer`).join("; ");
+    throw new Error(`AI returnerte ingen instrument frå ${analyses.length} PDF-bolkar (${counts}). Sjekk konsollen for AI-svara. Ingen lagra stemmer er endra.`);
+  }
+  return merged;
 }
 
 async function splitPdfForAiByPages(file, maxPages = 3) {
