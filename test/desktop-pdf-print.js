@@ -31,9 +31,9 @@ async function makePdf(song,ids,pageOnly,copies){
   if(!part)throw Error("Fann ikkje den valde instrumentstemma.");
   const url=part.url||part.enhancedUrl||part.originalUrl;
   if(!url)throw Error("Manglar PDF for "+part.name);
-  if(!cache.has(url)){const response=await fetch(url);if(!response.ok)throw Error("Kunne ikkje laste PDF.");cache.set(url,await PDFDocument.load(await response.arrayBuffer(), { ignoreEncryption: true }));}
+  if(!cache.has(url)){const response=await fetch(url);if(!response.ok)throw Error("Kunne ikkje laste PDF.");const loaded=await PDFDocument.load(await response.arrayBuffer(), { ignoreEncryption: true });if(loaded.isEncrypted)throw Error("Denne PDF-en er kryptert. Direkte kopiering kan gi blanke ark. Utskrift er stoppa for å unngå feil. Bruk original-PDF-en eller last opp ei ukryptert utgåve.");cache.set(url,loaded);}
   const source=cache.get(url);
-  const pages=pageOnly!=null?[pageOnly]:part.pageNumbers?.length?part.pageNumbers:Array.from({length:source.getPageCount()},(_,i)=>i+1);
+  const pages=pageOnly!=null?[pageOnly]:part.pageNumbers?.length?part.pageNumbers:(song.mode==="combined"||song.mode==="mapped"||song.mode==="analyzed"?(()=>{throw Error("Stemma «"+part.name+"» manglar sidetildeling. Utskrift stoppa for å unngå heile partituret.");})():Array.from({length:source.getPageCount()},(_,i)=>i+1));
   if(!pages.length||pages.some(p=>!Number.isInteger(Number(p))||Number(p)<1||Number(p)>source.getPageCount()))throw Error("Ugyldig sidetildeling for "+part.name);
   for(let copy=0;copy<copies;copy++){const copied=await output.copyPages(source,pages.map(p=>Number(p)-1));copied.forEach(p=>output.addPage(p));count+=copied.length;}
  }
@@ -45,7 +45,7 @@ async function printJob(ids,pageOnly=null,copies=1){
  const safe=title().replace(/[<>&"]/g,"");
  win.document.open();win.document.write(`<!doctype html><html lang="no"><head><meta charset="utf-8"><title>${safe} – ${count} sider</title><style>html,body{height:100%;margin:0;background:#081a30;color:#f5e7ca;font:15px Arial}.toolbar{height:58px;display:flex;gap:12px;align-items:center;justify-content:center}.toolbar button,.toolbar a{background:#d5a547;color:#081a30;padding:11px 17px;border:0;border-radius:8px;font-weight:bold;cursor:pointer;text-decoration:none}iframe{width:100%;height:calc(100% - 58px);border:0;background:white}</style></head><body><div class="toolbar"><span>${count} notesider</span><button id="print">Skriv ut PDF</button><a href="${url}" target="_blank">Opne PDF</a><span>Vel 1 kopi i dialogen</span></div><iframe id="pdf" src="${url}"></iframe></body></html>`);win.document.close();
  win.document.querySelector("#print").onclick=()=>{try{win.document.querySelector("#pdf").contentWindow.print();}catch{win.open(url,"_blank");}};
- win.document.querySelector("#pdf").addEventListener("load",()=>{try{win.document.querySelector("#pdf").contentWindow.print();}catch{}},{once:true});
+ // Open the PDF for inspection first; user chooses when to print.
  setTimeout(()=>URL.revokeObjectURL(url),30*60*1000);
  }catch(error){console.error(error);notify(error.message||"Utskrifta feila.");if(win&&!win.closed){win.document.body.textContent="Utskrift feila: "+(error.message||"Ukjend feil");}}
 }
