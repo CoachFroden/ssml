@@ -63,7 +63,7 @@ export async function initFirebase() {
     }})})
   }});
   const analysisModel = aiModule.getGenerativeModel(ai, {
-    model: "gemini-3.5-flash",
+    model: "gemini-2.5-flash",
     generationConfig: { responseMimeType: "application/json", responseSchema, temperature: 0.1, maxOutputTokens: 8192 }
   });
   services = { app, ai, analysisModel, auth: authModule.getAuth(app), db: firestoreModule.getFirestore(app), storage: storageModule.getStorage(app), authModule, firestoreModule, storageModule };
