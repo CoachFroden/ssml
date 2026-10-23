@@ -41,7 +41,7 @@ function openPreparing(title) {
   if (!win) return null;
   const safeTitle = String(title || "Noter").replace(/[<>&]/g, "");
   win.document.open();
-  win.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeTitle}</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;background:#f7f8f5;color:#174a43;text-align:center;padding:28px;box-sizing:border-box}.card{max-width:420px}.note{font-size:2rem;margin-bottom:12px}strong{display:block;font-size:1.2rem;margin-bottom:10px}</style></head><body><div class="card"><div class="note">♫</div><strong>Klargjer notar for utskrift …</strong><p id="ssml-status">Samlar valde notesider i éi PDF-fil utan å gjere dei om til bilete.</p></div></body></html>`);
+  win.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeTitle}</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;background:#f7f8f5;color:#174a43;text-align:center;padding:28px;box-sizing:border-box}.card{max-width:420px}.note{font-size:2rem;margin-bottom:12px}strong{display:block;font-size:1.2rem;margin-bottom:10px}</style></head><body><div class="card"><div class="note">♫</div><strong>Klargjer notar for utskrift …</strong><p id="ssml-status">Klargjer valde notesider for stabil utskrift.</p></div></body></html>`);
   win.document.close();
   return win;
 }
@@ -96,45 +96,59 @@ function partPages(part, source, pageOverride = null) {
 }
 
 async function buildA4Pdf(specs, win) {
+  const pdfjs = await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
   const { PDFDocument } = await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
   const output = await PDFDocument.create();
   const sources = new Map();
   let expectedPages = 0;
-
-  for (let index = 0; index < specs.length; index++) {
-    const spec = specs[index];
+  for (const spec of specs) {
     const url = sourceUrl(spec.part);
-    if (!url) throw new Error(`Fann ikkje PDF-fila for «${spec.part.name}».`);
-    setStatus(win, `Klargjer ${spec.part.name} (${index + 1} av ${specs.length}) …`);
-
+    if (!url) throw new Error("Manglar PDF for " + spec.part.name);
     let source = sources.get(url);
     if (!source) {
-      const response = await fetch(url, { cache: "force-cache" });
-      if (!response.ok) throw new Error(`Kunne ikkje hente PDF-en for «${spec.part.name}».`);
-      source = await PDFDocument.load(await response.arrayBuffer(), { ignoreEncryption: true });
+      setStatus(win, "Hentar PDF for " + spec.part.name + " …");
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Kunne ikkje hente PDF-en.");
+      source = await pdfjs.getDocument({data:new Uint8Array(await response.arrayBuffer())}).promise;
       sources.set(url, source);
     }
-
-    const pages = partPages(spec.part, source, spec.pageOverride);
-    if (!pages.length) throw new Error(`Fann ingen gyldige sider for «${spec.part.name}».`);
-    const copies = Math.max(1, Number(spec.copies || 1));
-    expectedPages += pages.length * copies;
-
+    const pages = Number.isFinite(spec.pageOverride) ? [spec.pageOverride] :
+      (Array.isArray(spec.part.pageNumbers) && spec.part.pageNumbers.length ?
+        [...new Set(spec.part.pageNumbers.map(Number))] :
+        (() => { throw new Error("«" + spec.part.name + "» manglar sidetildeling."); })());
+    if (!pages.length || pages.some(n => !Number.isInteger(n) || n < 1 || n > source.numPages))
+      throw new Error("Ugyldig sidetildeling for " + spec.part.name);
+    const copies = Math.max(1, Math.min(99, Number(spec.copies) || 1));
     for (let copy = 0; copy < copies; copy++) {
-      for (const pageNumber of pages) {
-        // Copy the source page directly. embedPage can fail on some uploaded PDFs
-        // with "Expected instance ... undefined" in pdf-lib.
-        const [page] = await output.copyPages(source, [pageNumber - 1]);
-        output.addPage(page);
+      for (const pageNo of pages) {
+        setStatus(win, "Klargjer " + spec.part.name + " – side " + pageNo + " …");
+        const page = await source.getPage(pageNo);
+        const original = page.getViewport({scale:1});
+        const scale = Math.min(1.5, 1500 / Math.max(original.width, original.height));
+        const viewport = page.getViewport({scale});
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext("2d", {alpha:false});
+        if (!ctx) throw new Error("Kunne ikkje klargjere PDF-sida.");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({canvasContext:ctx,viewport}).promise;
+        const blob = await new Promise((resolve,reject) =>
+          canvas.toBlob(b => b ? resolve(b) : reject(new Error("Kunne ikkje lage utskriftsbilete.")), "image/jpeg", 0.92));
+        const image = await output.embedJpg(await blob.arrayBuffer());
+        const sheet = output.addPage([original.width,original.height]);
+        sheet.drawImage(image,{x:0,y:0,width:original.width,height:original.height});
+        canvas.width=canvas.height=1;
+        expectedPages++;
       }
     }
   }
-
-  if (output.getPageCount() !== expectedPages) {
-    throw new Error(`Utskrifts-PDF-en fekk feil sidetal (${output.getPageCount()} i staden for ${expectedPages}).`);
-  }
-  const bytes = await output.save({ useObjectStreams: true });
-  return { blob: new Blob([bytes], { type: "application/pdf" }), pageCount: expectedPages };
+  if (!expectedPages || output.getPageCount() !== expectedPages)
+    throw new Error("Feil sidetal i utskrifts-PDF.");
+  setStatus(win,"Lagrar " + expectedPages + " notesider …");
+  return {blob:new Blob([await output.save()],{type:"application/pdf"}),pageCount:expectedPages};
 }
 
 async function openNativePdf(win, blob, pageCount, title) {
@@ -143,7 +157,7 @@ async function openNativePdf(win, blob, pageCount, title) {
   // A user-initiated link is more predictable in iOS Safari than replacing a
   // newly opened window with a blob URL after asynchronous PDF generation.
   win.document.open();
-  win.document.write(`<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeTitle} – utskrift</title><style>body{margin:0;min-height:100dvh;box-sizing:border-box;padding:32px 20px;background:#081a30;color:#f6f1e8;font:16px -apple-system,BlinkMacSystemFont,Arial,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center}.card{max-width:430px;width:100%;padding:28px 20px;border:1px solid #48627a;border-radius:18px;background:#122d48}h1{font-size:1.35rem}p{line-height:1.55;color:#c7d5df}a{display:block;margin:22px 0;padding:17px 12px;border-radius:12px;background:#d5a547;color:#091b2c;text-decoration:none;font-weight:800}small{display:block;color:#c7d5df;line-height:1.5}</style></head><body><div class="card"><h1>Notane er klare</h1><p>${pageCount} notesider er samla i éi PDF-fil med original kvalitet.</p><a id="open-pdf">Opne PDF for utskrift</a><small>Trykk på knappen, vel Del og deretter Skriv ut i Safari.</small></div></body></html>`);
+  win.document.write(`<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeTitle} – utskrift</title><style>body{margin:0;min-height:100dvh;box-sizing:border-box;padding:32px 20px;background:#081a30;color:#f6f1e8;font:16px -apple-system,BlinkMacSystemFont,Arial,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center}.card{max-width:430px;width:100%;padding:28px 20px;border:1px solid #48627a;border-radius:18px;background:#122d48}h1{font-size:1.35rem}p{line-height:1.55;color:#c7d5df}a{display:block;margin:22px 0;padding:17px 12px;border-radius:12px;background:#d5a547;color:#091b2c;text-decoration:none;font-weight:800}small{display:block;color:#c7d5df;line-height:1.5}</style></head><body><div class="card"><h1>Notane er klare</h1><p>${pageCount} notesider er samla i éi utskrifts-PDF. Kontroller at notene vises før utskrift.</p><a id="open-pdf">Opne PDF for utskrift</a><small>Trykk på knappen, vel Del og deretter Skriv ut i Safari.</small></div></body></html>`);
   win.document.close();
   const link = win.document.querySelector("#open-pdf");
   link.href = url;
@@ -173,8 +187,8 @@ async function runPrint({ ids, pageOverride = null, copies = 1, title = "Noter" 
     try {
       printResult = await buildA4Pdf(specs, popup);
     } catch (error) {
-      console.error("PDF-kopiering feila", error);
-      throw new Error("Kunne ikkje hente ut dei valde instrumentsidene frå PDF-en. Prøv ei anna stemme, eller kontroller sidetildelinga i arkivet.");
+      console.error("PDF-klargjering feila", error);
+      throw new Error("Kunne ikkje klargjere dei valde notesidene. Kontroller sidetildelinga eller prøv færre sider.");
     }
     const { blob, pageCount } = printResult;
     await openNativePdf(popup, blob, pageCount, title);
