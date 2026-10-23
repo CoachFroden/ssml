@@ -87,30 +87,8 @@ async function handleImport(event){
  event.preventDefault();
  if(!state.files.length){toast("Vel minst éi PDF-fil.","error");return;}
  const enteredTitle=$("#song-title").value.trim();
- const base={title:enteredTitle||state.files[0].name.replace(/\.pdf$/i,""),composer:$("#composer").value.trim(),arranger:$("#arranger").value.trim(),mode:(()=>{const chosen=$("input[name=pdf-mode]:checked").value;return chosen==="auto"?(state.files.length>1?"separate":"combined"):chosen;})(),createdAt:new Date().toISOString()};
- let sourceFiles=[...state.files];
- if(base.mode==="split"){
-  if(sourceFiles.length!==1){toast("Vel éi samla PDF-fil for oppdeling i enkeltsider.","error");return;}
-  const button=$("#save-song");button.disabled=true;button.textContent="Deler PDF i enkeltsider …";
-  try{
-   const {PDFDocument}=await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
-   const original=await PDFDocument.load(await sourceFiles[0].arrayBuffer(),{ignoreEncryption:true});
-   const count=original.getPageCount();
-   if(count<1)throw new Error("PDF-en har ingen sider.");
-   if(count>150)throw new Error("PDF-en har over 150 sider. Del fila i mindre delar først.");
-   const stem=sourceFiles[0].name.replace(/\.pdf$/i,"");
-   const splitFiles=[];
-   for(let index=0;index<count;index++){
-    const one=await PDFDocument.create();
-    const [page]=await one.copyPages(original,[index]);one.addPage(page);
-    const bytes=await one.save();
-    splitFiles.push(new File([bytes],stem+" - side "+String(index+1).padStart(2,"0")+".pdf",{type:"application/pdf"}));
-   }
-   sourceFiles=splitFiles;
-   base.mode="separate";
-  }catch(error){console.error(error);toast(error.message||"Kunne ikkje dele PDF-en.","error");return;}
-  finally{button.disabled=false;button.textContent="Lagre i arkivet";}
- }
+ const base={title:enteredTitle||state.files[0].name.replace(/\.pdf$/i,""),composer:$("#composer").value.trim(),arranger:$("#arranger").value.trim(),mode:"separate",createdAt:new Date().toISOString()};
+ const sourceFiles=[...state.files];
  if(base.mode==="separate"){
   state.pendingImport={base,sourceFiles,enhance:$("#enhance-scans").checked};
   state.pendingSong=null;state.pendingAnalysis=null;
