@@ -1,5 +1,5 @@
 /* SSML test only: PC print original PDF pages without JPEG rendering. */
-import { firebaseConfig } from "./firebase-core.js?v=26";
+import { firebaseConfig } from "../firebase-core.js?v=26";
 const desktop=()=>window.innerWidth>850;
 const rows=()=>[...document.querySelectorAll("#part-list .part-select-row")];
 const checked=()=>rows().filter(r=>r.querySelector('input[type="checkbox"]')?.checked).map(r=>r.dataset.partId).filter(Boolean);
