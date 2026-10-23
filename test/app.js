@@ -94,7 +94,7 @@ async function handleImport(event){
   const button=$("#save-song");button.disabled=true;button.textContent="Deler PDF i enkeltsider …";
   try{
    const {PDFDocument}=await import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm");
-   const original=await PDFDocument.load(await sourceFiles[0].arrayBuffer());
+   const original=await PDFDocument.load(await sourceFiles[0].arrayBuffer(),{ignoreEncryption:true});
    const count=original.getPageCount();
    if(count<1)throw new Error("PDF-en har ingen sider.");
    if(count>150)throw new Error("PDF-en har over 150 sider. Del fila i mindre delar først.");
