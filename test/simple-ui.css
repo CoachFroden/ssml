@@ -231,3 +231,28 @@ body #app-shell #contacts-view .ssml-my-profile summary{background-color:#122d48
 body #app-shell #contacts-view .ssml-my-profile small,
 body #app-shell #contacts-view .ssml-my-profile p{color:#bbcad8!important}
 body #app-shell #contacts-view .ssml-my-profile input{background:#1d3b56!important;color:#fff!important}
+
+/* v20: Lesbare innloggingsknappar på mørk bakgrunn, også Google-knappen. */
+#login-view .login-card button.btn,
+#login-view .login-card button[type="button"]:not(.text-btn){
+  background:#193d60!important;
+  color:#ffffff!important;
+  border:1px solid #63809c!important;
+  opacity:1!important;
+  -webkit-text-fill-color:#ffffff!important;
+}
+#login-view .login-card button.btn-primary,
+#login-view .login-card button[type="submit"]{
+  background:#d5a547!important;
+  color:#091b2c!important;
+  -webkit-text-fill-color:#091b2c!important;
+  border:1px solid #d5a547!important;
+  font-weight:800!important;
+}
+#login-view .login-card button:disabled{
+  opacity:.55!important;
+  cursor:not-allowed;
+}
+#login-view .login-card button.text-btn{
+  color:#f2bd59!important;
+}
