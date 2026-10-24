@@ -33,12 +33,15 @@ exports.arrangementImport=onCall({region:"europe-west1"},async request=>{
   if(!Array.isArray(events)||events.length>100)throw new HttpsError("invalid-argument","Ugyldig sikkerheitskopi");
   const normalized=events.map((event,i)=>{
     if(!event||typeof event.name!=="string"||event.name.length>200||!Array.isArray(event.tasks)||!Array.isArray(event.people)||!Array.isArray(event.messages))throw new HttpsError("invalid-argument","Ugyldig arrangement");
-    if(event.tasks.length>300||event.people.length>100||event.messages.length>500)throw new HttpsError("invalid-argument","For mange oppføringar");
+    if(event.tasks.length+event.people.length+event.messages.length>400)throw new HttpsError("invalid-argument","For mange oppføringar");
     const id=slots.has(event.id)?event.id:"extra_"+i+"_"+crypto.randomBytes(6).toString("hex");
     return {id,event};
   });
   const exists=await Promise.all(normalized.map(({id})=>db.doc("arrangementEvents/"+id).get()));
   if(exists.some(x=>x.exists))throw new HttpsError("already-exists","Eitt eller fleire arrangement finst allereie. Ingen data er endra.");
+  for(const {event} of normalized){
+    if(event.tasks.some(t=>typeof t?.text!=="string"||t.text.length>1000))throw new HttpsError("invalid-argument","Ugyldig oppgåve");
+  }
   for(const {id,event} of normalized){
     const ref=db.doc("arrangementEvents/"+id);
     const batch=db.batch();
