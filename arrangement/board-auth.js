@@ -13,10 +13,10 @@ async function verify(){
   if(adminMode){unlock();return;}
   stop=listenEvents(()=>unlock(),()=>{lock();$("#access-error").textContent="Økta er ikkje gyldig. Logg inn på nytt.";});
 }
-onAuthStateChanged(auth,()=>verify().catch(()=>lock()));
+onAuthStateChanged(auth,()=>{if(!auth.currentUser){lock();return;}verify().catch(err=>{$("#access-error").textContent="Kunne ikkje kontrollere økta: "+(err.code||err.message);lock();});});
 $("#access-form").addEventListener("submit",async e=>{
  e.preventDefault();const b=$("#access-form button");b.disabled=true;$("#access-error").textContent="Kontrollerer passord …";
- try{await loginBoard($("#access-code").value);$("#access-code").value="";await verify();}
+ try{await loginBoard($("#access-code").value);$("#access-code").value="";$("#access-error").textContent="Innlogga. Kontrollerer tilgang …";await Promise.race([verify(),new Promise((_,reject)=>setTimeout(()=>reject(new Error("Tidsavbrot ved tilgangskontroll")),12000))]);if(!verified)throw new Error("Tilgangen kunne ikkje stadfestast");$("#access-error").textContent="";}
  catch(err){const code=String(err?.code||"");const messages={"functions/permission-denied":"Passordet vart ikkje godkjent.","functions/resource-exhausted":"For mange forsøk. Vent 15 minutt.","functions/internal":"Firebase har ein intern feil. Vi må sjå funksjonsloggen.","auth/invalid-custom-token":"Firebase avviste innloggingstokenet.","auth/operation-not-allowed":"Firebase Auth må aktiverast for innlogging."};$("#access-error").textContent=(messages[code]||"Innlogging feila: "+(code||err?.message||"ukjend feil"));console.error(err);}
  finally{b.disabled=false;}
 });
@@ -63,9 +63,9 @@ const notice=document.createElement("p");notice.className="muted small";notice.t
 
 const setup=document.createElement("details");
 setup.innerHTML='<summary>Førstegongsoppsett for administrator</summary><form id="admin-setup-form"><p>Dette blir brukt berre éin gong. Du treng Firebase-oppsettnøkkelen.</p><input id="admin-bootstrap" type="password" placeholder="Oppsettnøkkel" required><input id="admin-new" type="password" minlength="10" maxlength="128" placeholder="Nytt administratorpassord" required><button type="submit">Opprett administratorpassord</button><p id="admin-setup-status" role="status"></p></form>';
-$("#access-form").appendChild(setup);
+$("#access-gate").appendChild(setup);setup.style.cssText="background:white;color:#123c5c;border-radius:0 0 16px 16px;padding:0 25px 22px;width:min(380px,calc(100vw - 40px));margin:-12px auto 0;box-sizing:border-box";
 $("#admin-setup-form").onsubmit=async e=>{
- e.preventDefault();
+ e.preventDefault();e.stopPropagation();
  const button=$("#admin-setup-form button");button.disabled=true;
  try{
   const {getFunctions,httpsCallable}=await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js");
