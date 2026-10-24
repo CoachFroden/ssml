@@ -19,7 +19,7 @@ $("#access-form").addEventListener("submit",async e=>{
  finally{b.disabled=false;}
 });
 const dialog=document.createElement("dialog");
-dialog.innerHTML='<form id="password-form" class="fields"><h2>Passord og komitétilgang</h2><p id="password-link"></p><label>Vel passord<select id="password-slot"><option value="board">Styreportal</option><option value="a0">Julekonsert</option><option value="a1">Vårkonsert</option><option value="a2">Sommarkonsert</option><option value="a3">Basar</option></select></label><label>Nytt passord (minst 10 teikn)<input id="password-new" type="password" minlength="10" maxlength="128" autocomplete="new-password" required></label><label>Gjenta passord<input id="password-repeat" type="password" minlength="10" maxlength="128" autocomplete="new-password" required></label><p id="password-status" role="status"></p><div class="stack"><button class="primary" type="submit">Lagre passord</button><button class="secondary" type="button" id="password-cancel">Lukk</button></div></form>';
+dialog.innerHTML='<form id="password-form" class="fields"><h2>Passord og komitétilgang</h2><p id="password-link"></p><label>Vel passord<select id="password-slot"><option value="a0">Julekonsert</option><option value="a1">Vårkonsert</option><option value="a2">Sommarkonsert</option><option value="a3">Basar</option></select></label><label>Nytt passord (minst 10 teikn)<input id="password-new" type="password" minlength="10" maxlength="128" autocomplete="new-password" required></label><label>Gjenta passord<input id="password-repeat" type="password" minlength="10" maxlength="128" autocomplete="new-password" required></label><p id="password-status" role="status"></p><div class="stack"><button class="primary" type="submit">Lagre passord</button><button class="secondary" type="button" id="password-cancel">Lukk</button></div></form>';
 document.body.appendChild(dialog);
 $("#password-cancel").onclick=()=>dialog.close();
 $("#committee-settings").onclick=()=>{
@@ -35,7 +35,7 @@ $("#password-form").addEventListener("submit",async e=>{
  e.preventDefault();const password=$("#password-new").value;
  if(password!==$("#password-repeat").value){$("#password-status").textContent="Passorda er ikkje like.";return;}
  const b=$("#password-form button[type=submit]");b.disabled=true;
- try{await setPassword($("#password-slot").value,password);$("#password-status").textContent="Passordet er lagra i Firebase.";$("#password-new").value="";$("#password-repeat").value="";if($("#password-slot").value==="board"){stop?.();await logout();dialog.close();lock();$("#access-error").textContent="Styrepassordet er endra. Logg inn på nytt.";}}
+ try{await setPassword($("#password-slot").value,password);$("#password-status").textContent="Passordet er lagra i Firebase.";$("#password-new").value="";$("#password-repeat").value="";}
  catch(err){$("#password-status").textContent="Kunne ikkje lagre passordet: "+(err.message||"ukjend feil");}
  finally{b.disabled=false;}
 });
