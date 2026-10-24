@@ -163,3 +163,5 @@ window.addEventListener("focus",()=>{if(verified&&window.ssmlFirebaseReady)loadF
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&verified&&window.ssmlFirebaseReady)loadFirebaseEvents();});
 
 $("#board-logout").addEventListener("click",async()=>{const button=$("#board-logout");button.disabled=true;try{stop?.();stop=null;window.ssmlFirebaseReady=false;await logout();lock();$("#access-error").textContent="Du er logga ut.";}catch(err){alert("Kunne ikkje logge ut: "+(err.message||"ukjend feil"));}finally{button.disabled=false;}});
+
+window.ssmlBoardContacts=(action,extra={})=>invoke("arrangementBoardContacts",{action,...extra});
