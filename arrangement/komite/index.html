@@ -92,4 +92,29 @@ button:hover:not(:disabled){transform:translateY(-1px)}
 button:active:not(:disabled){transform:translateY(0)}
 @media(max-width:650px){body{padding:10px!important}main{margin:4px auto 30px}#portal{gap:8px}#portal>section{padding:13px!important}#portal>section:first-child{padding:17px!important}#portal #messages article{max-width:92%}body::after{right:-35px;top:25%;font-size:180px}#add-task{grid-template-columns:1fr 1fr}#add-task input:first-child{grid-column:1/-1}#add-task button{grid-column:2}#add-task input:nth-child(2){grid-column:1}}
 @media(prefers-reduced-motion:reduce){body::before,body::after{animation:none}button{transition:none}}
+</style><style>
+/* SSML komité 2026 – varmare, meir musikalsk og innbydande */
+body{background:linear-gradient(110deg,rgba(14,42,59,.53),rgba(13,65,74,.28)),url("../ssml-arrangement-ny-pc.jpg") center top/cover fixed no-repeat!important;color:#16394e}
+body::before{z-index:-1;opacity:.7;background:radial-gradient(circle at 8% 20%,rgba(255,221,165,.22),transparent 26%),radial-gradient(circle at 87% 70%,rgba(58,157,163,.24),transparent 35%);animation:ambient-drift 25s ease-in-out infinite alternate}
+body::after{display:none}
+main{max-width:830px;margin:22px auto 55px}
+#portal{gap:12px}
+#portal>section,#gate{background:rgba(247,252,252,.79)!important;border:1px solid rgba(255,255,255,.75)!important;box-shadow:0 13px 36px rgba(7,27,42,.27),inset 0 1px 0 rgba(255,255,255,.65)!important;-webkit-backdrop-filter:blur(16px) saturate(125%)!important;backdrop-filter:blur(16px) saturate(125%)!important;border-radius:19px!important}
+#portal>section:first-child{background:linear-gradient(105deg,rgba(12,52,75,.93),rgba(17,107,108,.84))!important;box-shadow:0 15px 32px #092d3a65!important;border:1px solid rgba(226,245,241,.4)!important}
+#portal>section:first-child::before{content:"SAMNANGER SKULEMUSIKKLAG  •  KOMITÉPORTAL";display:block;font-size:10px;font-weight:750;letter-spacing:.15em;color:#d5e9df;margin-bottom:9px}
+#portal>section:first-child::after{content:"♫";right:125px;top:-30px;font-size:160px;opacity:.12}
+#portal>section:first-child h1{font-family:Georgia,"Trebuchet MS",serif;font-size:clamp(25px,3vw,34px);letter-spacing:-.03em}
+#portal h2{font-family:"Trebuchet MS","Segoe UI",sans-serif;font-size:19px!important;color:#194d62!important}
+#portal>section:not(:first-child){padding:17px 20px!important}
+#tasks .task{background:rgba(255,255,255,.75)!important;border:1px solid rgba(202,226,231,.95)!important;border-left:4px solid #159c92!important;box-shadow:0 2px 8px #0d4d6410}
+#tasks .task:has(input:checked){background:rgba(220,242,232,.8)!important;border-left-color:#6ab596!important}
+#add-task,#send{background:rgba(225,241,243,.55)!important;border:1px solid rgba(201,224,230,.8)!important;border-radius:13px!important}
+#add-task input,#send input,#send textarea,#recipient{background:rgba(255,255,255,.82)!important}
+#portal #messages article.from-board{background:rgba(202,227,252,.85)!important}
+#portal #messages article.from-committee{background:rgba(203,240,216,.85)!important}
+.message-tabs button{background:rgba(226,239,241,.8)!important}
+.message-tabs button.selected{background:linear-gradient(120deg,#176f7b,#185b7e)!important;color:white!important}
+#members p{background:rgba(255,255,255,.6)!important;border:1px solid rgba(212,232,234,.7)}
+#gate{background:rgba(249,252,253,.9)!important}
+@media(max-width:650px){body{background:linear-gradient(120deg,rgba(13,47,62,.5),rgba(14,74,78,.3)),url("../ssml-arrangement-ny-mobil.jpg") center top/cover fixed no-repeat!important}main{margin:10px auto 35px}#portal>section:not(:first-child){padding:14px!important}#portal>section:first-child::before{font-size:9px;letter-spacing:.08em}}
 </style></head><body><main><section id="gate"><h1>Komitéportal</h1><p>Logg inn med passordet frå styret.</p><form id="login"><input id="password" type="password" autocomplete="off" required placeholder="Komitépassord"><button id="enter">Logg inn</button></form><p id="status" aria-live="polite"></p></section><div id="portal" hidden><section><button id="logout" type="button">Logg ut</button><h1 id="title">Komitéportal</h1><p id="date"></p></section><section><h2>Oppgåver</h2><div id="task-summary"></div><div id="tasks"></div><form id="add-task"><input id="task-author" maxlength="100" required placeholder="Namnet ditt"><input id="task-text" maxlength="500" required placeholder="Nytt gjøremål"><button type="submit">+ Legg til oppgåve</button></form></section><section><h2>Komité</h2><div id="members"></div></section><section><h2>Meldingar</h2><div class="message-tabs"><button type="button" class="selected" data-channel="board">Til styret</button><button type="button" data-channel="committee">Internt i komiteen</button></div><div id="messages"></div><form id="send"><label for="recipient">Send til</label><select id="recipient"><option value="board">Styret</option><option value="committee">Berre komiteen</option></select><input id="sender" required maxlength="100" placeholder="Namnet ditt"><textarea id="message" required maxlength="2000" placeholder="Skriv melding"></textarea><button>Send melding</button></form></section></div></main><script type="module" src="../committee.js"></script></body></html>
