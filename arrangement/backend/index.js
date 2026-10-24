@@ -114,6 +114,25 @@ exports.arrangementMyRole=onCall({region:"europe-west1"},async request=>{
 
 const arrangementStore=db.doc("arrangementData/main");
 // Offentleg, avgrensa metadata til innloggingssida. Ingen persondata eller meldingar.
+const boardContactsRef=db.doc("arrangementData/boardContacts");
+exports.arrangementBoardContacts=onCall({region:"europe-west1"},async request=>{
+ await requireBoard(request);
+ const action=request.data?.action||"read";
+ if(action==="read"){const snap=await boardContactsRef.get();return {members:snap.data()?.members||[]};}
+ if(!["save","delete"].includes(action))throw new HttpsError("invalid-argument","Ugyldig handling");
+ const member=request.data?.member,id=request.data?.id;
+ if(action==="save"&&(!member||typeof member.name!=="string"||!member.name.trim()||member.name.length>120||["role","phone","email"].some(k=>typeof member[k]!=="string"||member[k].length>200)))throw new HttpsError("invalid-argument","Ugyldig styremedlem");
+ if(action==="delete"&&typeof id!=="string")throw new HttpsError("invalid-argument","Ugyldig ID");
+ return db.runTransaction(async tx=>{
+  const snap=await tx.get(boardContactsRef);const members=snap.data()?.members||[];
+  if(action==="save"){
+   const next={id:typeof member.id==="string"&&member.id?member.id:crypto.randomUUID(),name:member.name.trim(),role:member.role.trim(),phone:member.phone.trim(),email:member.email.trim()};
+   const i=members.findIndex(m=>m.id===next.id);
+   if(i>=0)members[i]=next;else members.push(next);
+  }else{const i=members.findIndex(m=>m.id===id);if(i>=0)members.splice(i,1);}
+  tx.set(boardContactsRef,{members});return {members};
+ });
+});
 exports.arrangementPublicName=onCall({region:"europe-west1"},async request=>{
  const slot=request.data?.slot;
  if(!validEventId(slot))throw new HttpsError("invalid-argument","Ugyldig arrangement");
