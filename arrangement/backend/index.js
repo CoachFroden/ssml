@@ -20,7 +20,7 @@ async function login(slot,password){if(typeof password!=="string"||password.leng
 exports.arrangementLogin=onCall({region:"europe-west1",enforceAppCheck:false},async request=>{const slot=request.data?.slot||"board";await throttle("login:"+slot+":"+(request.rawRequest.ip||"unknown"));return login(slot,request.data?.password);});
 async function requireBoard(request){if(!request.auth?.uid)throw new HttpsError("unauthenticated","Logg inn");const snap=await session(request.auth.uid).get();const s=snap.data();const cred=await credential(s?.role==="admin"?"admin":"board").get();if(!["board","admin"].includes(s?.role)||!s.expiresAt||s.expiresAt.toMillis()<=Date.now()||s.version!==cred.data()?.version)throw new HttpsError("permission-denied","Ingen styretilgang");}
 exports.arrangementInitialize=onCall({region:"europe-west1",secrets:[bootstrap]},async request=>{const initial=request.data?.password;if(!validPassword(initial))throw new HttpsError("invalid-argument","Bruk minst 10 teikn");if(request.data?.bootstrapSecret!==bootstrap.value())throw new HttpsError("permission-denied","Feil oppsettnøkkel");const ref=credential("board");await db.runTransaction(async tx=>{if((await tx.get(ref)).exists)throw new HttpsError("already-exists","Styrekoden er allereie sett");tx.create(ref,{...sealed(initial),version:1});});return {ok:true};});
-exports.arrangementSetPassword=onCall({region:"europe-west1"},async request=>{await requireBoard(request);const slot=request.data?.slot,password=request.data?.password;if(!slots.has(slot))throw new HttpsError("permission-denied","Berre administrator kan endre styrepassordet");if(!validPassword(password))throw new HttpsError("invalid-argument","Bruk minst 10 teikn");const ref=credential(slot);await db.runTransaction(async tx=>{const old=await tx.get(ref);tx.set(ref,{...sealed(password),version:(old.data()?.version||0)+1});});return {ok:true};});
+exports.arrangementSetPassword=onCall({region:"europe-west1"},async request=>{await requireBoard(request);const slot=request.data?.slot,password=request.data?.password;if(slot==="board")await requireAdminSession(request);else if(!slots.has(slot))throw new HttpsError("invalid-argument","Ukjend komité");if(!validPassword(password))throw new HttpsError("invalid-argument","Bruk minst 10 teikn");const ref=credential(slot);await db.runTransaction(async tx=>{const old=await tx.get(ref);tx.set(ref,{...sealed(password),version:(old.data()?.version||0)+1});});return {ok:true};});
 
 exports.arrangementSetOpen=onCall({region:"europe-west1"},async request=>{
   await requireBoard(request);
@@ -83,3 +83,11 @@ exports.arrangementAdminSetBoardPassword=onCall({region:"europe-west1"},async re
  });
  return {ok:true};
 });
+
+async function requireAdminSession(request){
+ const uid=request.auth?.uid;
+ if(!uid)throw new HttpsError("unauthenticated","Logg inn");
+ const record=(await session(uid).get()).data();
+ const cred=(await credential("admin").get()).data();
+ if(record?.role!=="admin"||!record.expiresAt||record.expiresAt.toMillis()<=Date.now()||record.version!==cred?.version)throw new HttpsError("permission-denied","Berre administrator");
+}
