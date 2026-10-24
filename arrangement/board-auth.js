@@ -9,7 +9,8 @@ async function verify(){
   const claims=(await auth.currentUser.getIdTokenResult()).claims;
   if(claims.ssmlArrangement!==true){lock();return;}
   stop?.();
-  adminMode=(await getMyRole())==="admin";if(window.adminResetButton)window.adminResetButton.hidden=!adminMode;
+  const role=await getMyRole();if(role!=="admin"&&role!=="board"){lock();return;}adminMode=role==="admin";if(window.adminResetButton)window.adminResetButton.hidden=!adminMode;
+  if(adminMode){unlock();return;}
   stop=listenEvents(()=>unlock(),()=>{lock();$("#access-error").textContent="Økta er ikkje gyldig. Logg inn på nytt.";});
 }
 onAuthStateChanged(auth,()=>verify().catch(()=>lock()));
