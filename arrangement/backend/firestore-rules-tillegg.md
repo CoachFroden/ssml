@@ -6,13 +6,13 @@
 function arrangementSession() {
   return request.auth != null
     && request.auth.token.ssmlArrangement == true
-    && exists(/databases/$(database)/documents/arrangementAccess/sessions/$(request.auth.uid));
+    && exists(/databases/$(database)/documents/arrangementAccess/sessions/entries/$(request.auth.uid));
 }
 function arrangementGrant(slot) {
-  let s = get(/databases/$(database)/documents/arrangementAccess/sessions/$(request.auth.uid)).data;
+  let s = get(/databases/$(database)/documents/arrangementAccess/sessions/entries/$(request.auth.uid)).data;
   return arrangementSession()
     && s.expiresAt > request.time
-    && s.version == get(/databases/$(database)/documents/arrangementAccess/credentials/$(s.slot)).data.version
+    && s.version == get(/databases/$(database)/documents/arrangementAccess/credentials/entries/$(s.slot)).data.version
     && (s.role == "board" || (s.role == "committee" && s.slot == slot
       && get(/databases/$(database)/documents/arrangementEvents/$(slot)).data.open == true));
 }
