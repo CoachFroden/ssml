@@ -130,3 +130,48 @@ exports.arrangementWriteAll=onCall({region:"europe-west1"},async request=>{
   return {revision:current+1};
  });
 });
+
+const committeeNames={a0:"Julekonsert",a1:"Vårkonsert",a2:"Sommarkonsert",a3:"Basar"};
+async function requireCommittee(request,slot){
+ if(!slots.has(slot)||!request.auth?.uid)throw new HttpsError("unauthenticated","Logg inn");
+ const record=(await session(request.auth.uid).get()).data();
+ const cred=(await credential(slot).get()).data();
+ if(record?.role!=="committee"||record.slot!==slot||record.version!==cred?.version||!record.expiresAt||record.expiresAt.toMillis()<=Date.now())throw new HttpsError("permission-denied","Ugyldig komitétilgang");
+}
+function findCommitteeEvent(events,slot){
+ const name=committeeNames[slot].toLocaleLowerCase("nb-NO");
+ return events.findIndex(e=>String(e.name||"").toLocaleLowerCase("nb-NO").includes(name));
+}
+exports.arrangementCommitteeRead=onCall({region:"europe-west1"},async request=>{
+ const slot=request.data?.slot;await requireCommittee(request,slot);
+ const snap=await arrangementStore.get(),events=snap.data()?.events||[];
+ const index=findCommitteeEvent(events,slot);
+ if(index<0)throw new HttpsError("not-found","Arrangementet finst ikkje");
+ const event=events[index];
+ if(event.open!==true)throw new HttpsError("permission-denied","Komiteen er stengd");
+ return {event,revision:snap.data().revision};
+});
+exports.arrangementCommitteeUpdate=onCall({region:"europe-west1"},async request=>{
+ const slot=request.data?.slot;await requireCommittee(request,slot);
+ const action=request.data?.action,taskId=request.data?.taskId,done=request.data?.done;
+ const sender=request.data?.sender,text=request.data?.text;
+ if(action==="task"&&(typeof taskId!=="string"||typeof done!=="boolean"))throw new HttpsError("invalid-argument","Ugyldig oppgåve");
+ if(action==="message"&&(typeof sender!=="string"||!sender.trim()||sender.length>100||typeof text!=="string"||!text.trim()||text.length>2000))throw new HttpsError("invalid-argument","Ugyldig melding");
+ if(!["task","message"].includes(action))throw new HttpsError("invalid-argument","Ukjend handling");
+ return db.runTransaction(async tx=>{
+  const snap=await tx.get(arrangementStore);
+  if(!snap.exists)throw new HttpsError("not-found","Ingen arrangement");
+  const events=snap.data().events,index=findCommitteeEvent(events,slot);
+  if(index<0||events[index].open!==true)throw new HttpsError("permission-denied","Komiteen er stengd");
+  const event=events[index];
+  if(action==="task"){
+   const task=event.tasks.find(t=>t.id===taskId);
+   if(!task)throw new HttpsError("not-found","Oppgåva finst ikkje");
+   task.done=done;
+  }else{
+   event.messages.push({id:crypto.randomUUID(),sender:sender.trim(),text:text.trim(),date:new Date().toLocaleString("nn-NO",{timeZone:"Europe/Oslo"})});
+  }
+  tx.update(arrangementStore,{events,revision:snap.data().revision+1,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
+  return {ok:true};
+ });
+});
