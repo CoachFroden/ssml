@@ -16,11 +16,11 @@ function validPassword(value){return typeof value==="string" && value.length>=10
 function check(value,record){if(!record?.salt||!record?.hash)return false;const candidate=Buffer.from(hash(value,record.salt),"hex"),expected=Buffer.from(record.hash,"hex");return candidate.length===expected.length&&crypto.timingSafeEqual(candidate,expected);}
 function sealed(password){const salt=crypto.randomBytes(24).toString("hex");return {salt,hash:hash(password,salt)};}
 async function throttle(key){const ref=limit(crypto.createHash("sha256").update(key).digest("hex"));await db.runTransaction(async tx=>{const doc=await tx.get(ref),now=Date.now(),data=doc.data()||{};const fresh=now-(data.start||0)>15*60*1000;const count=fresh?1:(data.count||0)+1;if(count>12)throw new HttpsError("resource-exhausted","For mange forsøk. Vent 15 minutt.");tx.set(ref,{start:fresh?now:data.start,count,updatedAt:admin.firestore.FieldValue.serverTimestamp()});});}
-async function login(slot,password){if(typeof password!=="string"||password.length>128)throw new HttpsError("invalid-argument","Ugyldig passord");const id=slot||"board";if(id!=="board"&&!slots.has(id))throw new HttpsError("invalid-argument","Ukjend komité");const snap=await credential(id).get();const credential=snap.data();if(!check(password,credential))throw new HttpsError("permission-denied","Feil kode");if(id!=="board"){const ev=await db.doc("arrangementEvents/"+id).get();if(!ev.exists||ev.data().open!==true)throw new HttpsError("permission-denied","Komiteen er stengd");}const uid="arr_"+crypto.randomUUID();await session(uid).set({role:id==="board"?"board":"committee",slot:id,version:credential.version||1,createdAt:admin.firestore.FieldValue.serverTimestamp(),expiresAt:admin.firestore.Timestamp.fromMillis(Date.now()+8*60*60*1000)});const token=await admin.auth().createCustomToken(uid,{ssmlArrangement:true});return {token};}
+async function login(slot,password){if(typeof password!=="string"||password.length>128)throw new HttpsError("invalid-argument","Ugyldig passord");const id=slot||"board";if(id!=="board"&&!slots.has(id))throw new HttpsError("invalid-argument","Ukjend komité");const snap=await credential(id).get();const record=snap.data();if(!check(password,record))throw new HttpsError("permission-denied","Feil kode");if(id!=="board"){const ev=await db.doc("arrangementEvents/"+id).get();if(!ev.exists||ev.data().open!==true)throw new HttpsError("permission-denied","Komiteen er stengd");}const uid="arr_"+crypto.randomUUID();await session(uid).set({role:id==="board"?"board":"committee",slot:id,version:record.version||1,createdAt:admin.firestore.FieldValue.serverTimestamp(),expiresAt:admin.firestore.Timestamp.fromMillis(Date.now()+8*60*60*1000)});const token=await admin.auth().createCustomToken(uid,{ssmlArrangement:true});return {token};}
 exports.arrangementLogin=onCall({region:"europe-west1",enforceAppCheck:false},async request=>{const slot=request.data?.slot||"board";await throttle("login:"+slot+":"+(request.rawRequest.ip||"unknown"));return login(slot,request.data?.password);});
 async function requireBoard(request){if(!request.auth?.uid)throw new HttpsError("unauthenticated","Logg inn");const snap=await session(request.auth.uid).get();const s=snap.data();const cred=await credential("board").get();if(s?.role!=="board"||!s.expiresAt||s.expiresAt.toMillis()<=Date.now()||s.version!==cred.data()?.version)throw new HttpsError("permission-denied","Ingen styretilgang");}
 exports.arrangementInitialize=onCall({region:"europe-west1",secrets:[bootstrap]},async request=>{const initial=request.data?.password;if(!validPassword(initial))throw new HttpsError("invalid-argument","Bruk minst 10 teikn");if(request.data?.bootstrapSecret!==bootstrap.value())throw new HttpsError("permission-denied","Feil oppsettnøkkel");const ref=credential("board");await db.runTransaction(async tx=>{if((await tx.get(ref)).exists)throw new HttpsError("already-exists","Styrekoden er allereie sett");tx.create(ref,{...sealed(initial),version:1});});return {ok:true};});
-exports.arrangementSetPassword=onCall({region:"europe-west1"},async request=>{await requireBoard(request);const slot=request.data?.slot,password=request.data?.password;if(slot!=="board"&&!slots.has(slot))throw new HttpsError("invalid-argument","Ukjend komité");if(!validPassword(password))throw new HttpsError("invalid-argument","Bruk minst 10 teikn");const ref=credential(slot);await db.runTransaction(async tx=>{const old=await tx.get(ref);tx.set(ref,{...sealed(password),version:(old.data()?.version||0)+1});});return {ok:true};});
+exports.arrangementSetPassword=onCall({region:"europe-west1"},async request=>{await requireBoard(request);const slot=request.data?.slot,password=request.data?.password;if(!slots.has(slot))throw new HttpsError("permission-denied","Berre administrator kan endre styrepassordet");if(!validPassword(password))throw new HttpsError("invalid-argument","Bruk minst 10 teikn");const ref=credential(slot);await db.runTransaction(async tx=>{const old=await tx.get(ref);tx.set(ref,{...sealed(password),version:(old.data()?.version||0)+1});});return {ok:true};});
 
 exports.arrangementSetOpen=onCall({region:"europe-west1"},async request=>{
   await requireBoard(request);
@@ -55,4 +55,31 @@ exports.arrangementImport=onCall({region:"europe-west1"},async request=>{
     await batch.commit();
   }
   return {ok:true,imported:normalized.length};
+});
+
+async function requireAdmin(request){
+ if(!request.auth?.uid)throw new HttpsError("unauthenticated","Logg inn som administrator");
+ const snap=await db.doc("arrangementAccess/admin/owner").get();
+ if(!snap.exists||snap.data().uid!==request.auth.uid||request.auth.token.firebase?.sign_in_provider!=="google.com")throw new HttpsError("permission-denied","Berre administrator");
+}
+exports.arrangementClaimAdmin=onCall({region:"europe-west1",secrets:[bootstrap]},async request=>{
+ if(!request.auth?.uid||request.auth.token.firebase?.sign_in_provider!=="google.com")throw new HttpsError("unauthenticated","Logg inn med Google");
+ if(request.data?.bootstrapSecret!==bootstrap.value())throw new HttpsError("permission-denied","Feil administratornøkkel");
+ const ref=db.doc("arrangementAccess/admin/owner");
+ await db.runTransaction(async tx=>{
+  if((await tx.get(ref)).exists)throw new HttpsError("already-exists","Administrator er allereie registrert");
+  tx.create(ref,{uid:request.auth.uid,createdAt:admin.firestore.FieldValue.serverTimestamp()});
+ });
+ return {ok:true};
+});
+exports.arrangementAdminSetBoardPassword=onCall({region:"europe-west1"},async request=>{
+ await requireAdmin(request);
+ const password=request.data?.password;
+ if(!validPassword(password))throw new HttpsError("invalid-argument","Bruk minst 10 teikn");
+ const ref=credential("board");
+ await db.runTransaction(async tx=>{
+  const old=await tx.get(ref);
+  tx.set(ref,{...sealed(password),version:(old.data()?.version||0)+1});
+ });
+ return {ok:true};
 });
