@@ -17,4 +17,26 @@ input,textarea{border:1px solid #ccdde6;background:#fbfdff}textarea{min-height:8
 #messages article p{margin:8px 0 0;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
 #messages article small{color:#557382;font-size:11px}#messages article .source{font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;opacity:.7;margin-left:7px}
 @media(max-width:600px){body{padding:8px}main{margin:5px auto}section{padding:15px;border-radius:16px}#messages article{max-width:94%}}
+</style><style>
+/* Komitéportal: varm, musikalsk identitet med sterkare kontrast */
+body{background:linear-gradient(115deg,rgba(8,30,50,.82),rgba(13,66,83,.68)),url("../ssml-arrangement-ny-pc.jpg") center/cover fixed no-repeat!important;color:#15334a}
+main{max-width:920px}
+#portal>section:first-child{background:linear-gradient(115deg,rgba(10,45,72,.96),rgba(8,117,120,.94));border:1px solid #ffffff45;box-shadow:0 18px 50px #071f3290}
+#portal>section:not(:first-child),#gate{background:rgba(255,255,255,.96);backdrop-filter:blur(18px);border:1px solid #ffffffd9;box-shadow:0 18px 45px #081f3350}
+#portal>section{padding:20px 24px}
+#portal h2{color:#123b58}
+#portal #messages article.from-board{background:#d6e8ff!important;border:1px solid #a9c9f0!important;color:#143c65}
+#portal #messages article.from-committee{background:#d4f3df!important;border:1px solid #a0dbb4!important;color:#19573c}
+#portal #messages article{max-width:82%;padding:13px 17px;border-radius:17px}
+#portal #messages article.from-board{border-bottom-left-radius:5px}
+#portal #messages article.from-committee{border-bottom-right-radius:5px}
+#portal #messages article strong{font-size:13px}
+#portal #messages article .source{font-size:10px}
+#send{background:#f1f6fa;border:1px solid #d9e6ef;border-radius:15px;padding:14px;gap:9px}
+#send input,#send textarea{background:#fff;border:1px solid #bdd4e2;border-radius:11px;box-shadow:inset 0 1px 2px #18384c08}
+#send input:focus,#send textarea:focus{outline:2px solid #43a7b4;outline-offset:1px}
+#send button{border-radius:11px}
+#tasks .task{background:#fff;border-left-width:5px}
+#tasks .task:has(input:checked){background:#eef8f4}
+@media(max-width:650px){body{background:linear-gradient(135deg,rgba(9,40,61,.84),rgba(8,70,80,.76)),url("../ssml-arrangement-ny-mobil.jpg") center/cover fixed no-repeat!important}#portal>section{padding:16px}#portal #messages article{max-width:94%}}
 </style></head><body><main><section id="gate"><h1>Komitéportal</h1><p>Logg inn med passordet frå styret.</p><form id="login"><input id="password" type="password" autocomplete="off" required placeholder="Komitépassord"><button id="enter">Logg inn</button></form><p id="status" aria-live="polite"></p></section><div id="portal" hidden><section><button id="logout" type="button">Logg ut</button><h1 id="title">Komitéportal</h1><p id="date"></p></section><section><h2>Oppgåver</h2><div id="task-summary"></div><div id="tasks"></div></section><section><h2>Komité</h2><div id="members"></div></section><section><h2>Meldingar</h2><div id="messages"></div><form id="send"><input id="sender" required maxlength="100" placeholder="Namnet ditt"><textarea id="message" required maxlength="2000" placeholder="Skriv melding"></textarea><button>Send melding</button></form></section></div></main><script type="module" src="../committee.js"></script></body></html>
