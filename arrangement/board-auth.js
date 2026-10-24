@@ -60,3 +60,20 @@ $("#committee-settings").onclick=()=>{
  originalSettings();
 };
 const notice=document.createElement("p");notice.className="muted small";notice.textContent="Styrepassordet er kontrollert av Firebase. Arrangementa på denne sida er framleis lagra lokalt til dei er overførte.";$("#home .panel").appendChild(notice);
+
+const setup=document.createElement("details");
+setup.innerHTML='<summary>Førstegongsoppsett for administrator</summary><form id="admin-setup-form"><p>Dette blir brukt berre éin gong. Du treng Firebase-oppsettnøkkelen.</p><input id="admin-bootstrap" type="password" placeholder="Oppsettnøkkel" required><input id="admin-new" type="password" minlength="10" maxlength="128" placeholder="Nytt administratorpassord" required><button type="submit">Opprett administratorpassord</button><p id="admin-setup-status" role="status"></p></form>';
+$("#access-gate").appendChild(setup);
+$("#admin-setup-form").onsubmit=async e=>{
+ e.preventDefault();
+ const button=$("#admin-setup-form button");button.disabled=true;
+ try{
+  const {getFunctions,httpsCallable}=await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js");
+  const fn=httpsCallable(getFunctions(auth.app,"europe-west1"),"arrangementCreateAdminPassword");
+  await fn({bootstrapSecret:$("#admin-bootstrap").value,password:$("#admin-new").value});
+  $("#admin-bootstrap").value="";$("#admin-new").value="";
+  $("#admin-setup-status").textContent="Administratorpassordet er oppretta. Du kan no logge inn med det.";
+  setup.open=false;
+ }catch(err){$("#admin-setup-status").textContent=err.message||"Oppsett feila.";}
+ finally{button.disabled=false;}
+};
