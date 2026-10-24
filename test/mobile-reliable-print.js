@@ -171,35 +171,28 @@ async function openNativePdf(win, blob, pageCount, title) {
 
 async function runPrint({ ids, pageOverride = null, copies = 1, title = "Noter" }) {
   const popup = openPreparing(title);
-  if (!popup) return message("Nettlesaren blokkerte PDF-vindauget.", "error");
+  if (!popup) return message("Tillat sprettoppvindauge for å opne PDF-en.", "error");
   try {
     const song = await getSong();
     const parts = resolveParts(song, ids);
-    if (!parts.length) throw new Error("Ingen stemmer er valde.");
-    // Opening the source PDF directly avoids Safari canvas/PDF-lib hangs.
-    // A source PDF can contain several instruments, so NEVER silently print all pages.
-    const urls = [...new Set(parts.map(sourceUrl))];
-    if (urls.some(url => !url)) throw new Error("Ei stemme manglar PDF.");
-    const instructions = parts.map(part => {
-      const pages = Number.isFinite(pageOverride) && parts.length === 1 ? [pageOverride] : part.pageNumbers;
-      if (!Array.isArray(pages) || !pages.length) return {name:part.name, pages:null};
-      return {name:part.name, pages:[...new Set(pages.map(Number))]};
-    });
-    const escape = text => String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-    const grouped = urls.map(url => {
-      const matching = parts.filter(part => sourceUrl(part) === url);
-      const relevant = parts.map((part,index)=>({part,instruction:instructions[index]})).filter(item=>sourceUrl(item.part)===url);
-      const hasUnmapped = relevant.some(item=>item.instruction.pages===null);
-      const sourceShared = (song.parts||[]).filter(part=>sourceUrl(part)===url).length>1;
-      if(hasUnmapped && sourceShared) throw new Error("Ei stemme manglar sidetildeling i ein delt PDF. Kontroller instrumentet.");
-      const pages = [...new Set(relevant.flatMap(item=>item.instruction.pages||[]))].sort((a,b)=>a-b);
-      return {url,pages,wholeFile:hasUnmapped};
+    if (!parts.length) throw new Error("Vel minst éi stemme.");
+    const unique = [...new Map(parts.map(part => [sourceUrl(part), part])).entries()];
+    if (unique.some(([url]) => !url)) throw new Error("Ei stemme manglar PDF.");
+    const escape = value => String(value).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    const items = unique.map(([url,part],index) => {
+      const sameFile = parts.filter(p => sourceUrl(p) === url);
+      const usedByOthers = (song.parts||[]).filter(p => sourceUrl(p) === url).length > 1;
+      const pageSet = new Set(sameFile.flatMap(p => Array.isArray(p.pageNumbers) ? p.pageNumbers.map(Number) : []));
+      if (Number.isInteger(pageOverride) && unique.length===1) {pageSet.clear();pageSet.add(pageOverride);}
+      const pages = [...pageSet].filter(Number.isInteger).sort((a,b)=>a-b);
+      const pageHint = usedByOthers ? (pages.length ? "Vel berre side "+pages.join(", ")+" ved utskrift." : "Kontroller sidetala før utskrift.") : "Skriv ut alle sider.";
+      return `<section><strong>${escape(sameFile.map(p=>p.name).join(", "))}</strong><p>${escape(pageHint)}</p><a href="${escape(url)}" target="_self">Opne PDF ${index+1}</a></section>`;
     });
     popup.document.open();
-    popup.document.write(`<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Utskrift av notar</title><style>body{background:#081a30;color:#f5e7ca;font:16px -apple-system,Arial,sans-serif;padding:22px;margin:0}main{max-width:500px;margin:auto}h1{font-size:1.4rem}p,li{line-height:1.6}a{display:block;padding:16px;margin:16px 0;background:#d5a547;color:#081a30;border-radius:12px;text-align:center;font-weight:700;text-decoration:none}.pages{background:#122d48;border:1px solid #405b73;border-radius:12px;padding:14px;margin:12px 0;overflow-wrap:anywhere}strong{color:#fff}</style></head><body><main><h1>Opne original-PDF for utskrift</h1><p>Dette opnar notene direkte, utan konvertering som kan gi blanke sider eller låse telefonen.</p><p><strong>Viktig:</strong> For separate instrument-PDF-ar kan du skrive ut alle sider. Dersom det står sidetal under, vel berre desse sidene.</p>${grouped.map((item,i)=>`<div class="pages"><strong>PDF ${i+1} – sider: ${item.wholeFile?"Heile instrument-PDF-en":item.pages.join(", ")}</strong><a href="${escape(item.url)}" target="_self">Opne original-PDF ${i+1}</a></div>`).join("")}<p>Etter opning: Del → Skriv ut → vel oppgitte sider, eller alle sider for eigen instrument-PDF. Kopiar: ${Number(copies)||1}.</p></main></body></html>`);
+    popup.document.write(`<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Notar til utskrift</title><style>body{background:#081a30;color:#fff;font:16px -apple-system,BlinkMacSystemFont,Arial,sans-serif;margin:0;padding:24px 16px}main{max-width:480px;margin:auto}h1{font-size:1.5rem}section{background:#15324f;border:1px solid #49647c;border-radius:14px;padding:16px;margin:14px 0}p{color:#d2dce7;line-height:1.5}a{display:block;background:#dfb356;color:#071b2e;padding:17px;border-radius:12px;text-align:center;font-weight:750;text-decoration:none;margin-top:12px}</style></head><body><main><h1>Notar til utskrift</h1><p>Trykk «Opne PDF», og bruk deretter Del → Skriv ut på telefonen. Du skriv ut originalfilene utan omforming.</p>${items.join("")}<p>Vel ${Math.max(1,Number(copies)||1)} kopi(ar) i utskriftsmenyen. Har du valt fleire instrument, opnar du éi PDF om gongen.</p></main></body></html>`);
     popup.document.close();
   } catch (error) {
-    console.error("Mobilutskrift feila",error);
+    console.error("Mobilutskrift feila", error);
     setStatus(popup,error.message||"Kunne ikkje opne PDF.");
     message(error.message||"Kunne ikkje opne PDF.","error");
   }
