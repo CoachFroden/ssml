@@ -174,7 +174,8 @@ exports.arrangementCommitteeRead=onCall({region:"europe-west1"},async request=>{
  if(index<0)throw new HttpsError("not-found","Arrangementet finst ikkje");
  const event=events[index];
  if(event.open!==true)throw new HttpsError("permission-denied","Komiteen er stengd");
- return {event,revision:snap.data().revision};
+ const boardSnap=await boardContactsRef.get();
+ return {event,revision:snap.data().revision,boardMembers:boardSnap.data()?.members||[]};
 });
 exports.arrangementCommitteeUpdate=onCall({region:"europe-west1"},async request=>{
  const slot=request.data?.slot;await requireCommittee(request,slot);
