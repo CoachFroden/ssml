@@ -91,3 +91,22 @@ async function requireAdminSession(request){
  const cred=(await credential("admin").get()).data();
  if(record?.role!=="admin"||!record.expiresAt||record.expiresAt.toMillis()<=Date.now()||record.version!==cred?.version)throw new HttpsError("permission-denied","Berre administrator");
 }
+
+exports.arrangementCreateAdminPassword=onCall({region:"europe-west1",secrets:[bootstrap]},async request=>{
+ const password=request.data?.password;
+ if(!validPassword(password))throw new HttpsError("invalid-argument","Bruk minst 10 teikn");
+ if(request.data?.bootstrapSecret!==bootstrap.value())throw new HttpsError("permission-denied","Feil oppsettnøkkel");
+ const ref=credential("admin");
+ await db.runTransaction(async tx=>{
+  if((await tx.get(ref)).exists)throw new HttpsError("already-exists","Administratorpassord finst");
+  tx.create(ref,{...sealed(password),version:1});
+ });
+ return {ok:true};
+});
+exports.arrangementMyRole=onCall({region:"europe-west1"},async request=>{
+ if(!request.auth?.uid)return {role:"none"};
+ const record=(await session(request.auth.uid).get()).data();
+ if(!record?.expiresAt||record.expiresAt.toMillis()<=Date.now())return {role:"none"};
+ const cred=(await credential(record.role==="admin"?"admin":record.slot).get()).data();
+ return {role:record.version===cred?.version?record.role:"none"};
+});
