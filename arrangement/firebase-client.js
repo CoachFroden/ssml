@@ -39,3 +39,5 @@ export const addItem=(slot,kind,data)=>addDoc(collection(db,"arrangementEvents",
 export const editItem=(slot,kind,id,data)=>updateDoc(doc(db,"arrangementEvents",slot,kind,id),data);
 export const removeItem=(slot,kind,id)=>deleteDoc(doc(db,"arrangementEvents",slot,kind,id));
 export {serverTimestamp};
+
+export async function getMyRole(){const result=await call("arrangementMyRole",{});return result.role;}
