@@ -1,0 +1,22 @@
+{
+  "name": "SSML Noter – Test",
+  "short_name": "SSML Test",
+  "description": "Testversjon av notearkivet for Samnanger Skulemusikklag",
+  "start_url": "/ssml/test/index.html",
+  "scope": "/ssml/test/",
+  "display": "standalone",
+  "background_color": "#081a30",
+  "theme_color": "#081a30",
+  "icons": [
+    {
+      "src": "/ssml/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/ssml/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
