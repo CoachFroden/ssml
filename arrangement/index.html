@@ -12,6 +12,13 @@ body{color:var(--ink)}.shell{max-width:1120px}.view{max-width:880px}#home{max-wi
 #messages{display:flex;flex-direction:column;gap:9px;margin:15px 0}.message{width:fit-content;max-width:88%;margin:0;border:0;border-radius:15px;padding:12px 16px;box-shadow:0 3px 13px #183e5a12}.message.from-board{align-self:flex-end;background:#dceefb;border:1px solid #b8d8ee;border-bottom-right-radius:4px}.message.from-committee{align-self:flex-start;background:#e2f5e9;border:1px solid #bde3ca;border-bottom-left-radius:4px}.message-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.message .source{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;opacity:.75}.message p{margin:7px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}.message small{font-size:11px}
 .progress{height:10px;background:#e2edf0}.progress>div{background:linear-gradient(90deg,#159f9a,#59c5a5)}
 @media(max-width:650px){.panel{padding:15px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.event{min-height:92px;padding:10px}.event h3{font-size:13px}.message{max-width:94%}.task{flex-wrap:wrap}.task span{min-width:55%}}
+</style><style>
+/* Kontrast mellom styre/komité og skrivefelt */
+#detail #messages .message.from-board{background:#d6e8ff!important;border:1px solid #a9c9f0!important;color:#143c65}
+#detail #messages .message.from-committee{background:#d4f3df!important;border:1px solid #a0dbb4!important;color:#19573c}
+#detail #message-form{background:#f0f6fae8;border:1px solid #d2e4ef;border-radius:15px;padding:15px;margin-top:16px}
+#detail #message-form input,#detail #message-form textarea{background:#fff;border:1px solid #aecbdc;box-shadow:inset 0 1px 2px #17394a0a}
+#detail #message-form input:focus,#detail #message-form textarea:focus{outline:2px solid #40a7b3;outline-offset:1px}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <main class="shell">
