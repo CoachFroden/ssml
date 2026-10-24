@@ -27,22 +27,15 @@ $("#password-cancel").onclick=()=>dialog.close();
 $("#committee-settings").onclick=()=>{
  const event=window.ssmlCurrentEvent?.();
  if(!event)return;
- const name=String(event.name||"").trim();
- const slots={julekonsert:"a0",vårkonsert:"a1",sommarkonsert:"a2",basar:"a3"};
- const links={a0:"julekonsert",a1:"varkonsert",a2:"sommarkonsert",a3:"basar"};
- const slot=slots[name.toLocaleLowerCase("nb-NO")];
+ const slot=event.id;
  $("#password-slot").innerHTML="";
  $("#password-status").textContent="";
  $("#password-new").value="";$("#password-repeat").value="";
- if(!slot){
-  $("#password-link").textContent="Dette arrangementet har enno ikkje eiga komitéinnlogging. Vi må opprette ei sikker lenkje før passord kan setjast.";
-  $("#password-form button[type=submit]").disabled=true;
- }else{
-  const option=document.createElement("option");option.value=slot;option.textContent=name;
-  $("#password-slot").appendChild(option);
-  $("#password-link").textContent="Komitélenkje: "+new URL("./"+links[slot]+"/",location.href).href;
-  $("#password-form button[type=submit]").disabled=false;
- }
+ const option=document.createElement("option");option.value=slot;option.textContent=event.name;
+ $("#password-slot").appendChild(option);
+ const url=new URL("./komite/",location.href);url.searchParams.set("id",slot);
+ $("#password-link").textContent="Komitélenkje: "+url.href;
+ $("#password-form button[type=submit]").disabled=false;
  dialog.showModal();
 };
 $("#password-form").addEventListener("submit",async e=>{
