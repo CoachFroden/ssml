@@ -8,7 +8,7 @@ const demoSongs = [
   { id:"demo-2", title:"Norge i rødt, hvitt og blått", composer:"Lars-Erik Larsson", arranger:"Idar Torskangerpoll", mode:"combined", createdAt:"2026-08-04T10:00:00Z", parts:[{id:"d4",name:"Samla partitur",fileName:"partitur.pdf",url:null,pageCount:4}]},
   { id:"demo-3", title:"Fairytale", composer:"Alexander Rybak", arranger:"Lars Erik Gudim", mode:"separate", createdAt:"2026-07-29T10:00:00Z", parts:[{id:"d5",name:"Partitur",fileName:"Partitur.pdf",url:null,pageCount:3},{id:"d6",name:"Trompet 1",fileName:"Trompet 1.pdf",url:null,pageCount:2}]}
 ];
-let state = { demo:false, songs:[], files:[], appendFiles:[], newInstrumentFile:null, activeSong:null, activePart:null, selectedPartIds:new Set(), selectedPage:"all", pdfDoc:null, visiblePages:[], viewerIndex:0, pendingSong:null, pendingAnalysis:null, previewVersion:0, viewOriginal:false };
+let state = { pendingImport:null, demo:false, songs:[], files:[], appendFiles:[], newInstrumentFile:null, activeSong:null, activePart:null, selectedPartIds:new Set(), selectedPage:"all", pdfDoc:null, visiblePages:[], viewerIndex:0, pendingSong:null, pendingAnalysis:null, previewVersion:0, viewOriginal:false };
 let firebase = null;
 const previewPdfCache = new Map();
 
@@ -69,6 +69,7 @@ function bindEvents() {
   $("#print-current-page").addEventListener("click",()=>printPageNumbers([state.visiblePages[state.viewerIndex]]));
   $("#review-add-part").addEventListener("click",()=>addReviewPart());
   $("#ai-review-form").addEventListener("submit",confirmAnalysis);
+  $("#review-cancel").addEventListener("click",()=>{if($("#review-save").disabled)return;state.pendingImport=null;state.pendingAnalysis=null;state.pendingSong=null;$("#ai-review-dialog").close();});
   window.addEventListener("pagehide",()=>clearPreviewPdfCache());
 }
 
@@ -82,7 +83,38 @@ function renderCards(container,songs){ container.innerHTML="";if(!songs.length){
 
 function addFiles(fileList){ const pdfs=[...fileList].filter(file=>file.type==="application/pdf"||file.name.toLowerCase().endsWith(".pdf")); const rejected=[...fileList].length-pdfs.length;if(rejected)toast(`${rejected} fil(er) vart hoppa over fordi dei ikkje er PDF.`,"error");state.files=[...state.files,...pdfs].filter((file,index,all)=>all.findIndex(x=>x.name===file.name&&x.size===file.size)===index);renderFiles(); }
 function renderFiles(){ const list=$("#file-list");list.innerHTML="";state.files.forEach((file,index)=>{const row=document.createElement("div");row.className="file-row";row.innerHTML=`<div><strong>▧ ${escapeHtml(file.name)}</strong><small>${(file.size/1048576).toFixed(1)} MB</small></div><button type="button" aria-label="Fjern">×</button>`;row.querySelector("button").addEventListener("click",()=>{state.files.splice(index,1);renderFiles();});list.append(row);}); }
-async function handleImport(event){ event.preventDefault();if(!state.files.length){toast("Vel minst éi PDF-fil.","error");return;}const button=$("#save-song");button.disabled=true;button.textContent=state.demo?"Lagrar …":"Lastar opp originalar …";const enteredTitle=$("#song-title").value.trim();const base={title:enteredTitle||state.files[0].name.replace(/\.pdf$/i,""),composer:$("#composer").value.trim(),arranger:$("#arranger").value.trim(),mode:$("input[name=pdf-mode]:checked").value,createdAt:new Date().toISOString()};const sourceFiles=[...state.files];try{let song;if(state.demo){song={id:`local-${Date.now()}`,...base,parts:sourceFiles.map((file,index)=>({id:`local-part-${Date.now()}-${index}`,name:base.mode==="combined"?"Samla partitur":file.name.replace(/\.pdf$/i,""),fileName:file.name,url:URL.createObjectURL(file),pageCount:null}))};saveLocalMetadata(song);state.songs.unshift(song);finishImportUi();openSong(song.id);toast("Demo-import er lagra utan AI-analyse.");return;}song=await saveSong(base,sourceFiles,[]);state.pendingSong=song;if($("#enhance-scans").checked){button.textContent="Legg PDF-forbetring i kø …";try{song.parts=await queuePdfEnhancements(song);toast("Originalane er lagra. PDF-forbetringa køyrer trygt i bakgrunnen.");}catch(queueError){console.error(queueError);toast("Originalane er lagra, men PDF-forbetringa kunne ikkje leggjast i kø.","error");}}if(base.mode==="separate"){state.songs.unshift(song);finishImportUi();openSong(song.id);toast("PDF-stemmene er lagra utan AI-analyse. Du kan endre instrumentnamna etterpå.");return;}button.textContent="AI analyserer filene …";toast("PDF-ane er lasta opp. AI analyserer notane …");const analysis=await analyzeSongPdf(song,sourceFiles);state.pendingAnalysis=analysis;finishImportUi();openAnalysisReview(song,analysis);}catch(error){console.error(error);if(state.pendingSong&&!state.songs.some(x=>x.id===state.pendingSong.id)){state.songs.unshift(state.pendingSong);renderAll();finishImportUi();}toast(aiErrorMessage(error),"error");}finally{button.disabled=false;button.textContent="Lagre i arkivet";} }
+async function handleImport(event){
+ event.preventDefault();
+ if(!state.files.length){toast("Vel minst éi PDF-fil.","error");return;}
+ const enteredTitle=$("#song-title").value.trim();
+ const base={title:enteredTitle||state.files[0].name.replace(/\.pdf$/i,""),composer:$("#composer").value.trim(),arranger:$("#arranger").value.trim(),mode:"separate",createdAt:new Date().toISOString()};
+ const sourceFiles=[...state.files];
+ if(base.mode==="separate"){
+  state.pendingImport={base,sourceFiles,enhance:$("#enhance-scans").checked};
+  state.pendingSong=null;state.pendingAnalysis=null;
+  const proposed={...base,parts:sourceFiles.map((file,index)=>({name:state.files.length===1&&sourceFiles.length>1?"Side "+(index+1):file.name.replace(/\.pdf$/i,""),fileName:file.name,pageNumbers:[]}))};
+  openAnalysisReview(base,proposed);
+  lockImportReviewRows();
+  // Separate files each contain a complete instrument: no page-range fields.
+  $("#ai-review-dialog").classList.add("separate-pdf-review");
+  $("#ai-review-dialog .analysis-status").innerHTML="<span>✓</span><p><strong>Kontroller før opplasting</strong><br><small>Ingen PDF-filer er lagra enno. Rett instrumentnamna og trykk Godkjenn og lagre.</small></p>";
+  $("#ai-review-dialog .eyebrow").textContent="Før lagring";
+  document.querySelectorAll(".review-part-pages").forEach(input=>{input.required=false;input.removeAttribute("required");input.disabled=true;input.closest("label").style.setProperty("display","none","important");});
+  return;
+ }
+ const button=$("#save-song");button.disabled=true;button.textContent=state.demo?"Lagrar …":"Lastar opp originalar …";
+ try{
+  let song;
+  if(state.demo){song={id:`local-${Date.now()}`,...base,parts:sourceFiles.map((file,index)=>({id:`local-part-${Date.now()}-${index}`,name:"Samla partitur",fileName:file.name,url:URL.createObjectURL(file),pageCount:null}))};saveLocalMetadata(song);state.songs.unshift(song);finishImportUi();openSong(song.id);toast("Demo-import er lagra utan AI-analyse.");return;}
+  song=await saveSong(base,sourceFiles,[]);state.pendingSong=song;
+  if($("#enhance-scans").checked){button.textContent="Legg PDF-forbetring i kø …";try{song.parts=await queuePdfEnhancements(song);toast("Originalane er lagra. PDF-forbetringa køyrer i bakgrunnen.");}catch(error){console.error(error);toast("PDF-forbetringa kunne ikkje leggjast i kø.","error");}}
+  button.textContent="AI analyserer filene …";
+  try{const analysis=await analyzeSongPdf(song,sourceFiles);state.pendingAnalysis=analysis;finishImportUi();openAnalysisReview(song,analysis);}
+  catch(error){console.error(error);state.songs.unshift(song);finishImportUi();renderAll();toast("PDF-en er lagra, men AI-analysen feila. Du kan kontrollere stemmene i arkivet.","error");openSong(song.id);}
+ }catch(error){console.error(error);toast(error.message||"Opplasting feila.","error");}
+ finally{button.disabled=false;button.textContent="Lagre i arkivet";}
+}
+
 async function reanalyzeSavedSong(){
   const song=state.activeSong;
   if(!song||state.demo){toast("AI-analyse krev eit lagra musikkstykke i Firebase.","error");return;}
@@ -123,9 +155,62 @@ function aiErrorMessage(error){const text=String(error?.message||error);if(text.
 function saveLocalMetadata(song){ const stored=JSON.parse(localStorage.getItem("ssml-demo-songs")||"[]");stored.unshift({...song,parts:song.parts.map(part=>({...part,url:null}))});localStorage.setItem("ssml-demo-songs",JSON.stringify(stored.slice(0,20))); }
 function loadLocalSongs(){try{return JSON.parse(localStorage.getItem("ssml-demo-songs")||"[]");}catch{return[];}}
 
-function openAnalysisReview(song,analysis){$("#review-title").value=analysis.title||song.title;$("#review-composer").value=analysis.composer||song.composer||"";$("#review-arranger").value=analysis.arranger||song.arranger||"";const list=$("#review-parts");list.innerHTML="";(analysis.parts||[]).forEach(part=>addReviewPart(part));if(!analysis.parts?.length)addReviewPart({name:"Samla partitur",pageNumbers:[]});$("#ai-review-dialog").showModal();}
-function addReviewPart(part={}){const row=document.createElement("div");row.className="part-editor-row review-part-row";const pages=(part.pageNumbers||[]).join(", ");row.dataset.fileName=part.fileName||"";row.dataset.confidence=part.confidence??0;row.innerHTML=`<label>Instrument/stemme<input class="review-part-name" required value="${escapeHtml(part.name||[part.instrument,part.voice].filter(Boolean).join(" "))}" placeholder="Fløyte 1"></label><label>PDF-sider<input class="review-part-pages" required value="${escapeHtml(pages)}" placeholder="1, 2"></label><button class="icon-btn" type="button" aria-label="Fjern">×</button>`;row.querySelector("button").addEventListener("click",()=>row.remove());$("#review-parts").append(row);}
-async function confirmAnalysis(event){event.preventDefault();const song=state.pendingSong;if(!song)return;const button=$("#review-save");button.disabled=true;button.textContent="Lagrar …";try{const rows=$$(".review-part-row");const parts=rows.map((row,index)=>{const requested=row.dataset.fileName;const source=song.parts.find(part=>part.fileName===requested)||song.parts[Math.min(index,song.parts.length-1)]||song.parts[0];const numbers=parsePageNumbersLoose($(".review-part-pages",row).value);return{...source,id:`${song.id}-ai-${index}`,name:$(".review-part-name",row).value.trim(),pageCount:null,pageNumbers:numbers,confidence:Number(row.dataset.confidence)||0};});const metadata={title:$("#review-title").value.trim(),composer:$("#review-composer").value.trim(),arranger:$("#review-arranger").value.trim(),confidence:Number(state.pendingAnalysis?.confidence)||0};await applySongAnalysis(song.id,metadata,parts);Object.assign(song,metadata,{parts,mode:"analyzed"});if(!state.songs.some(item=>item.id===song.id))state.songs.unshift(song);state.pendingSong=null;state.pendingAnalysis=null;$("#ai-review-dialog").close();renderAll();toast(`«${song.title}» er analysert og lagra.`);openSong(song.id);}catch(error){console.error(error);toast(error.message||"Kunne ikkje lagre analysen.","error");}finally{button.disabled=false;button.textContent="Godkjenn og lagre";}}
+function openAnalysisReview(song,analysis){$("#ai-review-dialog").classList.remove("separate-pdf-review");$("#review-title").value=analysis.title||song.title;$("#review-composer").value=analysis.composer||song.composer||"";$("#review-arranger").value=analysis.arranger||song.arranger||"";const list=$("#review-parts");list.innerHTML="";(analysis.parts||[]).forEach(part=>addReviewPart(part));if(!analysis.parts?.length)addReviewPart({name:"Samla partitur",pageNumbers:[]});$("#ai-review-dialog").showModal();}
+// Keep the upload review in the original PDF order, regardless of name edits.
+function lockImportReviewRows(){
+ const list=$("#review-parts");
+ const rows=Array.from(list.querySelectorAll(".review-part-row"));
+ list.style.setProperty("display","flex","important");
+ list.style.setProperty("flex-direction","column","important");
+ rows.forEach((row,index)=>{
+  row.dataset.sourceIndex=String(index);
+  row.dataset.originalFile=state.pendingImport.sourceFiles[index]?.name||"";
+  row.style.setProperty("order",String(index),"important");
+ });
+ // Preserve a stable association with each PDF even if another script moves nodes.
+ if(state.importReviewObserver)state.importReviewObserver.disconnect();
+ state.importReviewObserver=new MutationObserver(()=>{
+  if(!state.pendingImport)return;
+  for(const row of rows){
+   if(row.parentElement!==list)continue;
+   const index=Number(row.dataset.sourceIndex);
+   row.style.setProperty("order",String(index),"important");
+  }
+ });
+ state.importReviewObserver.observe(list,{childList:true});
+}
+function addReviewPart(part={}){const row=document.createElement("div");row.className="part-editor-row review-part-row";const pages=(part.pageNumbers||[]).join(", ");row.dataset.fileName=part.fileName||"";row.dataset.confidence=part.confidence??0;row.innerHTML=`<label>Instrument/stemme<input class="review-part-name" required value="${escapeHtml(part.name||[part.instrument,part.voice].filter(Boolean).join(" "))}" placeholder="Fløyte 1"></label><label>PDF-sider<input class="review-part-pages" required value="${escapeHtml(pages)}" placeholder="1, 2"></label><button class="icon-btn" type="button" aria-label="Fjern">×</button>`;row.querySelector("button").addEventListener("click",()=>row.remove());const nameInput=row.querySelector(".review-part-name");nameInput.setAttribute("autocomplete","off");nameInput.spellcheck=false;for(const type of ["input","change","keyup"]){nameInput.addEventListener(type,event=>event.stopPropagation());}$("#review-parts").append(row);}
+async function confirmAnalysis(event){
+ if(state.pendingImport){
+  event.preventDefault();
+  const {base,sourceFiles,enhance}=state.pendingImport;
+  const rows=$(".review-part-row");
+  if(rows.length!==sourceFiles.length){toast("Alle PDF-filene må ha éi instrumentrad kvar.","error");return;}
+  const names=sourceFiles.map((file,index)=>{const row=rows.find(row=>Number(row.dataset.sourceIndex)===index);return row?.querySelector(".review-part-name")?.value.trim()||"";});
+  if(names.some(name=>!name)){toast("Alle instrument må ha namn.","error");return;}
+  const metadata={...base,title:$("#review-title").value.trim(),composer:$("#review-composer").value.trim(),arranger:$("#review-arranger").value.trim()};
+  if(!metadata.title){toast("Skriv inn songtittel.","error");return;}
+  const button=$("#review-save");button.disabled=true;button.textContent="Lastar opp PDF-ar …";
+  try{
+   let song;
+   if(state.demo){
+    song={id:`local-${Date.now()}`,...metadata,parts:sourceFiles.map((file,i)=>({id:`local-part-${Date.now()}-${i}`,name:names[i],fileName:file.name,url:URL.createObjectURL(file),pageCount:null}))};
+    saveLocalMetadata(song);
+   }else{
+    song=await saveSong(metadata,sourceFiles,[]);
+    const parts=song.parts.map((part,i)=>({...part,name:names[i]}));
+    await updateSongParts(song.id,parts,"separate");
+    song.parts=parts;
+    if(enhance){try{song.parts=await queuePdfEnhancements(song);}catch(error){console.error(error);toast("PDF-ane er lagra, men forbetring kunne ikkje startast.","error");}}
+   }
+   state.songs.unshift(song);state.pendingImport=null;state.pendingSong=null;state.pendingAnalysis=null;
+   $("#ai-review-dialog").close();finishImportUi();renderAll();openSong(song.id);toast(`«${song.title}» er lagra med ${song.parts.length} PDF-stemmer.`);
+  }catch(error){console.error(error);toast(error.message||"Kunne ikkje lagre PDF-ane.","error");}
+  finally{button.disabled=false;button.textContent="Godkjenn og lagre";}
+  return;
+ }
+ event.preventDefault();const song=state.pendingSong;if(!song)return;const button=$("#review-save");button.disabled=true;button.textContent="Lagrar …";try{const rows=$(".review-part-row");const parts=rows.map((row,index)=>{const requested=row.dataset.fileName;const source=song.parts.find(part=>part.fileName===requested)||song.parts[Math.min(index,song.parts.length-1)]||song.parts[0];const numbers=parsePageNumbersLoose($(".review-part-pages",row).value);return{...source,id:`${song.id}-ai-${index}`,name:$(".review-part-name",row).value.trim(),pageCount:null,pageNumbers:numbers,confidence:Number(row.dataset.confidence)||0};});const metadata={title:$("#review-title").value.trim(),composer:$("#review-composer").value.trim(),arranger:$("#review-arranger").value.trim(),confidence:Number(state.pendingAnalysis?.confidence)||0};await applySongAnalysis(song.id,metadata,parts);Object.assign(song,metadata,{parts,mode:"analyzed"});if(!state.songs.some(item=>item.id===song.id))state.songs.unshift(song);state.pendingSong=null;state.pendingAnalysis=null;$("#ai-review-dialog").close();renderAll();toast(`«${song.title}» er analysert og lagra.`);openSong(song.id);}catch(error){console.error(error);toast(error.message||"Kunne ikkje lagre analysen.","error");}finally{button.disabled=false;button.textContent="Godkjenn og lagre";}}
+
 function parsePageNumbersLoose(text){const pages=new Set();for(const token of text.replace(/–/g,"-").split(",")){const bit=token.trim();if(!bit)continue;if(bit.includes("-")){const[start,end]=bit.split("-").map(Number);if(!start||!end||start>end)throw new Error(`Ugyldig sideområde: ${bit}`);for(let n=start;n<=end;n++)pages.add(n);}else{const n=Number(bit);if(!n)throw new Error(`Ugyldig sidetal: ${bit}`);pages.add(n);}}if(!pages.size)throw new Error("Kvar stemme må ha minst éi side.");return[...pages].sort((a,b)=>a-b);}
 
 const SSML_PART_ORDER=[
@@ -394,7 +479,17 @@ async function moveViewer(direction){const next=state.viewerIndex+direction;if(n
 async function renderLargePage(){const pageNo=state.visiblePages[state.viewerIndex];const page=await state.pdfDoc.getPage(pageNo);const stage=$(".page-stage");const maxScale=isMobilePreview()?1.35:2.2;const minScale=isMobilePreview()?.8:1.1;const scale=Math.min(maxScale,Math.max(minScale,(stage.clientHeight-30)/page.getViewport({scale:1}).height));const viewport=page.getViewport({scale});const canvas=$("#large-page-canvas");canvas.width=viewport.width;canvas.height=viewport.height;await withOperationTimeout(page.render({canvasContext:canvas.getContext("2d"),viewport}).promise,45000,"Ei PDF-side brukte for lang tid på å klargjerast.");$("#page-modal-title").textContent=`${state.activeSong.title} · ${state.activePart.name}`;$("#page-modal-count").textContent=`PDF-side ${pageNo} · ${state.viewerIndex+1} av ${state.visiblePages.length} i stemma`;$("#previous-page").disabled=state.viewerIndex===0;$("#next-page").disabled=state.viewerIndex===state.visiblePages.length-1;}
 
 function openPrintDialog(){if(state.selectedPartIds.size>1){printSelectedParts();return;}const part=state.activePart;if(!part)return;$("#print-summary").innerHTML=`<strong>${escapeHtml(state.activeSong.title)}</strong><br><span class="muted">${escapeHtml(part.name)}</span>`;const select=$("#page-choice");select.innerHTML='<option value="all">Heile denne stemma</option>';const pages=part.pageNumbers?.length?part.pageNumbers:Array.from({length:part.pageCount||state.pdfDoc?.numPages||1},(_,i)=>i+1);pages.forEach(page=>select.insertAdjacentHTML("beforeend",`<option value="${page}">Berre PDF-side ${page}</option>`));select.value=state.selectedPage;$("#print-dialog").showModal();}
-async function handlePrint(event){event.preventDefault();const part=state.activePart,copies=Math.max(1,Number($("#copy-count").value)||1),choice=$("#page-choice").value;$("#print-dialog").close();if(!partSourceUrl(part)){toast("Dette er ein demo-note utan ei ekte PDF-fil.","error");return;}const pages=choice==="all"?(part.pageNumbers?.length?part.pageNumbers:Array.from({length:part.pageCount||state.pdfDoc?.numPages||1},(_,i)=>i+1)):[Number(choice)];await printPageNumbers(pages,copies);}
+function useNativePdfPrint(part,choice,copies){
+  if(!/iPad|iPhone|iPod/i.test(navigator.userAgent))return false;
+  if(choice!=="all"||part.pageNumbers?.length)return false;
+  const url=partSourceUrl(part);
+  if(!url)return false;
+  const opened=window.open(url,"_blank");
+  if(!opened){toast("Safari blokkerte PDF-en. Prøv å opne appen i Safari.","error");return true;}
+  toast("PDF-en er opna. Bruk Del → Skriv ut i Safari"+(copies>1?" og vel "+copies+" kopiar.":".");
+  return true;
+}
+async function handlePrint(event){event.preventDefault();const part=state.activePart,copies=Math.max(1,Number($("#copy-count").value)||1),choice=$("#page-choice").value;$("#print-dialog").close();if(!partSourceUrl(part)){toast("Dette er ein demo-note utan ei ekte PDF-fil.","error");return;}if(useNativePdfPrint(part,choice,copies))return;const pages=choice==="all"?(part.pageNumbers?.length?part.pageNumbers:Array.from({length:part.pageCount||state.pdfDoc?.numPages||1},(_,i)=>i+1)):[Number(choice)];await printPageNumbers(pages,copies);}
 async function printSelectedParts(){const parts=sortParts((state.activeSong.parts||[]).filter(part=>state.selectedPartIds.has(part.id)));if(!parts.length){toast("Vel minst éi stemme.","error");return;}const button=$("#print-selected-parts");button.disabled=true;button.textContent="Klargjer …";const jobTitle=parts.length===1?`${state.activeSong.title} – ${parts[0].name}`:`${state.activeSong.title} – ${parts.length} stemmer`;const win=openPrintWindow(jobTitle);if(!win){button.disabled=false;updatePartSelectionTools();toast("Nettlesaren blokkerte utskriftsvindauget.","error");return;}const documents=new Map();try{const pdfjs=await import("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs");pdfjs.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";const output=[];let completed=0;const total=parts.reduce((sum,part)=>sum+(part.pageNumbers?.length||part.pageCount||1),0);for(const part of parts){const sourceUrl=partSourceUrl(part);if(!sourceUrl)continue;let pdf=documents.get(sourceUrl);if(!pdf){pdf=await pdfjs.getDocument(sourceUrl).promise;documents.set(sourceUrl,pdf);}const pages=part.pageNumbers?.length?part.pageNumbers:Array.from({length:pdf.numPages},(_,i)=>i+1);output.push(`<h1>${escapeHtml(state.activeSong.title)} – ${escapeHtml(part.name)}</h1>`);for(const pageNo of pages){setPrintStatus(win,`Klargjer side ${completed+1} av ${total} …`);const page=await pdf.getPage(pageNo);const viewport=page.getViewport({scale:isMobilePreview()?1.5:2});const canvas=document.createElement("canvas");canvas.width=viewport.width;canvas.height=viewport.height;await withOperationTimeout(page.render({canvasContext:canvas.getContext("2d"),viewport}).promise,45000,"Ei PDF-side brukte for lang tid på å klargjerast.");output.push(`<img alt="${escapeHtml(part.name)}, side ${pageNo}" src="${await canvasToPrintUrl(canvas)}">`);canvas.width=1;canvas.height=1;completed++;}}await finishPrintWindow(win,output.join(""));toast(`${parts.length} stemme(r) er klargjorde for utskrift.`);}catch(error){console.error(error);showPrintError(win);toast("Kunne ikkje klargjere dei valde stemmene.","error");}finally{for(const pdf of documents.values())releasePdf(pdf);button.disabled=false;updatePartSelectionTools();}}
 
 async function printPageNumbers(pages,copies=1){const win=openPrintWindow(`${state.activeSong.title} – ${state.activePart.name}`);if(!win){toast("Nettlesaren blokkerte utskriftsvindauget.","error");return;}try{if(!state.pdfDoc)await loadPreview(state.activePart);if(!state.pdfDoc)throw new Error("PDF-en kunne ikkje lastast.");const renderedPages=[];for(let index=0;index<pages.length;index++){const pageNo=pages[index];setPrintStatus(win,`Klargjer side ${index+1} av ${pages.length} …`);const page=await state.pdfDoc.getPage(pageNo);const viewport=page.getViewport({scale:isMobilePreview()?1.5:2});const canvas=document.createElement("canvas");canvas.width=viewport.width;canvas.height=viewport.height;await withOperationTimeout(page.render({canvasContext:canvas.getContext("2d"),viewport}).promise,45000,"Ei PDF-side brukte for lang tid på å klargjerast.");renderedPages.push({pageNo,url:await canvasToPrintUrl(canvas)});canvas.width=1;canvas.height=1;}const images=[];for(let copy=1;copy<=copies;copy++){for(const rendered of renderedPages){images.push(`<img alt="Side ${rendered.pageNo}, eksemplar ${copy}" src="${rendered.url}">`);}}await finishPrintWindow(win,images.join(""));const total=pages.length*copies;toast(`${copies} eksemplar klargjorde (${total} utskriftssider). La talet på kopiar stå på 1 i utskriftsvindauget.`);}catch(error){console.error(error);showPrintError(win);toast("Kunne ikkje klargjere sidene for utskrift.","error");}}
