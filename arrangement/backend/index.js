@@ -110,3 +110,23 @@ exports.arrangementMyRole=onCall({region:"europe-west1"},async request=>{
  const cred=(await credential(record.role==="admin"?"admin":record.slot).get()).data();
  return {role:record.version===cred?.version?record.role:"none"};
 });
+
+const arrangementStore=db.doc("arrangementData/main");
+exports.arrangementReadAll=onCall({region:"europe-west1"},async request=>{
+ await requireBoard(request);
+ const snap=await arrangementStore.get();
+ return {exists:snap.exists,events:snap.exists?snap.data().events:[],revision:snap.exists?snap.data().revision:0};
+});
+exports.arrangementWriteAll=onCall({region:"europe-west1"},async request=>{
+ await requireBoard(request);
+ const events=request.data?.events,revision=request.data?.revision;
+ if(!Array.isArray(events)||events.length>100||!Number.isInteger(revision)||JSON.stringify(events).length>800000)throw new HttpsError("invalid-argument","Ugyldige arrangementsdata");
+ for(const e of events){if(!e||typeof e.id!=="string"||typeof e.name!=="string"||!Array.isArray(e.tasks)||!Array.isArray(e.people)||!Array.isArray(e.messages))throw new HttpsError("invalid-argument","Ugyldig arrangement");}
+ return db.runTransaction(async tx=>{
+  const old=await tx.get(arrangementStore);
+  const current=old.exists?old.data().revision:0;
+  if(current!==revision)throw new HttpsError("aborted","Data er endra frå ei anna eining. Last inn på nytt.");
+  tx.set(arrangementStore,{events,revision:current+1,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
+  return {revision:current+1};
+ });
+});
