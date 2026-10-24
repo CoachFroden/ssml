@@ -3,7 +3,7 @@ import {onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.14.1/fir
 const $=s=>document.querySelector(s);
 let verified=false,stop=null,adminMode=false;
 function lock(){verified=false;adminMode=false;if(window.adminResetButton)window.adminResetButton.hidden=true;document.body.classList.add("locked");$("#access-gate").hidden=false;}
-function unlock(){verified=true;document.body.classList.remove("locked");$("#access-gate").hidden=true;}
+function unlock(){verified=true;document.body.classList.remove("locked");$("#access-gate").hidden=true;loadFirebaseEvents();}
 async function verify(){
   if(!auth.currentUser||auth.currentUser.getIdTokenResult===undefined){lock();return;}
   const claims=(await auth.currentUser.getIdTokenResult()).claims;
@@ -78,4 +78,66 @@ $("#admin-setup-form").onsubmit=async e=>{
   setup.open=false;
  }catch(err){$("#admin-setup-status").textContent=err.message||"Oppsett feila.";}
  finally{button.disabled=false;}
+};
+
+let revision=0,writeQueue=Promise.resolve(),loading=false;
+const syncMessage=document.createElement("p");
+syncMessage.className="muted small";
+syncMessage.textContent="Firebase: ventar på tilkopling";
+$("#home .panel").appendChild(syncMessage);
+const migrationButton=document.createElement("button");
+migrationButton.className="secondary";
+migrationButton.textContent="Overfør eksisterande arrangement til Firebase";
+migrationButton.hidden=true;
+$("#home .panel").appendChild(migrationButton);
+const invoke=async(name,data)=>{
+ const {getFunctions,httpsCallable}=await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js");
+ return (await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
+};
+async function loadFirebaseEvents(){
+ if(loading||window.ssmlFirebaseReady)return;
+ loading=true;
+ try{
+  const data=await invoke("arrangementReadAll",{});
+  revision=data.revision;
+  window.ssmlFirebaseReady=true;
+  if(data.exists){
+   window.ssmlSetEvents(data.events);
+   syncMessage.textContent="Firebase: arrangementa er synkroniserte";
+  }else{
+   syncMessage.textContent="Firebase er tom. Overfør dei eksisterande arrangementa før du endrar noko.";
+   migrationButton.hidden=false;
+  }
+ }catch(err){
+  window.ssmlFirebaseReady=false;
+  syncMessage.textContent="Firebase er ikkje tilgjengeleg: "+(err.code||err.message);
+ }finally{loading=false;}
+}
+window.ssmlSaveEvents=events=>{
+ const snapshot=structuredClone(events);
+ writeQueue=writeQueue.then(async()=>{
+  const result=await invoke("arrangementWriteAll",{events:snapshot,revision});
+  revision=result.revision;
+  syncMessage.textContent="Firebase: lagra";
+ }).catch(err=>{
+  window.ssmlFirebaseReady=false;
+  syncMessage.textContent="Lagring feila: "+(err.code||err.message)+". Ikkje gjer fleire endringar; last inn sida på nytt.";
+ });
+ return writeQueue;
+};
+migrationButton.onclick=async()=>{
+ const local=JSON.parse(localStorage.getItem("ssml-arrangement-demo-v1")||"null");
+ if(!Array.isArray(local)||!local.length){syncMessage.textContent="Ingen lokal sikkerheitskopi funnen på denne eininga.";return;}
+ if(!confirm("Overføre "+local.length+" arrangement til Firebase? Dette blir hovudregisteret."))return;
+ migrationButton.disabled=true;
+ try{
+  const current=await invoke("arrangementReadAll",{});
+  if(current.exists){syncMessage.textContent="Firebase inneheld allereie arrangement. Overføring avbroten.";return;}
+  const result=await invoke("arrangementWriteAll",{events:local,revision:0});
+  revision=result.revision;
+  window.ssmlSetEvents(local);
+  migrationButton.hidden=true;
+  syncMessage.textContent="Firebase: "+local.length+" arrangement overførte";
+ }catch(err){syncMessage.textContent="Overføring feila: "+(err.code||err.message);}
+ finally{migrationButton.disabled=false;}
 };
