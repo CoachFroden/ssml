@@ -63,7 +63,7 @@ const notice=document.createElement("p");notice.className="muted small";notice.t
 
 const setup=document.createElement("details");
 setup.innerHTML='<summary>Førstegongsoppsett for administrator</summary><form id="admin-setup-form"><p>Dette blir brukt berre éin gong. Du treng Firebase-oppsettnøkkelen.</p><input id="admin-bootstrap" type="password" placeholder="Oppsettnøkkel" required><input id="admin-new" type="password" minlength="10" maxlength="128" placeholder="Nytt administratorpassord" required><button type="submit">Opprett administratorpassord</button><p id="admin-setup-status" role="status"></p></form>';
-$("#access-gate").appendChild(setup);setup.style.cssText="background:white;color:#123c5c;border-radius:0 0 16px 16px;padding:0 25px 22px;width:min(380px,calc(100vw - 40px));margin:-12px auto 0;box-sizing:border-box";
+$("#access-form").appendChild(setup);
 $("#admin-setup-form").onsubmit=async e=>{
  e.preventDefault();e.stopPropagation();
  const button=$("#admin-setup-form button");button.disabled=true;
