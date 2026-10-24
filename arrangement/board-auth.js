@@ -142,4 +142,6 @@ migrationButton.onclick=async()=>{
 };
 
 // Hent endringar frå komiteane utan å forstyrre pågåande lagring.
-setInterval(()=>{if(verified&&window.ssmlFirebaseReady&&!loading&&!pendingWrites)loadFirebaseEvents();},10000);
+setInterval(()=>{if(verified&&window.ssmlFirebaseReady&&!loading&&!pendingWrites)loadFirebaseEvents();},3000);
+window.addEventListener("focus",()=>{if(verified&&window.ssmlFirebaseReady)loadFirebaseEvents();});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&verified&&window.ssmlFirebaseReady)loadFirebaseEvents();});
