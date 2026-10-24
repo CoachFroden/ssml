@@ -40,4 +40,22 @@ $("#password-form").addEventListener("submit",async e=>{
  catch(err){$("#password-status").textContent="Kunne ikkje lagre passordet: "+(err.message||"ukjend feil");}
  finally{b.disabled=false;}
 });
+const resetButton=document.createElement("button");
+resetButton.type="button";
+resetButton.textContent="Tilbakestill styrepassord";
+resetButton.hidden=true;
+resetButton.onclick=()=>{
+ $("#password-slot").innerHTML='<option value="board">Styrepassord</option>';
+ $("#password-status").textContent="";
+ $("#password-new").value="";
+ $("#password-repeat").value="";
+ dialog.showModal();
+};
+window.adminResetButton=resetButton;
+$("#home .panel").appendChild(resetButton);
+const originalSettings=$("#committee-settings").onclick;
+$("#committee-settings").onclick=()=>{
+ $("#password-slot").innerHTML='<option value="a0">Julekonsert</option><option value="a1">Vårkonsert</option><option value="a2">Sommarkonsert</option><option value="a3">Basar</option>';
+ originalSettings();
+};
 const notice=document.createElement("p");notice.className="muted small";notice.textContent="Styrepassordet er kontrollert av Firebase. Arrangementa på denne sida er framleis lagra lokalt til dei er overførte.";$("#home .panel").appendChild(notice);
