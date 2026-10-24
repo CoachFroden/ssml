@@ -3,7 +3,7 @@
 import {initializeApp,getApps,getApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {getAuth,signInWithCustomToken,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {getFunctions,httpsCallable} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
-import {getFirestore,collection,doc,onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import {getFirestore,collection,doc,onSnapshot,getDoc,setDoc,updateDoc,addDoc,deleteDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import {firebaseConfig} from "../firebase-core.js";
 const app=getApps().length?getApp():initializeApp(firebaseConfig);
 export const auth=getAuth(app);
@@ -29,3 +29,13 @@ export function listenEvents(onData,onError){
 export function listenEvent(slot,onData,onError){
   return onSnapshot(doc(db,"arrangementEvents",slot),snapshot=>onData(snapshot.exists()?{id:snapshot.id,...snapshot.data()}:null),onError);
 }
+
+export const setCommitteeOpen=(slot,open)=>call("arrangementSetOpen",{slot,open});
+export const importBackup=events=>call("arrangementImport",{events});
+export const getEvent=slot=>getDoc(doc(db,"arrangementEvents",slot));
+export const saveEvent=(slot,data)=>setDoc(doc(db,"arrangementEvents",slot),data,{merge:true});
+export const listenItems=(slot,kind,onData,onError)=>onSnapshot(collection(db,"arrangementEvents",slot,kind),snap=>onData(snap.docs.map(d=>({id:d.id,...d.data()}))),onError);
+export const addItem=(slot,kind,data)=>addDoc(collection(db,"arrangementEvents",slot,kind),data);
+export const editItem=(slot,kind,id,data)=>updateDoc(doc(db,"arrangementEvents",slot,kind,id),data);
+export const removeItem=(slot,kind,id)=>deleteDoc(doc(db,"arrangementEvents",slot,kind,id));
+export {serverTimestamp};
