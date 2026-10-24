@@ -69,7 +69,7 @@ function bindEvents() {
   $("#print-current-page").addEventListener("click",()=>printPageNumbers([state.visiblePages[state.viewerIndex]]));
   $("#review-add-part").addEventListener("click",()=>addReviewPart());
   $("#ai-review-form").addEventListener("submit",confirmAnalysis);
-  $("#review-cancel").addEventListener("click",()=>{if($("#review-save").disabled)return;state.pendingImport=null;state.pendingAnalysis=null;state.pendingSong=null;$("#ai-review-dialog").close();});
+  $("#review-cancel")?.addEventListener("click",()=>{if($("#review-save").disabled)return;state.pendingImport=null;state.pendingAnalysis=null;state.pendingSong=null;$("#ai-review-dialog").close();});
   window.addEventListener("pagehide",()=>clearPreviewPdfCache());
 }
 
