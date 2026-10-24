@@ -5,6 +5,17 @@ const invitationName=params.get("namn")||params.get("name")||(slot==="a1"?"Julek
 if(invitationName)$("#gate-event-name").textContent=invitationName;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const call=async(name,data)=>(await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
+async function loadPublicEventName(){
+ if(!slot)return;
+ try{
+  const result=await call("arrangementPublicName",{slot});
+  if(result.name){$("#gate-event-name").textContent=result.name;document.title=result.name+" · SSML komité";}
+  else $("#gate-event-name").textContent="Ukjent arrangement";
+ }catch(err){
+  if(!invitationName)$("#gate-event-name").textContent="Komitéportal";
+ }
+}
+loadPublicEventName();
 let poll=null,channel="board",view="tasks",latestMessages=[];
 const seenKey="ssml-committee-seen-v1:"+slot;
 let seenIds=new Set();
