@@ -135,6 +135,7 @@ migrationButton.onclick=async()=>{
   if(current.exists){syncMessage.textContent="Firebase inneheld allereie arrangement. Overføring avbroten.";return;}
   const result=await invoke("arrangementWriteAll",{events:local,revision:0});
   revision=result.revision;
+  window.ssmlFirebaseReady=true;
   window.ssmlSetEvents(local);
   migrationButton.hidden=true;
   syncMessage.textContent="Firebase: "+local.length+" arrangement overførte";
