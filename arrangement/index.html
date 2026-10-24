@@ -49,6 +49,10 @@ body{min-height:100vh;min-height:100dvh;background:#263e49 url("./ssml-arrangeme
 .bottom #board-logout{color:#a64747!important;border-right:1px solid #dbe4e8!important;border-radius:12px 5px 5px 12px!important;margin-right:5px}
 .bottom #board-logout:hover{background:#fff0ee!important}
 @media(max-width:650px){.bottom{gap:0!important;padding:5px!important}.bottom button{flex:1;min-width:0;min-height:56px;padding:7px 2px!important;font-size:10px!important;gap:4px}.bottom button svg{width:19px;height:19px}.bottom #board-logout{margin-right:2px}}
+</style><style>
+/* Vis heile øvre del av originalbiletet – ikkje midtstill og kapp logoen */
+body{background-position:center top!important;background-size:100% auto!important;background-repeat:no-repeat!important;background-color:#d8d6d1!important}
+@media(max-width:650px){body{background-size:cover!important;background-position:center top!important}}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <main class="shell">
