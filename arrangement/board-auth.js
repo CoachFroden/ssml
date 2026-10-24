@@ -44,6 +44,8 @@ $("#password-form").addEventListener("submit",async e=>{
 const resetButton=document.createElement("button");
 resetButton.type="button";
 resetButton.textContent="Tilbakestill styrepassord";
+resetButton.className="secondary";
+resetButton.style.cssText="margin-top:12px;width:100%;text-align:center;padding:12px 16px;border-radius:12px;font-weight:650";
 resetButton.hidden=true;
 resetButton.onclick=()=>{
  $("#password-slot").innerHTML='<option value="board">Styrepassord</option>';
@@ -59,7 +61,7 @@ $("#committee-settings").onclick=()=>{
  $("#password-slot").innerHTML='<option value="a0">Julekonsert</option><option value="a1">Vårkonsert</option><option value="a2">Sommarkonsert</option><option value="a3">Basar</option>';
  originalSettings();
 };
-const notice=document.createElement("p");notice.className="muted small";notice.textContent="Styrepassordet er kontrollert av Firebase. Arrangementa på denne sida er framleis lagra lokalt til dei er overførte.";$("#home .panel").appendChild(notice);
+const notice=document.createElement("p");notice.className="muted small";notice.textContent="Styrepassordet er kontrollert av Firebase. Arrangementa på denne sida er framleis lagra lokalt til dei er overførte.";notice.style.cssText="margin-top:12px";$("#home .panel").appendChild(notice);
 
 const setup=document.createElement("details");
 setup.innerHTML='<summary>Førstegongsoppsett for administrator</summary><form id="admin-setup-form"><p>Dette blir brukt berre éin gong. Du treng Firebase-oppsettnøkkelen.</p><input id="admin-bootstrap" type="password" placeholder="Oppsettnøkkel" required><input id="admin-new" type="password" minlength="10" maxlength="128" placeholder="Nytt administratorpassord" required><button type="submit">Opprett administratorpassord</button><p id="admin-setup-status" role="status"></p></form>';
