@@ -113,6 +113,15 @@ exports.arrangementMyRole=onCall({region:"europe-west1"},async request=>{
 });
 
 const arrangementStore=db.doc("arrangementData/main");
+// Offentleg, avgrensa metadata til innloggingssida. Ingen persondata eller meldingar.
+exports.arrangementPublicName=onCall({region:"europe-west1"},async request=>{
+ const slot=request.data?.slot;
+ if(!validEventId(slot))throw new HttpsError("invalid-argument","Ugyldig arrangement");
+ const snap=await arrangementStore.get();
+ const event=(snap.data()?.events||[]).find(e=>e.id===slot);
+ if(!event)return {name:null};
+ return {name:String(event.name||"").slice(0,150)};
+});
 exports.arrangementReadAll=onCall({region:"europe-west1"},async request=>{
  await requireBoard(request);
  const snap=await arrangementStore.get();
