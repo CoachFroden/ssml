@@ -83,6 +83,25 @@ body{background-position:center top!important;background-size:100% auto!importan
 #detail .progress{height:6px!important;margin:8px 0!important}
 #detail .muted,#detail .small{font-size:11px!important}
 @media(max-width:650px){#detail{max-width:100%!important}#detail .panel{padding:11px!important}#detail button{font-size:11px!important;padding:8px!important}}
+</style><style>
+/* Samla innhald til høgre – synleg SSML-logo og rolegare hierarki */
+@media(min-width:1050px){
+.shell{max-width:none!important;width:100%!important;margin:0!important;padding:24px clamp(28px,5vw,90px) 120px 39%!important}
+.shell .view,#home,#events,#detail,#contacts,#info{max-width:760px!important;width:100%!important;margin-left:auto!important;margin-right:0!important}
+}
+@media(min-width:750px) and (max-width:1049px){
+.shell{max-width:none!important;padding:20px 24px 110px 31%!important}
+.shell .view,#home,#events,#detail,#contacts,#info{max-width:720px!important;width:100%!important;margin-left:auto!important;margin-right:0!important}
+}
+#events .panel,#home .panel,#detail .panel{background:rgba(247,250,251,.86)!important;-webkit-backdrop-filter:blur(10px) saturate(110%)!important;backdrop-filter:blur(10px) saturate(110%)!important;border:1px solid rgba(255,255,255,.88)!important;box-shadow:0 8px 26px rgba(12,34,50,.21)!important}
+#detail .panel{margin-bottom:11px!important;padding:14px 17px!important}
+#detail .task,#detail .person{background:rgba(255,255,255,.72)!important}
+#detail #message-form{background:rgba(233,242,246,.68)!important;border:1px solid rgba(205,224,233,.85)!important}
+#detail #message-form input,#detail #message-form textarea{background:rgba(255,255,255,.91)!important}
+#events .event,#home .event{background:rgba(255,255,255,.77)!important;box-shadow:0 2px 9px rgba(13,49,69,.09)!important}
+#detail #messages .message.from-board{background:rgba(211,232,251,.88)!important}
+#detail #messages .message.from-committee{background:rgba(210,241,219,.88)!important}
+@media(max-width:749px){.shell{padding:16px 12px 105px!important}#events .panel,#home .panel,#detail .panel{background:rgba(249,252,253,.9)!important}}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <main class="shell">
