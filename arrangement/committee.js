@@ -17,6 +17,7 @@ async function loadPublicEventName(){
 }
 loadPublicEventName();
 let poll=null,channel="board",view="tasks",latestMessages=[];
+let currentUid="";
 const seenKey="ssml-committee-seen-v1:"+slot;
 let seenIds=new Set();
 try{const saved=JSON.parse(localStorage.getItem(seenKey)||"[]");if(Array.isArray(saved))seenIds=new Set(saved.filter(x=>typeof x==="string"));}catch{}
@@ -30,7 +31,7 @@ function draw(e){
  $("#title").textContent=e.name;$("#date").textContent=[e.date,e.year].filter(Boolean).join(" · ");
  latestMessages=e.messages;if(view==="messages")markMessagesSeen();else updateUnreadCount();
  $("#task-summary").textContent=e.tasks.filter(t=>t.done).length+" av "+e.tasks.length+" oppgåver fullførte";
- $("#tasks").innerHTML=e.tasks.slice().sort((a,b)=>Number(a.done)-Number(b.done)).map(t=>'<label class="task"><input type="checkbox" data-id="'+esc(t.id)+'" '+(t.done?"checked":"")+'><span>'+esc(t.text)+'</span></label>').join("")||"Ingen oppgåver enno.";
+ $("#tasks").innerHTML=e.tasks.slice().sort((a,b)=>Number(a.done)-Number(b.done)).map(t=>'<div class="task"><label><input type="checkbox" data-id="'+esc(t.id)+'" '+(t.done?"checked":"")+'><span>'+esc(t.text)+'</span></label>'+(t.createdBy==="committee"&&t.createdByUid===currentUid?'<button type="button" class="delete-own-task" data-delete="'+esc(t.id)+'" title="Slett di eiga oppgåve" aria-label="Slett di eiga oppgåve">×</button>':"")+'</div>').join("")||"Ingen oppgåver enno.";
  $("#members").innerHTML=e.people.map(p=>'<p><strong>'+esc(p.name)+'</strong> '+esc(p.phone)+' '+esc(p.email)+'</p>').join("")||"Ingen medlemer enno.";
  $("#messages").innerHTML=e.messages.filter(m=>channel==="committee"?m.recipient==="committee":m.recipient!=="committee").map(m=>'<article class="'+(m.role==='committee'?'from-committee':'from-board')+'"><strong>'+esc(m.sender)+'</strong><span class="source">'+(m.role==='committee'?'Komité':'Styret')+'</span> <small>'+esc(m.date)+'</small><p>'+esc(m.text)+'</p></article>').join("")||"Ingen meldingar enno.";
 }
@@ -40,7 +41,7 @@ async function refresh(){
 }
 $("#login").addEventListener("submit",async e=>{
  e.preventDefault();$("#status").textContent="Kontrollerer passord …";$("#enter").disabled=true;
- try{await loginCommittee(slot,$("#password").value);$("#password").value="";$("#gate").hidden=true;$("#portal").hidden=false;showView("tasks");await refresh();clearInterval(poll);poll=setInterval(refresh,15000);}
+ try{await loginCommittee(slot,$("#password").value);currentUid=auth.currentUser?.uid||"";$("#password").value="";$("#gate").hidden=true;$("#portal").hidden=false;showView("tasks");await refresh();clearInterval(poll);poll=setInterval(refresh,15000);}
  catch(err){error(err);}finally{$("#enter").disabled=false;}
 });
 document.querySelectorAll("[data-channel]").forEach(button=>button.addEventListener("click",()=>{channel=button.dataset.channel;$("#recipient").value=channel;document.querySelectorAll("[data-channel]").forEach(b=>b.classList.toggle("selected",b===button));refresh();}));
@@ -57,4 +58,4 @@ $("#send").addEventListener("submit",async e=>{
  try{await call("arrangementCommitteeUpdate",{slot,action:"message",recipient:$("#recipient").value,sender:$("#sender").value.trim(),text:$("#message").value.trim()});$("#message").value="";await refresh();}
  catch(err){error(err);}
 });
-$("#logout").onclick=async()=>{clearInterval(poll);poll=null;await logout();$("#portal").hidden=true;$("#gate").hidden=false;};
+$("#logout").onclick=async()=>{clearInterval(poll);poll=null;await logout();currentUid="";$("#portal").hidden=true;$("#gate").hidden=false;};
