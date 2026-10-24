@@ -133,6 +133,27 @@ exports.arrangementBoardContacts=onCall({region:"europe-west1"},async request=>{
   tx.set(boardContactsRef,{members});return {members};
  });
 });
+const childrenRef=db.doc("arrangementData/children");
+const childKey=v=>String(v||"").trim().normalize("NFKC").toLocaleLowerCase("nb-NO").replace(/\\s+/g," ");
+exports.arrangementChildren=onCall({region:"europe-west1"},async request=>{
+ await requireBoard(request);
+ const action=request.data?.action||"read";
+ if(action==="read"){const snap=await childrenRef.get();return {children:snap.data()?.children||[]};}
+ if(!["save","delete"].includes(action))throw new HttpsError("invalid-argument","Ugyldig handling");
+ const child=request.data?.child,id=request.data?.id;
+ if(action==="save"&&(!child||!String(child.firstName||"").trim()||!String(child.lastName||"").trim()))throw new HttpsError("invalid-argument","Fornamn og etternamn er påkravd");
+ return db.runTransaction(async tx=>{
+  const snap=await tx.get(childrenRef),children=snap.data()?.children||[];
+  if(action==="save"){
+   const next={id:String(child.id||crypto.randomUUID()),firstName:String(child.firstName).trim(),lastName:String(child.lastName).trim(),parent1:String(child.parent1||"").trim(),phone1:String(child.phone1||"").trim(),email1:String(child.email1||"").trim(),parent2:String(child.parent2||"").trim(),phone2:String(child.phone2||"").trim(),email2:String(child.email2||"").trim()};
+   if(Object.values(next).some(v=>v.length>200))throw new HttpsError("invalid-argument","For lang tekst");
+   if(children.some(c=>c.id!==next.id&&childKey(c.firstName)===childKey(next.firstName)&&childKey(c.lastName)===childKey(next.lastName)))throw new HttpsError("already-exists","Dette barnet er allereie registrert.");
+   const index=children.findIndex(c=>c.id===next.id);
+   if(index<0)children.push(next);else children[index]=next;
+  }else if(action==="delete"){const index=children.findIndex(c=>c.id===id);if(index>=0)children.splice(index,1);}
+  tx.set(childrenRef,{children});return {children};
+ });
+});
 exports.arrangementPublicName=onCall({region:"europe-west1"},async request=>{
  const slot=request.data?.slot;
  if(!validEventId(slot))throw new HttpsError("invalid-argument","Ugyldig arrangement");
