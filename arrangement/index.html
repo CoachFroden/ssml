@@ -102,6 +102,19 @@ body{background-position:center top!important;background-size:100% auto!importan
 #detail #messages .message.from-board{background:rgba(211,232,251,.88)!important}
 #detail #messages .message.from-committee{background:rgba(210,241,219,.88)!important}
 @media(max-width:749px){.shell{padding:16px 12px 105px!important}#events .panel,#home .panel,#detail .panel{background:rgba(249,252,253,.9)!important}}
+</style><style>
+/* Balansert plassering: logo til venstre, arbeidsflate og meny på same akse */
+@media(min-width:1050px){
+.shell{padding:24px 10vw 120px 28vw!important}
+.shell .view,#home,#events,#detail,#contacts,#info{max-width:790px!important;width:100%!important;margin-left:auto!important;margin-right:auto!important}
+.bottom{left:56%!important}
+}
+@media(min-width:750px) and (max-width:1049px){
+.shell{padding:20px 5vw 110px 23vw!important}
+.shell .view,#home,#events,#detail,#contacts,#info{max-width:740px!important;width:100%!important;margin-left:auto!important;margin-right:auto!important}
+.bottom{left:55%!important}
+}
+@media(max-width:749px){.bottom{left:50%!important}}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <main class="shell">
