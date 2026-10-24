@@ -15,7 +15,7 @@ onAuthStateChanged(auth,()=>verify().catch(()=>lock()));
 $("#access-form").addEventListener("submit",async e=>{
  e.preventDefault();const b=$("#access-form button");b.disabled=true;$("#access-error").textContent="Kontrollerer passord …";
  try{await loginBoard($("#access-code").value);$("#access-code").value="";await verify();}
- catch(err){$("#access-error").textContent="Innlogging feila. Kontroller passordet og prøv igjen.";console.error(err);}
+ catch(err){const code=String(err?.code||"");const messages={"functions/permission-denied":"Passordet vart ikkje godkjent.","functions/resource-exhausted":"For mange forsøk. Vent 15 minutt.","functions/internal":"Firebase har ein intern feil. Vi må sjå funksjonsloggen.","auth/invalid-custom-token":"Firebase avviste innloggingstokenet.","auth/operation-not-allowed":"Firebase Auth må aktiverast for innlogging."};$("#access-error").textContent=(messages[code]||"Innlogging feila: "+(code||err?.message||"ukjend feil"));console.error(err);}
  finally{b.disabled=false;}
 });
 const dialog=document.createElement("dialog");
