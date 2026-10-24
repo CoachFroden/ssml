@@ -1,0 +1,9 @@
+{
+  "functions": [
+    {
+      "source": ".",
+      "codebase": "ssml-arrangement",
+      "runtime": "nodejs22"
+    }
+  ]
+}
