@@ -7,9 +7,10 @@ let poll=null;
 function error(e){$("#status").textContent=e?.message||"Noko gjekk gale.";}
 function draw(e){
  $("#title").textContent=e.name;$("#date").textContent=[e.date,e.year].filter(Boolean).join(" · ");
- $("#tasks").innerHTML=e.tasks.map(t=>'<label class="task"><input type="checkbox" data-id="'+esc(t.id)+'" '+(t.done?"checked":"")+'><span>'+esc(t.text)+'</span></label>').join("")||"Ingen oppgåver enno.";
+ $("#task-summary").textContent=e.tasks.filter(t=>t.done).length+" av "+e.tasks.length+" oppgåver fullførte";
+ $("#tasks").innerHTML=e.tasks.slice().sort((a,b)=>Number(a.done)-Number(b.done)).map(t=>'<label class="task"><input type="checkbox" data-id="'+esc(t.id)+'" '+(t.done?"checked":"")+'><span>'+esc(t.text)+'</span></label>').join("")||"Ingen oppgåver enno.";
  $("#members").innerHTML=e.people.map(p=>'<p><strong>'+esc(p.name)+'</strong> '+esc(p.phone)+' '+esc(p.email)+'</p>').join("")||"Ingen medlemer enno.";
- $("#messages").innerHTML=e.messages.map(m=>'<article><strong>'+esc(m.sender)+'</strong> <small>'+esc(m.date)+'</small><p>'+esc(m.text)+'</p></article>').join("")||"Ingen meldingar enno.";
+ $("#messages").innerHTML=e.messages.map(m=>'<article class="'+(m.role==='committee'?'from-committee':'from-board')+'"><strong>'+esc(m.sender)+'</strong><span class="source">'+(m.role==='committee'?'Komité':'Styret')+'</span> <small>'+esc(m.date)+'</small><p>'+esc(m.text)+'</p></article>').join("")||"Ingen meldingar enno.";
 }
 async function refresh(){
  try{const data=await call("arrangementCommitteeRead",{slot});draw(data.event);$("#status").textContent="";}
