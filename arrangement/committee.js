@@ -1,17 +1,33 @@
-import {loginCommittee,logout,listenEvent,listenItems,editItem,addItem,serverTimestamp} from "./firebase-client.js";
-const slot=document.body.dataset.slot;
-const $=s=>document.querySelector(s);
+import {loginCommittee,logout,auth} from "./firebase-client.js";
+import {getFunctions,httpsCallable} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
+const slot=document.body.dataset.slot,$=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let stop=[];
-function clear(){stop.forEach(fn=>fn());stop=[];}
-function error(e){$("#status").textContent=e?.message||"Noko gjekk gale. Prøv igjen.";}
-function show(){clear();$("#gate").hidden=true;$("#portal").hidden=false;
-stop.push(listenEvent(slot,e=>{if(!e||e.open!==true){$("#portal").hidden=true;$("#gate").hidden=false;$("#status").textContent="Komiteen er ikkje open.";clear();return;}$("#title").textContent=e.name||"Arrangement";$("#date").textContent=[e.date,e.year].filter(Boolean).join(" · ");},error));
-stop.push(listenItems(slot,"tasks",items=>{$("#tasks").innerHTML=items.map(t=>'<label class="task"><input type="checkbox" data-id="'+esc(t.id)+'" '+(t.done?"checked":"")+'><span>'+esc(t.text)+'</span></label>').join("")||"Ingen oppgåver enno.";},error));
-stop.push(listenItems(slot,"members",items=>{$("#members").innerHTML=items.map(p=>'<p><strong>'+esc(p.name)+'</strong> '+esc(p.phone)+' '+esc(p.email)+'</p>').join("")||"Ingen medlemer enno.";},error));
-stop.push(listenItems(slot,"messages",items=>{$("#messages").innerHTML=items.map(m=>'<article><strong>'+esc(m.sender)+'</strong><p>'+esc(m.text)+'</p></article>').join("")||"Ingen meldingar enno.";},error));
+const call=async(name,data)=>(await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
+let poll=null;
+function error(e){$("#status").textContent=e?.message||"Noko gjekk gale.";}
+function draw(e){
+ $("#title").textContent=e.name;$("#date").textContent=[e.date,e.year].filter(Boolean).join(" · ");
+ $("#tasks").innerHTML=e.tasks.map(t=>'<label class="task"><input type="checkbox" data-id="'+esc(t.id)+'" '+(t.done?"checked":"")+'><span>'+esc(t.text)+'</span></label>').join("")||"Ingen oppgåver enno.";
+ $("#members").innerHTML=e.people.map(p=>'<p><strong>'+esc(p.name)+'</strong> '+esc(p.phone)+' '+esc(p.email)+'</p>').join("")||"Ingen medlemer enno.";
+ $("#messages").innerHTML=e.messages.map(m=>'<article><strong>'+esc(m.sender)+'</strong> <small>'+esc(m.date)+'</small><p>'+esc(m.text)+'</p></article>').join("")||"Ingen meldingar enno.";
 }
-$("#login").addEventListener("submit",async e=>{e.preventDefault();$("#status").textContent="Kontrollerer passord …";$("#enter").disabled=true;try{await loginCommittee(slot,$("#password").value);$("#password").value="";$("#status").textContent="";show();}catch(err){error(err);}finally{$("#enter").disabled=false;}});
-$("#tasks").addEventListener("change",async e=>{if(e.target.matches("[data-id]")){try{await editItem(slot,"tasks",e.target.dataset.id,{done:e.target.checked});}catch(err){error(err);}}});
-$("#send").addEventListener("submit",async e=>{e.preventDefault();try{await addItem(slot,"messages",{sender:$("#sender").value.trim(),text:$("#message").value.trim(),createdAt:serverTimestamp()});$("#message").value="";}catch(err){error(err);}});
-$("#logout").onclick=async()=>{clear();await logout();$("#portal").hidden=true;$("#gate").hidden=false;};
+async function refresh(){
+ try{const data=await call("arrangementCommitteeRead",{slot});draw(data.event);$("#status").textContent="";}
+ catch(err){error(err);if(err.code==="functions/permission-denied"){clearInterval(poll);poll=null;$("#portal").hidden=true;$("#gate").hidden=false;}}
+}
+$("#login").addEventListener("submit",async e=>{
+ e.preventDefault();$("#status").textContent="Kontrollerer passord …";$("#enter").disabled=true;
+ try{await loginCommittee(slot,$("#password").value);$("#password").value="";$("#gate").hidden=true;$("#portal").hidden=false;await refresh();clearInterval(poll);poll=setInterval(refresh,15000);}
+ catch(err){error(err);}finally{$("#enter").disabled=false;}
+});
+$("#tasks").addEventListener("change",async e=>{
+ if(!e.target.matches("[data-id]"))return;
+ try{await call("arrangementCommitteeUpdate",{slot,action:"task",taskId:e.target.dataset.id,done:e.target.checked});await refresh();}
+ catch(err){error(err);await refresh();}
+});
+$("#send").addEventListener("submit",async e=>{
+ e.preventDefault();
+ try{await call("arrangementCommitteeUpdate",{slot,action:"message",sender:$("#sender").value.trim(),text:$("#message").value.trim()});$("#message").value="";await refresh();}
+ catch(err){error(err);}
+});
+$("#logout").onclick=async()=>{clearInterval(poll);poll=null;await logout();$("#portal").hidden=true;$("#gate").hidden=false;};
