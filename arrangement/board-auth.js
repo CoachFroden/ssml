@@ -21,8 +21,9 @@ $("#access-form").addEventListener("submit",async e=>{
  finally{b.disabled=false;}
 });
 const dialog=document.createElement("dialog");
-dialog.innerHTML='<form id="password-form" class="fields"><h2>Passord og komitétilgang</h2><p id="password-link"></p><label>Vel passord<select id="password-slot"><option value="a0">Julekonsert</option><option value="a1">Vårkonsert</option><option value="a2">Sommarkonsert</option><option value="a3">Basar</option></select></label><label>Nytt passord (minst 6 teikn)<input id="password-new" type="password" minlength="6" maxlength="128" autocomplete="new-password" required></label><label>Gjenta passord<input id="password-repeat" type="password" minlength="6" maxlength="128" autocomplete="new-password" required></label><p id="password-status" role="status"></p><div class="stack"><button class="primary" type="submit">Lagre passord</button><button class="secondary" type="button" id="password-cancel">Lukk</button></div></form>';
+dialog.innerHTML='<form id="password-form" class="fields"><h2>Passord og komitétilgang</h2><p id="password-link"></p><button type="button" class="secondary" id="copy-committee-link" style="width:100%;margin-bottom:12px">📋 Kopier lenkje</button><label>Vel passord<select id="password-slot"><option value="a0">Julekonsert</option><option value="a1">Vårkonsert</option><option value="a2">Sommarkonsert</option><option value="a3">Basar</option></select></label><label>Nytt passord (minst 6 teikn)<input id="password-new" type="password" minlength="6" maxlength="128" autocomplete="new-password" required></label><label>Gjenta passord<input id="password-repeat" type="password" minlength="6" maxlength="128" autocomplete="new-password" required></label><p id="password-status" role="status"></p><div class="stack"><button class="primary" type="submit">Lagre passord</button><button class="secondary" type="button" id="password-cancel">Lukk</button></div></form>';
 document.body.appendChild(dialog);
+$("#copy-committee-link").onclick=async()=>{const url=$("#copy-committee-link").dataset.url;if(!url)return;try{await navigator.clipboard.writeText(url);$("#copy-committee-link").textContent="✓ Lenka er kopiert";}catch{const field=document.createElement("textarea");field.value=url;document.body.appendChild(field);field.select();const copied=document.execCommand("copy");field.remove();$("#copy-committee-link").textContent=copied?"✓ Lenka er kopiert":"Kunne ikkje kopiere";}};
 $("#password-cancel").onclick=()=>dialog.close();
 $("#committee-settings").onclick=()=>{
  const event=window.ssmlCurrentEvent?.();
@@ -35,6 +36,8 @@ $("#committee-settings").onclick=()=>{
  $("#password-slot").appendChild(option);
  const url=new URL("./komite/",location.href);url.searchParams.set("id",slot);
  $("#password-link").textContent="Komitélenkje: "+url.href;
+ $("#copy-committee-link").dataset.url=url.href;
+ $("#copy-committee-link").textContent="📋 Kopier lenkje";
  $("#password-form button[type=submit]").disabled=false;
  dialog.showModal();
 };
