@@ -151,10 +151,13 @@ exports.arrangementCommitteeRead=onCall({region:"europe-west1"},async request=>{
 exports.arrangementCommitteeUpdate=onCall({region:"europe-west1"},async request=>{
  const slot=request.data?.slot;await requireCommittee(request,slot);
  const action=request.data?.action,taskId=request.data?.taskId,done=request.data?.done;
- const sender=request.data?.sender,text=request.data?.text;
+ const sender=request.data?.sender,text=request.data?.text,recipient=request.data?.recipient;
  if(action==="task"&&(typeof taskId!=="string"||typeof done!=="boolean"))throw new HttpsError("invalid-argument","Ugyldig oppgåve");
  if(action==="message"&&(typeof sender!=="string"||!sender.trim()||sender.length>100||typeof text!=="string"||!text.trim()||text.length>2000))throw new HttpsError("invalid-argument","Ugyldig melding");
- if(!["task","message"].includes(action))throw new HttpsError("invalid-argument","Ukjend handling");
+ if(action==="message"&&!["board","committee"].includes(recipient))throw new HttpsError("invalid-argument","Vel mottakar");
+ if(action==="task-add"&&(typeof text!=="string"||!text.trim()||text.length>500||typeof sender!=="string"||!sender.trim()||sender.length>100))throw new HttpsError("invalid-argument","Ugyldig oppgåve");
+ if(action==="task-delete"&&typeof taskId!=="string")throw new HttpsError("invalid-argument","Ugyldig oppgåve");
+ if(!["task","task-add","task-delete","message"].includes(action))throw new HttpsError("invalid-argument","Ukjend handling");
  return db.runTransaction(async tx=>{
   const snap=await tx.get(arrangementStore);
   if(!snap.exists)throw new HttpsError("not-found","Ingen arrangement");
@@ -165,8 +168,16 @@ exports.arrangementCommitteeUpdate=onCall({region:"europe-west1"},async request=
    const task=event.tasks.find(t=>t.id===taskId);
    if(!task)throw new HttpsError("not-found","Oppgåva finst ikkje");
    task.done=done;
+  }else if(action==="task-add"){
+   if(event.tasks.length>=300)throw new HttpsError("resource-exhausted","For mange oppgåver");
+   event.tasks.push({id:crypto.randomUUID(),text:text.trim(),done:false,createdBy:"committee",createdByUid:request.auth.uid,creatorName:sender.trim()});
+  }else if(action==="task-delete"){
+   const index=event.tasks.findIndex(t=>t.id===taskId);
+   if(index<0)throw new HttpsError("not-found","Oppgåva finst ikkje");
+   if(event.tasks[index].createdBy!=="committee"||event.tasks[index].createdByUid!==request.auth.uid)throw new HttpsError("permission-denied","Du kan berre slette eigne oppgåver frå denne innlogginga");
+   event.tasks.splice(index,1);
   }else{
-   event.messages.push({id:crypto.randomUUID(),sender:sender.trim(),text:text.trim(),role:"committee",date:new Date().toLocaleString("nn-NO",{timeZone:"Europe/Oslo"})});
+   event.messages.push({id:crypto.randomUUID(),sender:sender.trim(),text:text.trim(),recipient,role:"committee",date:new Date().toLocaleString("nn-NO",{timeZone:"Europe/Oslo"})});
   }
   tx.update(arrangementStore,{events,revision:snap.data().revision+1,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
   return {ok:true};
