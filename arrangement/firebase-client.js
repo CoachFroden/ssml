@@ -15,7 +15,7 @@ export async function loginBoard(password){
   await signInWithCustomToken(auth,token);
 }
 export async function loginCommittee(slot,password){
-  if(!["a0","a1","a2","a3"].includes(slot))throw Error("Ukjend komité");
+  if(!/^[a-zA-Z0-9_-]{1,100}$/.test(slot))throw Error("Ukjend komité");
   const {token}=await call("arrangementLogin",{slot,password});
   await signInWithCustomToken(auth,token);
 }
