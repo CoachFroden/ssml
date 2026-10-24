@@ -166,7 +166,7 @@ exports.arrangementCommitteeUpdate=onCall({region:"europe-west1"},async request=
    if(!task)throw new HttpsError("not-found","Oppgåva finst ikkje");
    task.done=done;
   }else{
-   event.messages.push({id:crypto.randomUUID(),sender:sender.trim(),text:text.trim(),date:new Date().toLocaleString("nn-NO",{timeZone:"Europe/Oslo"})});
+   event.messages.push({id:crypto.randomUUID(),sender:sender.trim(),text:text.trim(),role:"committee",date:new Date().toLocaleString("nn-NO",{timeZone:"Europe/Oslo"})});
   }
   tx.update(arrangementStore,{events,revision:snap.data().revision+1,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
   return {ok:true};
