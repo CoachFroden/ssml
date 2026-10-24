@@ -1,6 +1,6 @@
 import {loginCommittee,logout,auth} from "./firebase-client.js";
 import {getFunctions,httpsCallable} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
-const slot=document.body.dataset.slot,$=s=>document.querySelector(s);
+const slot=new URLSearchParams(location.search).get("id"),$=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const call=async(name,data)=>(await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
 let poll=null;
