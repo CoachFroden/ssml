@@ -115,15 +115,13 @@ async function loadFirebaseEvents(){
 }
 window.ssmlSaveEvents=events=>{
  const snapshot=structuredClone(events);
- writeQueue=writeQueue.then(async()=>{
+ const operation=writeQueue.then(async()=>{
   const result=await invoke("arrangementWriteAll",{events:snapshot,revision});
   revision=result.revision;
   syncMessage.textContent="Firebase: lagra";
- }).catch(err=>{
-  window.ssmlFirebaseReady=false;
-  syncMessage.textContent="Lagring feila: "+(err.code||err.message)+". Ikkje gjer fleire endringar; last inn sida på nytt.";
  });
- return writeQueue;
+ writeQueue=operation.catch(err=>{window.ssmlFirebaseReady=false;syncMessage.textContent="Lagring feila: "+(err.code||err.message)+". Last inn sida på nytt.";});
+ return operation;
 };
 migrationButton.onclick=async()=>{
  const local=JSON.parse(localStorage.getItem("ssml-arrangement-demo-v1")||"null");
