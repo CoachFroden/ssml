@@ -25,12 +25,24 @@ dialog.innerHTML='<form id="password-form" class="fields"><h2>Passord og komité
 document.body.appendChild(dialog);
 $("#password-cancel").onclick=()=>dialog.close();
 $("#committee-settings").onclick=()=>{
- const slot=window.ssmlCurrentEvent?.()?.id;
- $("#password-slot").value=["a0","a1","a2","a3"].includes(slot)?slot:"board";
+ const event=window.ssmlCurrentEvent?.();
+ if(!event)return;
+ const name=String(event.name||"").trim();
+ const slots={julekonsert:"a0",vårkonsert:"a1",sommarkonsert:"a2",basar:"a3"};
+ const links={a0:"julekonsert",a1:"varkonsert",a2:"sommarkonsert",a3:"basar"};
+ const slot=slots[name.toLocaleLowerCase("nb-NO")];
+ $("#password-slot").innerHTML="";
  $("#password-status").textContent="";
  $("#password-new").value="";$("#password-repeat").value="";
- const links={a0:"julekonsert",a1:"varkonsert",a2:"sommarkonsert",a3:"basar"};
- $("#password-link").textContent=links[slot]?"Fast komitélenkje: "+new URL("./"+links[slot]+"/",location.href).href:"Vel kva passord du vil endre.";
+ if(!slot){
+  $("#password-link").textContent="Dette arrangementet har enno ikkje eiga komitéinnlogging. Vi må opprette ei sikker lenkje før passord kan setjast.";
+  $("#password-form button[type=submit]").disabled=true;
+ }else{
+  const option=document.createElement("option");option.value=slot;option.textContent=name;
+  $("#password-slot").appendChild(option);
+  $("#password-link").textContent="Komitélenkje: "+new URL("./"+links[slot]+"/",location.href).href;
+  $("#password-form button[type=submit]").disabled=false;
+ }
  dialog.showModal();
 };
 $("#password-form").addEventListener("submit",async e=>{
@@ -56,13 +68,6 @@ resetButton.onclick=()=>{
 };
 window.adminResetButton=resetButton;
 $("#home .panel").appendChild(resetButton);
-const originalSettings=$("#committee-settings").onclick;
-$("#committee-settings").onclick=()=>{
- $("#password-slot").innerHTML='<option value="a0">Julekonsert</option><option value="a1">Vårkonsert</option><option value="a2">Sommarkonsert</option><option value="a3">Basar</option>';
- originalSettings();
-};
-
-
 const setup=document.createElement("details");
 setup.innerHTML='<summary>Førstegongsoppsett for administrator</summary><form id="admin-setup-form"><p>Dette blir brukt berre éin gong. Du treng Firebase-oppsettnøkkelen.</p><input id="admin-bootstrap" type="password" placeholder="Oppsettnøkkel" required><input id="admin-new" type="password" minlength="10" maxlength="128" placeholder="Nytt administratorpassord" required><button type="submit">Opprett administratorpassord</button><p id="admin-setup-status" role="status"></p></form>';
 $("#access-form").appendChild(setup);
