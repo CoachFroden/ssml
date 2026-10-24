@@ -27,16 +27,18 @@ function updateUnreadCount(){const count=latestMessages.filter(m=>m.id&&!seenIds
 function showView(next){view=next;if(next==="messages")markMessagesSeen();document.querySelectorAll("[data-view]").forEach(b=>{const selected=b.dataset.view===next;b.classList.toggle("current",selected);if(selected)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});document.querySelectorAll("[data-panel]").forEach(p=>p.hidden=p.dataset.panel!==next);}
 document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
 function error(e){$("#status").textContent=e?.message||"Noko gjekk gale.";}
-function draw(e){
+function contactLinks(p){const phone=String(p.phone||"").trim(),email=String(p.email||"").trim();return '<div class="contact-links">'+(phone?'<a href="tel:'+esc(phone.replace(/[^+0-9]/g,""))+'">☎ '+esc(phone)+'</a>':"")+(email?'<a href="mailto:'+esc(email)+'">✉ '+esc(email)+'</a>':"")+'</div>';}
+function draw(e,boardMembers=[]){
  $("#title").textContent=e.name;$("#date").textContent=[e.date,e.year].filter(Boolean).join(" · ");
  latestMessages=e.messages;if(view==="messages")markMessagesSeen();else updateUnreadCount();
  $("#task-summary").textContent=e.tasks.filter(t=>t.done).length+" av "+e.tasks.length+" oppgåver fullførte";
  $("#tasks").innerHTML=e.tasks.slice().sort((a,b)=>Number(a.done)-Number(b.done)).map(t=>'<div class="task"><label><input type="checkbox" data-id="'+esc(t.id)+'" '+(t.done?"checked":"")+'><span>'+esc(t.text)+'</span></label>'+(t.createdBy==="committee"&&t.createdByUid===currentUid?'<button type="button" class="delete-own-task" data-delete="'+esc(t.id)+'" title="Slett di eiga oppgåve" aria-label="Slett di eiga oppgåve">×</button>':"")+'</div>').join("")||"Ingen oppgåver enno.";
- $("#members").innerHTML=e.people.map(p=>'<p><strong>'+esc(p.name)+'</strong> '+esc(p.phone)+' '+esc(p.email)+'</p>').join("")||"Ingen medlemer enno.";
+ $("#members").innerHTML=e.people.map(p=>'<div class="contact-card"><strong>'+esc(p.name)+'</strong>'+contactLinks(p)+'</div>').join("")||"Ingen medlemer enno.";
+ $("#board-members").innerHTML=boardMembers.map(p=>'<div class="contact-card"><strong>'+esc(p.name)+'</strong><span class="contact-role">'+esc(p.role||"Styremedlem")+'</span>'+contactLinks(p)+'</div>').join("")||"Ingen styremedlemmer registrerte enno.";
  $("#messages").innerHTML=e.messages.filter(m=>channel==="committee"?m.recipient==="committee":m.recipient!=="committee").map(m=>'<article class="'+(m.role==='committee'?'from-committee':'from-board')+'"><strong>'+esc(m.sender)+'</strong><span class="source">'+(m.role==='committee'?'Komité':'Styret')+'</span> <small>'+esc(m.date)+'</small><p>'+esc(m.text)+'</p></article>').join("")||"Ingen meldingar enno.";
 }
 async function refresh(){
- try{const data=await call("arrangementCommitteeRead",{slot});draw(data.event);$("#status").textContent="";}
+ try{const data=await call("arrangementCommitteeRead",{slot});draw(data.event,data.boardMembers||[]);$("#status").textContent="";}
  catch(err){error(err);if(err.code==="functions/permission-denied"){clearInterval(poll);poll=null;$("#portal").hidden=true;$("#gate").hidden=false;}}
 }
 $("#login").addEventListener("submit",async e=>{
