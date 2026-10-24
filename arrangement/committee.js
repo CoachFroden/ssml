@@ -3,10 +3,13 @@ import {getFunctions,httpsCallable} from "https://www.gstatic.com/firebasejs/10.
 const slot=new URLSearchParams(location.search).get("id"),$=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const call=async(name,data)=>(await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
-let poll=null,channel="board";
+let poll=null,channel="board",view="tasks";
+function showView(next){view=next;document.querySelectorAll("[data-view]").forEach(b=>{const selected=b.dataset.view===next;b.classList.toggle("current",selected);if(selected)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});document.querySelectorAll("[data-panel]").forEach(p=>p.hidden=p.dataset.panel!==next);}
+document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
 function error(e){$("#status").textContent=e?.message||"Noko gjekk gale.";}
 function draw(e){
  $("#title").textContent=e.name;$("#date").textContent=[e.date,e.year].filter(Boolean).join(" · ");
+ $("#message-count").textContent=e.messages.length?String(e.messages.length):"";
  $("#task-summary").textContent=e.tasks.filter(t=>t.done).length+" av "+e.tasks.length+" oppgåver fullførte";
  $("#tasks").innerHTML=e.tasks.slice().sort((a,b)=>Number(a.done)-Number(b.done)).map(t=>'<label class="task"><input type="checkbox" data-id="'+esc(t.id)+'" '+(t.done?"checked":"")+'><span>'+esc(t.text)+'</span></label>').join("")||"Ingen oppgåver enno.";
  $("#members").innerHTML=e.people.map(p=>'<p><strong>'+esc(p.name)+'</strong> '+esc(p.phone)+' '+esc(p.email)+'</p>').join("")||"Ingen medlemer enno.";
@@ -18,7 +21,7 @@ async function refresh(){
 }
 $("#login").addEventListener("submit",async e=>{
  e.preventDefault();$("#status").textContent="Kontrollerer passord …";$("#enter").disabled=true;
- try{await loginCommittee(slot,$("#password").value);$("#password").value="";$("#gate").hidden=true;$("#portal").hidden=false;await refresh();clearInterval(poll);poll=setInterval(refresh,15000);}
+ try{await loginCommittee(slot,$("#password").value);$("#password").value="";$("#gate").hidden=true;$("#portal").hidden=false;showView("tasks");await refresh();clearInterval(poll);poll=setInterval(refresh,15000);}
  catch(err){error(err);}finally{$("#enter").disabled=false;}
 });
 document.querySelectorAll("[data-channel]").forEach(button=>button.addEventListener("click",()=>{channel=button.dataset.channel;$("#recipient").value=channel;document.querySelectorAll("[data-channel]").forEach(b=>b.classList.toggle("selected",b===button));refresh();}));
