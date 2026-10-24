@@ -3,13 +3,19 @@ import {getFunctions,httpsCallable} from "https://www.gstatic.com/firebasejs/10.
 const slot=new URLSearchParams(location.search).get("id"),$=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const call=async(name,data)=>(await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
-let poll=null,channel="board",view="tasks";
-function showView(next){view=next;document.querySelectorAll("[data-view]").forEach(b=>{const selected=b.dataset.view===next;b.classList.toggle("current",selected);if(selected)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});document.querySelectorAll("[data-panel]").forEach(p=>p.hidden=p.dataset.panel!==next);}
+let poll=null,channel="board",view="tasks",latestMessages=[];
+const seenKey="ssml-committee-seen-v1:"+slot;
+let seenIds=new Set();
+try{const saved=JSON.parse(localStorage.getItem(seenKey)||"[]");if(Array.isArray(saved))seenIds=new Set(saved.filter(x=>typeof x==="string"));}catch{}
+function markMessagesSeen(){for(const m of latestMessages){if(m.id)seenIds.add(m.id);}try{localStorage.setItem(seenKey,JSON.stringify([...seenIds].slice(-1000)));}catch{}updateUnreadCount();}
+function updateUnreadCount(){const count=latestMessages.filter(m=>m.id&&!seenIds.has(m.id)).length;const badge=$("#message-count");badge.textContent=count?String(count):"";badge.hidden=!count;}
+
+function showView(next){view=next;if(next==="messages")markMessagesSeen();document.querySelectorAll("[data-view]").forEach(b=>{const selected=b.dataset.view===next;b.classList.toggle("current",selected);if(selected)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});document.querySelectorAll("[data-panel]").forEach(p=>p.hidden=p.dataset.panel!==next);}
 document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
 function error(e){$("#status").textContent=e?.message||"Noko gjekk gale.";}
 function draw(e){
  $("#title").textContent=e.name;$("#date").textContent=[e.date,e.year].filter(Boolean).join(" · ");
- $("#message-count").textContent=e.messages.length?String(e.messages.length):"";
+ latestMessages=e.messages;if(view==="messages")markMessagesSeen();else updateUnreadCount();
  $("#task-summary").textContent=e.tasks.filter(t=>t.done).length+" av "+e.tasks.length+" oppgåver fullførte";
  $("#tasks").innerHTML=e.tasks.slice().sort((a,b)=>Number(a.done)-Number(b.done)).map(t=>'<label class="task"><input type="checkbox" data-id="'+esc(t.id)+'" '+(t.done?"checked":"")+'><span>'+esc(t.text)+'</span></label>').join("")||"Ingen oppgåver enno.";
  $("#members").innerHTML=e.people.map(p=>'<p><strong>'+esc(p.name)+'</strong> '+esc(p.phone)+' '+esc(p.email)+'</p>').join("")||"Ingen medlemer enno.";
