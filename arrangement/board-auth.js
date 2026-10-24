@@ -78,7 +78,7 @@ $("#admin-setup-form").onsubmit=async e=>{
  finally{button.disabled=false;}
 };
 
-let revision=0,writeQueue=Promise.resolve(),loading=false;
+let revision=0,writeQueue=Promise.resolve(),loading=false,pendingWrites=0;
 const syncMessage=document.createElement("p");
 syncMessage.className="muted small";
 syncMessage.textContent="Firebase: ventar på tilkopling";
@@ -93,10 +93,11 @@ const invoke=async(name,data)=>{
  return (await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
 };
 async function loadFirebaseEvents(){
- if(loading||window.ssmlFirebaseReady)return;
+ if(loading||pendingWrites)return;
  loading=true;
  try{
   const data=await invoke("arrangementReadAll",{});
+  if(pendingWrites)return;
   revision=data.revision;
   window.ssmlFirebaseReady=true;
   if(data.exists){
@@ -113,11 +114,12 @@ async function loadFirebaseEvents(){
 }
 window.ssmlSaveEvents=events=>{
  const snapshot=structuredClone(events);
+ pendingWrites++;
  const operation=writeQueue.then(async()=>{
   const result=await invoke("arrangementWriteAll",{events:snapshot,revision});
   revision=result.revision;
   syncMessage.textContent="Firebase: lagra";
- });
+ }).finally(()=>{pendingWrites--;});
  writeQueue=operation.catch(err=>{window.ssmlFirebaseReady=false;syncMessage.textContent="Lagring feila: "+(err.code||err.message)+". Last inn sida på nytt.";});
  return operation;
 };
@@ -138,3 +140,6 @@ migrationButton.onclick=async()=>{
  }catch(err){syncMessage.textContent="Overføring feila: "+(err.code||err.message);}
  finally{migrationButton.disabled=false;}
 };
+
+// Hent endringar frå komiteane utan å forstyrre pågåande lagring.
+setInterval(()=>{if(verified&&window.ssmlFirebaseReady&&!loading&&!pendingWrites)loadFirebaseEvents();},10000);
