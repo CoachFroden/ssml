@@ -2,14 +2,14 @@ import {auth,loginBoard,setPassword,logout,listenEvents,getMyRole} from "./fireb
 import {onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 const $=s=>document.querySelector(s);
 let verified=false,stop=null,adminMode=false;
-function lock(){verified=false;adminMode=false;if(window.adminResetButton)window.adminResetButton.hidden=true;document.body.classList.add("locked");$("#access-gate").hidden=false;}
+function lock(){verified=false;adminMode=false;if(window.adminResetButton)window.adminResetButton.hidden=true;if($("#share-board"))$("#share-board").hidden=true;document.body.classList.add("locked");$("#access-gate").hidden=false;}
 function unlock(){verified=true;document.body.classList.remove("locked");$("#access-gate").hidden=true;loadFirebaseEvents();}
 async function verify(){
   if(!auth.currentUser||auth.currentUser.getIdTokenResult===undefined){lock();return;}
   const claims=(await auth.currentUser.getIdTokenResult()).claims;
   if(claims.ssmlArrangement!==true){lock();return;}
   stop?.();
-  const role=await getMyRole();if(role!=="admin"&&role!=="board"){lock();return;}adminMode=role==="admin";if(window.adminResetButton)window.adminResetButton.hidden=!adminMode;
+  const role=await getMyRole();if(role!=="admin"&&role!=="board"){lock();return;}adminMode=role==="admin";if(window.adminResetButton)window.adminResetButton.hidden=!adminMode;if($("#share-board"))$("#share-board").hidden=!adminMode;
   if(adminMode){unlock();return;}
   stop=listenEvents(()=>unlock(),()=>{lock();$("#access-error").textContent="Økta er ikkje gyldig. Logg inn på nytt.";});
 }
