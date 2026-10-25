@@ -216,7 +216,14 @@ body,body.locked{background-image:url("./bakgrunn-mobil-ssml.png")!important;bac
 .shell{padding-top:12px!important}
 #home{padding-top:0!important}
 }
-</style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
+</style><style id="ssml-login-brand">
+#access-gate{background:#073c47 url("./bakgrunn-pc-ssml.png") center center / cover no-repeat!important}
+#access-gate .gate-card{background:rgba(249,252,251,.94)!important;backdrop-filter:blur(12px);box-shadow:0 18px 55px rgba(0,0,0,.22);width:min(100%,400px);padding:26px 28px}
+#access-gate .gate-logo{display:block;width:min(265px,85%);height:auto;object-fit:contain;margin:0 auto 14px}
+#access-gate .gate-card h2{margin:0 0 8px;font-family:Georgia,"Times New Roman",serif;font-size:25px;color:#16475b}
+#access-gate .gate-card p{line-height:1.45}
+@media(max-width:650px){#access-gate{background-image:url("./bakgrunn-mobil-ssml.png")!important;background-position:center top!important}#access-gate .gate-card{padding:22px 18px}#access-gate .gate-logo{width:min(225px,78%)}}
+</style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><img class="gate-logo" src="./ssml-logo.png" alt="Samnanger Skulemusikklag"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <div class="ssml-app-logo"><img src="./ssml-logo.png" alt="Samnanger Skulemusikklag"></div>
 <main class="shell">
