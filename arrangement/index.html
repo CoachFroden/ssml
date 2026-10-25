@@ -160,6 +160,14 @@ body{background-position:center top!important;background-size:100% auto!importan
 #home{padding-top:clamp(250px,46vh,440px)!important}
 .shell{padding-top:0!important}
 }
+</style><style>
+/* Final mobile override: full-viewport image, no dark gap below image */
+@media(max-width:650px){
+html{background:#26313a!important}
+body{background-image:url("./ssml-mobile-background.jpg")!important;background-size:cover!important;background-position:center center!important;background-repeat:no-repeat!important;background-attachment:fixed!important;background-color:#26313a!important;min-height:100dvh!important}
+#home{padding-top:clamp(130px,22vh,210px)!important}
+.shell{padding-top:0!important}
+}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <main class="shell">
