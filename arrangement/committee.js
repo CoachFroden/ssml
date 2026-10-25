@@ -29,6 +29,7 @@ document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",(
 function error(e){$("#status").textContent=e?.message||"Noko gjekk gale.";}
 function contactLinks(p){const phone=String(p.phone||"").trim(),email=String(p.email||"").trim();return '<div class="contact-links">'+(phone?'<a href="tel:'+esc(phone.replace(/[^+0-9]/g,""))+'">☎ '+esc(phone)+'</a>':"")+(email?'<a href="mailto:'+esc(email)+'">✉ '+esc(email)+'</a>':"")+'</div>';}
 function draw(e,boardMembers=[]){
+ $("#committee-notes").innerHTML=(e.notes||[]).map(n=>'<article class="note-item"><strong>'+esc(n.author)+'</strong> <small>'+esc(n.date||'')+'</small><p>'+esc(n.text)+'</p></article>').join('')||'<p>Ingen notat enno.</p>';
  $("#title").textContent=e.name;$("#date").textContent=[e.date,e.year].filter(Boolean).join(" · ");
  latestMessages=e.messages;if(view==="messages")markMessagesSeen();else updateUnreadCount();
  $("#task-summary").textContent=e.tasks.filter(t=>t.done).length+" av "+e.tasks.length+" oppgåver fullførte";
@@ -61,4 +62,5 @@ $("#send").addEventListener("submit",async e=>{
  try{await call("arrangementCommitteeUpdate",{slot,action:"message",recipient:$("#recipient").value,sender:$("#sender").value.trim(),text:$("#message").value.trim()});$("#message").value="";await refresh();}
  catch(err){error(err);}
 });
+$("#committee-note-form").addEventListener("submit",async ev=>{ev.preventDefault();const btn=ev.currentTarget.querySelector("button");btn.disabled=true;$("#committee-note-status").textContent="Lagrar …";try{await call("arrangementCommitteeUpdate",{slot,action:"note-add",sender:$("#committee-note-author").value.trim(),text:$("#committee-note-text").value.trim()});$("#committee-note-text").value="";$("#committee-note-status").textContent="Notatet er lagra.";await refresh();}catch(err){$("#committee-note-status").textContent="Kunne ikkje lagre notatet: "+(err.message||"Ukjend feil");}finally{btn.disabled=false;}});
 $("#logout").onclick=async()=>{clearInterval(poll);poll=null;await logout();currentUid="";$("#portal").hidden=true;$("#gate").hidden=false;};
