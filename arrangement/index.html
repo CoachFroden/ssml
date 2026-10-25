@@ -223,7 +223,25 @@ body,body.locked{background-image:url("./bakgrunn-mobil-ssml.png")!important;bac
 #access-gate .gate-card h2{margin:0 0 8px;font-family:Georgia,"Times New Roman",serif;font-size:25px;color:#16475b}
 #access-gate .gate-card p{line-height:1.45}
 @media(max-width:650px){#access-gate{background-image:url("./bakgrunn-mobil-ssml.png")!important;background-position:center top!important}#access-gate .gate-card{padding:22px 18px}#access-gate .gate-logo{width:min(225px,78%)}}
-</style><style>.child-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}.child-filters label{font-weight:650;font-size:14px}.child-filters select{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid #b8d1dc;border-radius:9px;background:#fff;color:#183c4c}#child-count{margin:12px 0;font-weight:650}@media(max-width:560px){.child-filters{grid-template-columns:1fr}}</style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><img class="gate-logo" src="./ssml-logo.png" alt="Samnanger Skulemusikklag"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
+</style><style>.child-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}.child-filters label{font-weight:650;font-size:14px}.child-filters select{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid #b8d1dc;border-radius:9px;background:#fff;color:#183c4c}#child-count{margin:12px 0;font-weight:650}@media(max-width:560px){.child-filters{grid-template-columns:1fr}}</style><style id="ssml-child-detail-style">
+.child-detail-dialog{width:min(94vw,510px);max-height:90dvh;overflow-y:auto}
+.child-detail-dialog h2{margin-bottom:18px}
+.child-detail-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 24px}
+.child-detail-meta>span{background:#f1f5f4;border:1px solid #dbe7e3;border-radius:12px;padding:12px 14px;min-width:0}
+.child-detail-meta small,.child-parent-heading small{display:block;color:#6d8080;font-size:12px;font-weight:600;margin-bottom:5px}
+.child-detail-meta strong{display:block;color:#294d50;font-weight:650;overflow-wrap:anywhere}
+.child-detail-dialog h3{margin-bottom:12px}
+.child-parent-card{border:1px solid #dbe5e1;background:#fafcfb;border-radius:14px;padding:15px 17px;margin:10px 0}
+.child-parent-heading{display:flex;align-items:center;gap:12px;padding-bottom:13px;border-bottom:1px solid #e5eeea}
+.child-parent-heading strong{display:block;color:#294b50;font-size:16px}
+.child-parent-avatar{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:50%;background:#e2eeea;color:#3e7068;font-weight:750}
+.child-parent-contact{display:grid;gap:11px;padding-top:13px}
+.child-parent-contact>div{display:grid;grid-template-columns:75px minmax(0,1fr);gap:9px;align-items:baseline}
+.child-parent-contact span{font-size:12px;color:#728582;font-weight:650}
+.child-parent-contact a{color:#376e69;text-decoration:none;overflow-wrap:anywhere;font-weight:550}
+.child-parent-contact a:hover{text-decoration:underline}
+@media(max-width:420px){.child-detail-meta{grid-template-columns:1fr 1fr}.child-parent-card{padding:13px}.child-parent-contact>div{grid-template-columns:1fr;gap:2px}}
+</style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><img class="gate-logo" src="./ssml-logo.png" alt="Samnanger Skulemusikklag"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <div class="ssml-app-logo"><img src="./ssml-logo.png" alt="Samnanger Skulemusikklag"></div>
 <main class="shell">
@@ -245,7 +263,19 @@ function card(e){const done=e.tasks.filter(t=>t.done).length;return '<button cla
 function renderEvents(){$('#event-grid').innerHTML=events.map(card).join('');$('#home-events').innerHTML=events.slice(0,4).map(card).join('')}
 let childrenRegistry=[];
 const childApi=(action,extra={})=>window.ssmlChildren(action,extra);
-function viewChild(c){if(!c)return;const d=document.createElement('dialog');d.className='cleanup-dialog';const parents=[1,2].filter(n=>String(c['parent'+n]||'').trim());d.innerHTML='<h2>'+esc(c.firstName)+' '+esc(c.lastName)+'</h2><p><b>Korps:</b> '+esc(c.corps||'Ikkje registrert')+' · <b>Instrument:</b> '+esc(c.instrument||'Ikkje registrert')+'</p><h3>Føresette</h3>'+(parents.length?parents.map(n=>'<div class="person" style="margin:10px 0"><b>'+esc(c['parent'+n])+'</b><div class="small" style="margin-top:6px">'+familyLinks(c['phone'+n],c['email'+n])+'</div></div>').join(''):'<p class="muted">Ingen føresette registrerte.</p>')+'<div class="cleanup-actions"><button type="button" class="secondary" data-close-child>Lukk</button><button type="button" class="primary" data-edit-child>Endre opplysningar</button></div>';document.body.appendChild(d);const close=()=>{d.close();d.remove()};d.querySelector('[data-close-child]').onclick=close;d.querySelector('[data-edit-child]').onclick=()=>{close();editChild(c)};d.addEventListener('cancel',()=>setTimeout(()=>d.remove(),0));d.showModal()}
+function viewChild(c){
+ if(!c)return;
+ const d=document.createElement('dialog');d.className='cleanup-dialog child-detail-dialog';
+ const parents=[1,2].filter(n=>String(c['parent'+n]||'').trim());
+ d.innerHTML='<h2>'+esc(c.firstName)+' '+esc(c.lastName)+'</h2><div class="child-detail-meta"><span><small>Korps</small><strong>'+esc(c.corps||'Ikkje registrert')+'</strong></span><span><small>Instrument</small><strong>'+esc(c.instrument||'Ikkje registrert')+'</strong></span></div><h3>Føresette</h3>'+
+ (parents.length?parents.map(n=>'<section class="child-parent-card"><div class="child-parent-heading"><span class="child-parent-avatar" aria-hidden="true">'+esc(String(c['parent'+n]).trim().charAt(0))+'</span><div><small>Føresett '+n+'</small><strong>'+esc(c['parent'+n])+'</strong></div></div><div class="child-parent-contact">'+(c['phone'+n]?'<div><span>Telefon</span><a href="tel:'+esc(String(c['phone'+n]).replace(/[^+0-9]/g,''))+'">'+esc(c['phone'+n])+'</a></div>':'')+(c['email'+n]?'<div><span>E-post</span><a href="mailto:'+esc(c['email'+n])+'">'+esc(c['email'+n])+'</a></div>':'')+'</div></section>').join(''):'<p class="muted">Ingen føresette registrerte.</p>')+
+ '<div class="cleanup-actions"><button type="button" class="secondary" data-close-child>Lukk</button><button type="button" class="primary" data-edit-child>Endre opplysningar</button></div>';
+ document.body.appendChild(d);
+ const close=()=>{d.close();d.remove()};
+ d.querySelector('[data-close-child]').onclick=close;
+ d.querySelector('[data-edit-child]').onclick=()=>{close();editChild(c)};
+ d.addEventListener('cancel',()=>setTimeout(()=>d.remove(),0));d.showModal()
+}
 function showChildren(){
  const corps=$('#child-corps-filter'),instrument=$('#child-instrument-filter');
  const previousCorps=corps.value,previousInstrument=instrument.value;
