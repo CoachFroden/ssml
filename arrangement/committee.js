@@ -1,7 +1,7 @@
 import {loginCommittee,logout,auth} from "./firebase-client.js";
 import {getFunctions,httpsCallable} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
-const params=new URLSearchParams(location.search),slot=params.get("id"),$=s=>document.querySelector(s);
-const invitationName=params.get("namn")||params.get("name")||(slot==="a1"?"Julekonsert":"");
+const params=new URLSearchParams(location.search),slot=params.get("id")||document.body.dataset.slot,$=s=>document.querySelector(s);
+const invitationName=params.get("namn")||params.get("name")||document.querySelector("#gate-event-name")?.textContent||"";
 if(invitationName)$("#gate-event-name").textContent=invitationName;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const call=async(name,data)=>(await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
