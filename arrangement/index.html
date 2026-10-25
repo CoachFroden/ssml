@@ -199,9 +199,26 @@ body{display:flow-root!important;margin:0!important;background-image:url("./Gyld
 #home>.panel .stack{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important}
 #home>.panel .stack button{min-width:0!important;width:100%!important;min-height:47px!important;padding:10px 6px!important;font-size:13px!important;line-height:1.2!important}
 }
+</style><style id="ssml-unified-brand">
+/* Unified artwork across all board views. Overrides legacy background experiments. */
+html{background:#063c46!important}
+body,body.locked{background-color:#063c46!important;background-image:url("./bakgrunn-pc-ssml.png")!important;background-position:center center!important;background-size:cover!important;background-repeat:no-repeat!important;background-attachment:fixed!important}
+.ssml-app-logo{position:relative;z-index:3;display:flex;justify-content:flex-start;max-width:1000px;margin:0 auto;padding:20px 22px 0;pointer-events:none}
+.ssml-app-logo img{display:block;width:clamp(190px,28vw,320px);max-width:100%;height:auto;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.22))}
+.mobile-brand{display:none!important}
+.shell{padding-top:12px!important}
+#home{padding-top:0!important}
+@media(max-width:650px){
+html{background:#063c46!important}
+body,body.locked{background-image:url("./bakgrunn-mobil-ssml.png")!important;background-position:center top!important;background-size:cover!important;background-repeat:no-repeat!important;background-attachment:scroll!important}
+.ssml-app-logo{margin:0!important;padding:18px 18px 0!important;min-height:0!important}
+.ssml-app-logo img{width:min(240px,65vw)!important}
+.shell{padding-top:12px!important}
+#home{padding-top:0!important}
+}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
-<div class="mobile-brand" aria-label="Samnanger Skulemusikklag"><span class="mobile-brand-note">♫</span><span><strong>SSML</strong><small>SAMNANGER<br>SKULEMUSIKKLAG</small></span></div>
+<div class="ssml-app-logo"><img src="./ssml-logo.png" alt="Samnanger Skulemusikklag"></div>
 <main class="shell">
 <section id="home" class="view"><div class="panel"><h2>Styreportalen</h2><div class="stack"><button class="primary" data-go="events">Arrangement →</button><button class="secondary" data-go="children">Medlemsregister</button><button class="secondary" data-go="contacts">Kontaktar</button><button class="secondary" id="share-board" hidden>Del med styret</button></div></div><div id="home-events" class="grid"></div></section>
 <section id="events" class="view hidden"><div class="panel"><div class="row"><div><h2>Arrangement</h2><p class="muted">Alle arrangement samla på ein stad.</p></div><button class="primary" id="new-event">＋ Nytt arrangement</button></div><div class="grid" id="event-grid"></div></div></section>
