@@ -175,8 +175,18 @@ html{background:#302a28!important}
 body{background-image:url("./Gyldent%20lys%20over%20orkesterinstrumenter.png")!important;background-position:center top!important;background-size:cover!important;background-repeat:no-repeat!important;background-attachment:scroll!important;background-color:#302a28!important;min-height:100dvh!important}
 #home{padding-top:clamp(150px,27vh,260px)!important}
 }
+</style><style>
+.mobile-brand{display:none}
+@media(max-width:650px){
+.mobile-brand{display:flex;position:relative;z-index:3;align-items:center;gap:10px;width:max-content;max-width:calc(100% - 44px);margin:58px 0 -8px 26px;color:#123c5c;text-shadow:0 1px 10px rgba(255,255,255,.8)}
+.mobile-brand-note{font-size:50px;line-height:1}
+.mobile-brand strong{display:block;font-size:34px;letter-spacing:.025em;line-height:1}
+.mobile-brand small{display:block;font-size:10px;font-weight:800;letter-spacing:.11em;line-height:1.18;margin-top:3px}
+#home{padding-top:18px!important}
+}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
+<div class="mobile-brand" aria-label="Samnanger Skulemusikklag"><span class="mobile-brand-note">♫</span><span><strong>SSML</strong><small>SAMNANGER<br>SKULEMUSIKKLAG</small></span></div>
 <main class="shell">
 <section id="home" class="view"><div class="panel"><h2>Velkomen!</h2><p>Her får styret samla oversikt over arrangement, oppgåver, komitémedlemmer og meldingar. Komiteane har eigne sider for sine arrangement.</p><div class="stack"><button class="primary" data-go="events">Sjå arrangement →</button><button class="secondary" data-go="contacts">Kontaktar</button><button class="secondary" data-go="children">Medlemsregister</button><button class="secondary" id="share-board" hidden>Del med styret</button></div></div><div id="home-events" class="grid"></div></section>
 <section id="events" class="view hidden"><div class="panel"><div class="row"><div><h2>Arrangement</h2><p class="muted">Alle arrangement samla på ein stad.</p></div><button class="primary" id="new-event">＋ Nytt arrangement</button></div><div class="grid" id="event-grid"></div></div></section>
