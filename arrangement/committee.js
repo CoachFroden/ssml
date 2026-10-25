@@ -17,7 +17,7 @@ async function loadPublicEventName(){
 }
 loadPublicEventName();
 let poll=null,channel="board",view="tasks",latestMessages=[];
-let currentUid="";
+let currentUid="";let notebookEntries=[];
 const seenKey="ssml-committee-seen-v1:"+slot;
 let seenIds=new Set();
 try{const saved=JSON.parse(localStorage.getItem(seenKey)||"[]");if(Array.isArray(saved))seenIds=new Set(saved.filter(x=>typeof x==="string"));}catch{}
@@ -29,7 +29,8 @@ document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",(
 function error(e){$("#status").textContent=e?.message||"Noko gjekk gale.";}
 function contactLinks(p){const phone=String(p.phone||"").trim(),email=String(p.email||"").trim();return '<div class="contact-links">'+(phone?'<a href="tel:'+esc(phone.replace(/[^+0-9]/g,""))+'">☎ '+esc(phone)+'</a>':"")+(email?'<a href="mailto:'+esc(email)+'">✉ '+esc(email)+'</a>':"")+'</div>';}
 function draw(e,boardMembers=[]){
- $("#committee-notes").innerHTML=(e.notes||[]).map(n=>'<article class="note-item"><strong>'+esc(n.author)+'</strong> <small>'+esc(n.date||'')+'</small><p>'+esc(n.text)+'</p></article>').join('')||'<p>Ingen notat enno.</p>';
+ notebookEntries=Array.isArray(e.notes)?e.notes:[];
+ $("#committee-notes").innerHTML=notebookEntries.map(n=>'<article class="notebook-entry"><h3>'+esc(n.title||'Notat')+'</h3><p>'+esc(n.text)+'</p><footer><small>'+esc(n.author||'Ukjend')+' · '+esc(n.updatedAt||n.date||'')+'</small><button type="button" class="notebook-edit" data-note-edit="'+esc(n.id)+'">Rediger</button></footer></article>').join('')||'<p>Notatboka er tom. Legg inn det første notatet nedanfor.</p>';
  $("#title").textContent=e.name;$("#date").textContent=[e.date,e.year].filter(Boolean).join(" · ");
  latestMessages=e.messages;if(view==="messages")markMessagesSeen();else updateUnreadCount();
  $("#task-summary").textContent=e.tasks.filter(t=>t.done).length+" av "+e.tasks.length+" oppgåver fullførte";
@@ -62,5 +63,8 @@ $("#send").addEventListener("submit",async e=>{
  try{await call("arrangementCommitteeUpdate",{slot,action:"message",recipient:$("#recipient").value,sender:$("#sender").value.trim(),text:$("#message").value.trim()});$("#message").value="";await refresh();}
  catch(err){error(err);}
 });
-$("#committee-note-form").addEventListener("submit",async ev=>{ev.preventDefault();const btn=ev.currentTarget.querySelector("button");btn.disabled=true;$("#committee-note-status").textContent="Lagrar …";try{await call("arrangementCommitteeUpdate",{slot,action:"note-add",sender:$("#committee-note-author").value.trim(),text:$("#committee-note-text").value.trim()});$("#committee-note-text").value="";$("#committee-note-status").textContent="Notatet er lagra.";await refresh();}catch(err){$("#committee-note-status").textContent="Kunne ikkje lagre notatet: "+(err.message||"Ukjend feil");}finally{btn.disabled=false;}});
+function resetNotebookForm(){ $("#committee-note-id").value="";$("#committee-note-title").value="";$("#committee-note-text").value="";$("#committee-note-form-heading").textContent="Nytt notat";$("#committee-note-submit").textContent="Lagre notat";$("#committee-note-cancel").hidden=true;}
+$("#committee-note-cancel").onclick=resetNotebookForm;
+$("#committee-notes").addEventListener("click",ev=>{const btn=ev.target.closest("[data-note-edit]");if(!btn)return;const n=notebookEntries.find(x=>x.id===btn.dataset.noteEdit);if(!n)return;$("#committee-note-id").value=n.id;$("#committee-note-title").value=n.title||"Notat";$("#committee-note-author").value=n.author||"";$("#committee-note-text").value=n.text||"";$("#committee-note-form-heading").textContent="Rediger notat";$("#committee-note-submit").textContent="Lagre endringar";$("#committee-note-cancel").hidden=false;$("#committee-note-form").scrollIntoView({behavior:"smooth",block:"center"});});
+$("#committee-note-form").addEventListener("submit",async ev=>{ev.preventDefault();const btn=$("#committee-note-submit");btn.disabled=true;$("#committee-note-status").textContent="Lagrar …";try{const noteId=$("#committee-note-id").value;await call("arrangementCommitteeUpdate",{slot,action:noteId?"note-edit":"note-add",noteId:noteId||undefined,title:$("#committee-note-title").value.trim(),sender:$("#committee-note-author").value.trim(),text:$("#committee-note-text").value.trim()});resetNotebookForm();$("#committee-note-status").textContent="Notatboka er oppdatert.";await refresh();}catch(err){$("#committee-note-status").textContent="Kunne ikkje lagre: "+(err.message||"Ukjend feil");}finally{btn.disabled=false;}});
 $("#logout").onclick=async()=>{clearInterval(poll);poll=null;await logout();currentUid="";$("#portal").hidden=true;$("#gate").hidden=false;};
