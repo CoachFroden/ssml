@@ -1,8 +1,7 @@
 import {loginCommittee,logout,auth} from "./firebase-client.js";
 import {getFunctions,httpsCallable} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
 const params=new URLSearchParams(location.search),slot=params.get("id")||document.body.dataset.slot,$=s=>document.querySelector(s);
-const knownEventNames={a0:"Julekonsert",a1:"Julekonsert"};
-const invitationName=params.get("namn")||params.get("name")||knownEventNames[slot]||"";
+const invitationName=params.get("namn")||params.get("name")||"";
 if(invitationName)$("#gate-event-name").textContent=invitationName;
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const call=async(name,data)=>(await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
@@ -11,9 +10,10 @@ async function loadPublicEventName(){
  try{
   const result=await call("arrangementPublicName",{slot});
   if(result.name){$("#gate-event-name").textContent=result.name;document.title=result.name+" · SSML komité";}
-  else if(!invitationName)$("#gate-event-name").textContent="Ukjent arrangement";
+  else $("#gate-event-name").textContent="Arrangement";
  }catch(err){
-  if(!invitationName)$("#gate-event-name").textContent="Komitéportal";
+  $("#gate-event-name").textContent="Arrangement";
+  console.warn("Kunne ikkje hente arrangementsnamn frå Firebase",err);
  }
 }
 loadPublicEventName();
