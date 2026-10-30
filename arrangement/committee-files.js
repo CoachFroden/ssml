@@ -188,3 +188,32 @@ export function mountSharedFiles({slot,listId,formId,inputId,statusId}){
   });
   return refresh;
 }
+
+export async function renderArchivedFiles(slot,container){
+  if(!container)return;
+  installStyles();
+  container.textContent="Hentar arkiverte filer …";
+  try{
+    const files=await listSharedFiles(slot);
+    container.replaceChildren();
+    if(!files.length){container.append(el("p",null,"Ingen filer registrerte for dette arrangementet."));return;}
+    for(const file of files){
+      const row=el("div","ssml-file-row");
+      row.append(el("div","ssml-file-icon",iconFor(file.name)));
+      const info=el("div","ssml-file-info");
+      info.append(el("div","ssml-file-name",file.name));
+      row.append(info);
+      const actions=el("div","ssml-file-actions");
+      if(["image","pdf"].includes(kind(file.name))){
+        const preview=el("button","ssml-file-preview-btn","Vis fil");
+        preview.type="button";
+        preview.addEventListener("click",async()=>{preview.disabled=true;try{await previewFile(file);}catch(err){alert("Kunne ikkje vise fila: "+err.message);}finally{preview.disabled=false;}});
+        actions.append(preview);
+      }
+      const download=el("button","ssml-file-download-btn","Last ned");
+      download.type="button";
+      download.addEventListener("click",async()=>{download.disabled=true;try{await downloadFile(file);}catch(err){alert("Kunne ikkje laste ned fila: "+err.message);}finally{download.disabled=false;}});
+      actions.append(download);row.append(actions);container.append(row);
+    }
+  }catch(err){container.textContent="Kunne ikkje hente filene: "+(err.message||err);}
+}
