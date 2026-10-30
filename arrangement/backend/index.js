@@ -166,7 +166,31 @@ exports.arrangementPublicName=onCall({region:"europe-west1"},async request=>{
 const archiveCollection=db.collection("arrangementHistory");
 function archiveDatePassed(event){if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(event.date||"")))return false;const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Oslo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());return event.date<today;}
 async function archivePastEvents(events){const past=events.filter(e=>archiveDatePassed(e)&&validEventId(e.id));if(!past.length)return;for(const e of past){const ref=archiveCollection.doc(e.id);await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!existing.exists)tx.create(ref,{event:e,archivedAt:admin.firestore.FieldValue.serverTimestamp()});});}}
-exports.arrangementHistoryRead=onCall({region:"europe-west1"},async request=>{await requireBoard(request);const current=await arrangementStore.get();await archivePastEvents(current.data()?.events||[]);const snap=await archiveCollection.limit(100).get();return {events:snap.docs.map(d=>d.data().event)};});
+// Evaluation is stored separately so that reopening never changes the original archive snapshot.
+const evaluationCollection=db.collection("arrangementEvaluations");
+function evaluationDeadline(event){if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(event.date||"")))return null;const d=new Date(event.date+"T12:00:00+02:00");if(Number.isNaN(d.getTime()))return null;return d.getTime()+14*86400000;}
+function evaluationIsOpen(event,settings){const end=evaluationDeadline(event);if(end===null)return false;const now=Date.now();return now<=end||(settings?.reopenUntil?.toMillis?.()||0)>now;}
+exports.arrangementEvaluation=onCall({region:"europe-west1"},async request=>{
+ const slot=request.data?.slot,action=request.data?.action;
+ if(!validEventId(slot))throw new HttpsError("invalid-argument","Ugyldig arrangement");
+ const board=action==="reopen"||action==="board-read";
+ if(board)await requireBoard(request);else await requireCommittee(request,slot);
+ const snap=await arrangementStore.get();const event=(snap.data()?.events||[]).find(e=>e.id===slot);
+ if(!event)throw new HttpsError("not-found","Arrangementet finst ikkje");
+ const ref=evaluationCollection.doc(slot);
+ if(action==="reopen"){
+  const days=request.data?.days===14?14:null;
+  if(!days)throw new HttpsError("invalid-argument","Ugyldig periode");
+  await ref.set({reopenUntil:admin.firestore.Timestamp.fromMillis(Date.now()+days*86400000),updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});
+ }else if(action==="save"){
+  const fields=request.data?.fields;
+  if(!fields||typeof fields!=="object"||Array.isArray(fields)||!["good","improve","tips"].every(k=>typeof fields[k]==="string"&&fields[k].length<=4000))throw new HttpsError("invalid-argument","Ugyldig evaluering");
+  await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!evaluationIsOpen(event,existing.data()))throw new HttpsError("permission-denied","Evalueringsperioden er avslutta");tx.set(ref,{fields:{good:fields.good.trim(),improve:fields.improve.trim(),tips:fields.tips.trim()},updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});});
+ }else if(!["read","board-read"].includes(action))throw new HttpsError("invalid-argument","Ukjend handling");
+ const record=(await ref.get()).data()||{};
+ return {fields:record.fields||{good:"",improve:"",tips:""},open:evaluationIsOpen(event,record),reopenUntil:record.reopenUntil?.toDate().toISOString()||null,deadline:event.date};
+});
+exports.arrangementHistoryRead=onCall({region:"europe-west1"},async request=>{await requireBoard(request);const current=await arrangementStore.get();await archivePastEvents(current.data()?.events||[]);const snap=await archiveCollection.limit(100).get();const events=await Promise.all(snap.docs.map(async d=>{const event=d.data().event;const evaluation=(await evaluationCollection.doc(event.id).get()).data();return {...event,evaluation:evaluation?.fields||null};}));return {events};});
 exports.arrangementReadAll=onCall({region:"europe-west1"},async request=>{
  await requireBoard(request);
  const snap=await arrangementStore.get();
