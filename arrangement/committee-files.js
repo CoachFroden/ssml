@@ -8,7 +8,7 @@ const safeSlot=slot=>{if(!/^[a-zA-Z0-9_-]{1,100}$/.test(slot||""))throw Error("U
 const ext=name=>(name.split(".").pop()||"").toLowerCase();
 const kind=name=>/\.(png|jpe?g)$/i.test(name)?"image":/\.pdf$/i.test(name)?"pdf":/\.(docx?)$/i.test(name)?"doc":/\.(xlsx?)$/i.test(name)?"sheet":"other";
 const iconFor=name=>({image:"🖼️",pdf:"📕",doc:"📝",sheet:"📊",other:"📄"})[kind(name)];
-const readableSize=n=>n<1024?n+" B":n<1024*1024?(n/1024).toFixed(1)+" KB":(n/(1024*1024)).toFixed(1)+" MB";
+
 
 export async function listSharedFiles(slot){
   const result=await listAll(ref(storage,"arrangementFiles/"+safeSlot(slot)));
@@ -31,6 +31,28 @@ function installStyles(){
   const style=el("style");style.id="ssml-file-styles";
   style.textContent=`
 .ssml-files-shell{display:grid;gap:13px;margin:12px 0}
+.ssml-files-theme{background:linear-gradient(145deg,#063a43,#07505b 65%,#073c48)!important;color:#f4faf8!important;border:1px solid #286e77!important;border-radius:18px!important;padding:16px!important;box-shadow:0 10px 25px #002f3630!important}
+.ssml-files-theme h2,.ssml-files-theme .ssml-files-heading strong,.ssml-files-theme label{color:#fff!important}
+.ssml-files-theme p,.ssml-files-theme .muted{color:#b8d4d6!important}
+.ssml-files-theme .ssml-files-count{background:#155b65;color:#e8faf8}
+.ssml-files-theme .ssml-file-row{background:#0b4b55;border:1px solid #347782;box-shadow:none}
+.ssml-files-theme .ssml-file-name{color:#fff}
+.ssml-files-theme .ssml-file-meta{color:#b6d4d8}
+.ssml-files-theme .ssml-file-icon{background:#155d66}
+.ssml-files-theme .ssml-file-preview-btn{background:#174f5b!important;color:#e8fbff!important;border-color:#3a8990!important}
+.ssml-files-theme .ssml-file-download-btn{background:linear-gradient(110deg,#f9d88a,#e6ad50)!important;color:#173b42!important;border-color:#e9ba68!important}
+.ssml-files-theme .ssml-file-empty{padding:28px 16px;background:#0d4851;color:#c6dce0;border:1px solid #377781;border-radius:15px}
+.ssml-files-theme .ssml-file-dropzone{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:16px;border:1.5px dashed #318c9c;border-radius:14px;background:#06414b;margin:12px 0}
+.ssml-files-theme .ssml-file-drop-icon{font-size:31px}
+.ssml-files-theme .ssml-file-drop-text{flex:1;min-width:0}
+.ssml-files-theme .ssml-file-drop-text strong{display:block;color:white;font-size:.92rem}
+.ssml-files-theme .ssml-file-drop-text small{display:block;color:#b4d2d5;font-size:.76rem}
+.ssml-files-theme .ssml-file-picker{display:inline-flex;align-items:center;justify-content:center;cursor:pointer;background:linear-gradient(110deg,#ffde93,#e9b35d);color:#183c46!important;border-radius:9px;padding:11px 14px;font-size:.86rem;font-weight:750;white-space:nowrap}
+.ssml-files-theme .ssml-file-picker input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.ssml-files-theme .ssml-file-dropzone.drag-over{background:#126371;border-color:#f3ce7b}
+.ssml-files-theme .ssml-file-upload-submit{margin:0!important;width:100%;background:#117a8b!important;color:#fff!important;border-radius:10px!important}
+.ssml-files-theme .ssml-file-selected{color:#f8d893;font-size:.82rem;margin-top:5px}
+
 .ssml-files-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .ssml-files-heading strong{font-size:1.02rem;color:#163c55}
 .ssml-files-count{background:#e7f3f8;color:#245873;border-radius:999px;padding:5px 11px;font-size:.8rem;font-weight:700}
@@ -52,7 +74,7 @@ function installStyles(){
 .ssml-file-dialog-close{background:#eaf3f8!important;color:#173b52!important;border:0!important;border-radius:9px!important;padding:8px 12px!important}
 .ssml-file-dialog img{display:block;max-width:100%;max-height:72vh;object-fit:contain;margin:auto}
 .ssml-file-dialog iframe{width:100%;height:72vh;border:0;border-radius:8px;background:#f5f5f5}
-@media(max-width:600px){.ssml-file-row{flex-wrap:wrap}.ssml-file-actions{width:100%;padding-left:58px}.ssml-file-actions button{flex:1}.ssml-file-icon{width:43px;height:43px;flex-basis:43px}.ssml-file-actions{padding-left:0}.ssml-file-dialog{max-height:95vh}.ssml-file-dialog iframe{height:70vh}}
+@media(max-width:600px){.ssml-files-theme .ssml-file-dropzone{flex-wrap:wrap}.ssml-files-theme .ssml-file-picker{width:100%}.ssml-files-theme{padding:13px!important}.ssml-file-row{flex-wrap:wrap}.ssml-file-actions{width:100%;padding-left:58px}.ssml-file-actions button{flex:1}.ssml-file-icon{width:43px;height:43px;flex-basis:43px}.ssml-file-actions{padding-left:0}.ssml-file-dialog{max-height:95vh}.ssml-file-dialog iframe{height:70vh}}
 `;
   document.head.append(style);
 }
@@ -90,8 +112,29 @@ export function mountSharedFiles({slot,listId,formId,inputId,statusId}){
   if(!list||!form)return;
   installStyles();
   list.classList.add("ssml-files-list");
+  const panel=list.closest('[data-detail-pane="files"],[data-panel="files"]')||list.parentElement;
+  panel.classList.add("ssml-files-theme");
+  const oldLabel=input.closest("label");
+  const drop=el("div","ssml-file-dropzone");
+  const dropIcon=el("div","ssml-file-drop-icon","☁️");
+  const dropText=el("div","ssml-file-drop-text");
+  dropText.append(el("strong",null,"Dra og slepp filer her"),el("small",null,"eller klikk for å velje fil · PDF, bilete og dokument"));
+  const picker=el("label","ssml-file-picker","+ Vel fil");
+  picker.append(input);
+  drop.append(dropIcon,dropText,picker);
+  if(oldLabel&&oldLabel!==picker)oldLabel.replaceWith(drop);else form.prepend(drop);
+  const selected=el("div","ssml-file-selected");
+  selected.setAttribute("aria-live","polite");
+  drop.after(selected);
+  input.addEventListener("change",()=>{selected.textContent=input.files?.[0]?.name||"";});
+  for(const type of ["dragenter","dragover"]){drop.addEventListener(type,e=>{e.preventDefault();drop.classList.add("drag-over");});}
+  for(const type of ["dragleave","drop"]){drop.addEventListener(type,e=>{e.preventDefault();drop.classList.remove("drag-over");});}
+  drop.addEventListener("drop",e=>{const f=e.dataTransfer?.files?.[0];if(!f)return;const dt=new DataTransfer();dt.items.add(f);input.files=dt.files;selected.textContent=f.name;});
+  const submit=form.querySelector('button[type="submit"]');
+  if(submit){submit.classList.add("ssml-file-upload-submit");submit.textContent="Last opp fil";}
+
   const heading=el("div","ssml-files-heading");
-  const headingTitle=el("strong",null,"Filer i arrangementet");
+  const headingTitle=el("strong",null,"📁 Filer");
   const count=el("span","ssml-files-count","…");
   heading.append(headingTitle,count);
   list.parentNode.insertBefore(heading,list);
@@ -106,7 +149,7 @@ export function mountSharedFiles({slot,listId,formId,inputId,statusId}){
       if(seq!==requestId)return;
       count.textContent=files.length===1?"1 fil":files.length+" filer";
       list.replaceChildren();
-      if(!files.length){list.append(el("div","ssml-file-empty","📂 Ingen filer enno. Last opp den første fila for å dele henne med komiteen."));return;}
+      if(!files.length){list.append(el("div","ssml-file-empty","🎼 Ingen filer lasta opp enno. Her kan de dele notar, program, planlegging og annan informasjon."));return;}
       for(const file of files){
         const row=el("div","ssml-file-row");
         const fileIcon=el("div","ssml-file-icon",iconFor(file.name));
@@ -131,7 +174,7 @@ export function mountSharedFiles({slot,listId,formId,inputId,statusId}){
     const id=typeof slot==="function"?slot():slot,file=input.files?.[0],button=form.querySelector('button[type="submit"]');
     if(!id||!file)return;
     button.disabled=true;status.textContent="Lastar opp …";
-    try{await uploadSharedFile(id,file);input.value="";status.textContent="Fila er lasta opp.";await refresh();}
+    try{await uploadSharedFile(id,file);input.value="";status.textContent="Fila er lasta opp.";selected.textContent="";await refresh();}
     catch(e){status.textContent="Opplasting feila: "+(e.message||"Ukjend feil");}
     finally{button.disabled=false;}
   });
