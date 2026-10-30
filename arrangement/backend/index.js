@@ -216,8 +216,15 @@ exports.arrangementArchiveFiles=onCall({region:"europe-west1"},async request=>{
 });
 // Evaluation is stored separately so that reopening never changes the original archive snapshot.
 const evaluationCollection=db.collection("arrangementEvaluations");
-function evaluationDeadline(event){const raw=String(event.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return null;const end=Date.parse(raw+"T23:59:59+01:00");return Number.isFinite(end)?end+14*86400000:null;}
-function evaluationIsOpen(event,settings){const end=evaluationDeadline(event);if(end===null)return false;const now=Date.now();return now<=end||(settings?.reopenUntil?.toMillis?.()||0)>now;}
+function evaluationTodayOslo(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Oslo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}
+function evaluationDate(event){const date=String(event.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return null;const d=new Date(date+"T12:00:00Z");return Number.isNaN(d.getTime())||d.toISOString().slice(0,10)!==date?null:date;}
+function evaluationHasEnded(event){const date=evaluationDate(event);return date!==null&&date<evaluationTodayOslo();}
+function evaluationIsOpen(event,settings){
+ const date=evaluationDate(event);if(!date||!evaluationHasEnded(event))return false;
+ const end=new Date(date+"T12:00:00Z");end.setUTCDate(end.getUTCDate()+14);
+ const automaticEnd=end.toISOString().slice(0,10);
+ return evaluationTodayOslo()<=automaticEnd||(settings?.reopenUntil?.toMillis?.()||0)>Date.now();
+}
 exports.arrangementEvaluation=onCall({region:"europe-west1"},async request=>{
  const slot=request.data?.slot,action=request.data?.action;
  if(!validEventId(slot))throw new HttpsError("invalid-argument","Ugyldig arrangement");
@@ -229,6 +236,7 @@ exports.arrangementEvaluation=onCall({region:"europe-west1"},async request=>{
  if(action==="reopen"){
   const days=request.data?.days===14?14:null;
   if(!days)throw new HttpsError("invalid-argument","Ugyldig periode");
+  if(!evaluationHasEnded(event))throw new HttpsError("failed-precondition","Evaluering kan først opnast dagen etter arrangementet");
   await ref.set({reopenUntil:admin.firestore.Timestamp.fromMillis(Date.now()+days*86400000),updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});
  }else if(action==="save"){
   const fields=request.data?.fields;
@@ -236,7 +244,7 @@ exports.arrangementEvaluation=onCall({region:"europe-west1"},async request=>{
   await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!evaluationIsOpen(event,existing.data()))throw new HttpsError("permission-denied","Evalueringsperioden er avslutta");tx.set(ref,{fields:{good:fields.good.trim(),improve:fields.improve.trim(),tips:fields.tips.trim()},updatedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});});
  }else if(!["read","board-read"].includes(action))throw new HttpsError("invalid-argument","Ukjend handling");
  const record=(await ref.get()).data()||{};
- return {fields:record.fields||{good:"",improve:"",tips:""},open:evaluationIsOpen(event,record),reopenUntil:record.reopenUntil?.toDate().toISOString()||null,deadline:event.date};
+ return {fields:record.fields||{good:"",improve:"",tips:""},open:evaluationIsOpen(event,record),notStarted:!evaluationHasEnded(event),reopenUntil:record.reopenUntil?.toDate().toISOString()||null,deadline:event.date};
 });
 exports.arrangementHistoryRead=onCall({region:"europe-west1"},async request=>{await requireBoard(request);const current=await arrangementStore.get();await archivePastEvents(current.data()?.events||[]);const snap=await archiveCollection.limit(100).get();const events=await Promise.all(snap.docs.map(async d=>{const event=d.data().event;const evaluation=(await evaluationCollection.doc(event.id).get()).data();return {...event,evaluation:evaluation?.fields||null};}));return {events};});
 exports.arrangementReadAll=onCall({region:"europe-west1"},async request=>{
