@@ -528,4 +528,9 @@ for(const id of ["detail-progress","progress-text"]){const el=document.getElemen
 document.addEventListener("click",event=>{const tab=event.target.closest("[data-detail-tab]");if(tab){selected=tab.dataset.detailTab;apply();}const nav=event.target.closest("[data-event]");if(nav){selected="tasks";apply();}});
 document.addEventListener("DOMContentLoaded",apply);
 })();
-</script></body></html>
+</script><script type="module">
+import {mountSharedFiles} from "./committee-files.js";
+const refreshBoardFiles=mountSharedFiles({slot:()=>window.ssmlCurrentEvent?.()?.id,listId:"board-file-list",formId:"board-file-form",inputId:"board-file-input",statusId:"board-file-status"});
+document.querySelector('[data-detail-tab="files"]')?.addEventListener("click",()=>refreshBoardFiles?.());
+</script>
+</body></html>
