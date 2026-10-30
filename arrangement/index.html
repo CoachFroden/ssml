@@ -371,6 +371,36 @@ dialog.committee-share-dialog::backdrop{background:rgba(0,22,32,.72);backdrop-fi
 @media(min-width:651px){
   body:not(.locked) .bottom{left:50%!important;right:auto!important;transform:translateX(-50%)!important}
 }
+</style><style id="ssml-all-pages-desktop-center">
+/* Keep every main portal view aligned with the logo and viewport center. */
+@media(min-width:651px){
+  body:not(.locked) main.shell{
+    display:block!important;
+    box-sizing:border-box!important;
+    width:100%!important;
+    max-width:100%!important;
+    margin:0 auto!important;
+    padding:14px 24px 120px!important;
+  }
+  body:not(.locked) main.shell > section.view{
+    box-sizing:border-box!important;
+    position:relative!important;
+    float:none!important;
+    left:auto!important;
+    right:auto!important;
+    width:100%!important;
+    max-width:760px!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+  }
+  body:not(.locked) main.shell > #home.view{max-width:520px!important}
+  body:not(.locked) .bottom{
+    position:fixed!important;
+    left:50%!important;
+    right:auto!important;
+    transform:translateX(-50%)!important;
+  }
+}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><img class="gate-logo" src="./ssml-logo.png" alt="Samnanger Skulemusikklag"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <div class="ssml-app-logo"><img src="./ssml-logo.png" alt="Samnanger Skulemusikklag"></div>
