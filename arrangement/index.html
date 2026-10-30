@@ -330,6 +330,15 @@ dialog#editor #editor-form{gap:13px}
 dialog#editor .stack{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 dialog#editor .stack button{min-width:0}
 @media(max-width:420px){#events #event-grid .event{min-height:128px;padding:12px 9px}#events #event-grid .event h3{font-size:15px}dialog.committee-password-dialog{padding:17px 15px}}
+</style><style id="ssml-theme-cascade-fix">
+/* Override legacy high-priority light-panel rules on the event overview. */
+#events.view>.panel{background:linear-gradient(155deg,rgba(3,50,61,.97),rgba(8,87,94,.96) 65%,rgba(4,52,66,.97))!important;border:1px solid rgba(231,195,116,.78)!important;box-shadow:0 14px 30px #001f2b75!important;border-radius:22px!important}
+#events .events-heading h2{font-family:Georgia,"Palatino Linotype",serif!important;font-size:29px!important;font-weight:700!important;color:#fff0ce!important;text-shadow:0 2px 4px #001c28!important;letter-spacing:0!important}
+#events .events-heading p{color:#dce9e8!important}
+#events .events-actions #new-event{background:linear-gradient(115deg,#fae6b3,#d8b46e)!important;color:#123c48!important;border:1px solid #ffe6ac!important;box-shadow:0 5px 12px #002b3850!important;font-weight:800!important;text-shadow:none!important}
+#events #event-grid .event{background:linear-gradient(145deg,rgba(248,251,247,.97),rgba(230,242,238,.95))!important;border:1px solid rgba(241,207,139,.8)!important}
+#events #event-grid .event h3{color:#143f50!important;text-shadow:none!important}
+#events #event-grid .event p{color:#536f79!important}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><img class="gate-logo" src="./ssml-logo.png" alt="Samnanger Skulemusikklag"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <div class="ssml-app-logo"><img src="./ssml-logo.png" alt="Samnanger Skulemusikklag"></div>
