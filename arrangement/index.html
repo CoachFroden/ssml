@@ -359,7 +359,10 @@ dialog.committee-share-dialog::backdrop{background:rgba(0,22,32,.72);backdrop-fi
 @media(min-width:651px){
   body:not(.locked) .ssml-app-logo{max-width:100%!important;width:100%!important;box-sizing:border-box!important;display:flex!important;justify-content:center!important;align-items:center!important;margin:0 auto!important;padding:20px 20px 8px!important}
   body:not(.locked) .ssml-app-logo img{width:clamp(210px,23vw,285px)!important;margin:0 auto!important}
-  body:not(.locked) #home{width:100%!important;max-width:100%!important;box-sizing:border-box!important;margin:0 auto!important;text-align:center!important}
+  body:not(.locked):has(#home:not(.hidden)) .shell{box-sizing:border-box!important;width:100%!important;max-width:100%!important;margin:0 auto!important;padding:10px 24px 120px!important}
+  body:not(.locked):has(#home:not(.hidden)) .shell #home{width:100%!important;max-width:520px!important;margin:0 auto!important;padding:0!important;text-align:center!important}
+  body:not(.locked):has(#home:not(.hidden)) .shell #home #home-events{max-width:410px!important;width:100%!important;margin:0 auto!important}
+  body:not(.locked) #home{width:100%!important;box-sizing:border-box!important;text-align:center!important}
   body:not(.locked) #home .home-heading{margin:4px auto 16px!important}
   body:not(.locked) #home #home-events{margin-left:auto!important;margin-right:auto!important}
 }
