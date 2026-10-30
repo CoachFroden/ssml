@@ -165,7 +165,55 @@ exports.arrangementPublicName=onCall({region:"europe-west1"},async request=>{
 // Permanent, read-only snapshots of completed arrangements. Archive is created on first board read after the date passes.
 const archiveCollection=db.collection("arrangementHistory");
 function archiveDatePassed(event){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(event.date||"")))return false;const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Oslo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());return event.date<today;}
-async function archivePastEvents(events){const past=events.filter(e=>archiveDatePassed(e)&&validEventId(e.id));if(!past.length)return;for(const e of past){const ref=archiveCollection.doc(e.id);await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!existing.exists)tx.create(ref,{event:e,archivedAt:admin.firestore.FieldValue.serverTimestamp()});});}}
+const archiveBucket=admin.storage().bucket();
+async function archiveEventFiles(slot){
+ const prefix="arrangementFiles/"+slot+"/",destination="arrangementArchiveFiles/"+slot+"/";
+ const [originals]=await archiveBucket.getFiles({prefix});
+ const files=[];
+ for(const source of originals){
+  if(source.name===prefix||source.name.endsWith("/"))continue;
+  const name=source.name.slice(prefix.length);
+  if(!name||name.includes("/"))continue;
+  const target=archiveBucket.file(destination+name);
+  const [exists]=await target.exists();
+  if(!exists)await source.copy(target);
+  files.push({name,path:target.name});
+ }
+ return files;
+}
+async function archivePastEvents(events){
+ const past=events.filter(e=>archiveDatePassed(e)&&validEventId(e.id));
+ for(const event of past){
+  const ref=archiveCollection.doc(event.id);
+  await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!existing.exists)tx.create(ref,{event,archivedAt:admin.firestore.FieldValue.serverTimestamp(),filesComplete:false});});
+  // Idempotent: missing copies are retried whenever the archive is read or updated.
+  const files=await archiveEventFiles(event.id);
+  await ref.set({files,filesComplete:true,filesCheckedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});
+ }
+}
+exports.arrangementArchiveFiles=onCall({region:"europe-west1"},async request=>{
+ await requireBoard(request);
+ const slot=request.data?.slot,action=request.data?.action||"list";
+ if(!validEventId(slot))throw new HttpsError("invalid-argument","Ugyldig arrangement");
+ const record=await archiveCollection.doc(slot).get();
+ if(!record.exists)throw new HttpsError("not-found","Arrangementet er ikkje arkivert");
+ const event=record.data().event;
+ if(action==="list"){
+  // Reconcile new uploads before returning the file inventory.
+  const files=await archiveEventFiles(slot);
+  await record.ref.set({files,filesComplete:true,filesCheckedAt:admin.firestore.FieldValue.serverTimestamp()},{merge:true});
+  return {files:files.map(f=>({name:f.name.replace(/^[0-9]+_[a-z0-9]+_/,""),key:f.name}))};
+ }
+ if(action==="url"){
+  const key=request.data?.key;
+  if(typeof key!=="string"||key.length>220||key.includes("/")||key==="."||key==="..")throw new HttpsError("invalid-argument","Ugyldig fil");
+  const target=archiveBucket.file("arrangementArchiveFiles/"+slot+"/"+key);
+  const [exists]=await target.exists();if(!exists)throw new HttpsError("not-found","Fila finst ikkje i arkivet");
+  const [url]=await target.getSignedUrl({version:"v4",action:"read",expires:Date.now()+5*60*1000});
+  return {url};
+ }
+ throw new HttpsError("invalid-argument","Ukjend handling");
+});
 // Evaluation is stored separately so that reopening never changes the original archive snapshot.
 const evaluationCollection=db.collection("arrangementEvaluations");
 function evaluationDeadline(event){const raw=String(event.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return null;const end=Date.parse(raw+"T23:59:59+01:00");return Number.isFinite(end)?end+14*86400000:null;}
