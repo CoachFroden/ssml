@@ -176,7 +176,7 @@ exports.arrangementWriteAll=onCall({region:"europe-west1"},async request=>{
   const old=await tx.get(arrangementStore);
   const current=old.exists?old.data().revision:0;
   if(current!==revision)throw new HttpsError("aborted","Data er endra frå ei anna eining. Last inn på nytt.");
-  tx.set(arrangementStore,{events,revision:current+1,updatedAt:admin.firestore.FieldValue.serverTimestamp()});
+  tx.set(arrangementStore,{events,revision:current+1,updatedAt:admin.firestore.FieldValue.serverTimestamp()});for(const event of events){if(validEventId(event.id)){tx.set(db.doc("arrangementFileAccess/"+event.id),{open:event.open===true,updatedAt:admin.firestore.FieldValue.serverTimestamp()});}}
   return {revision:current+1};
  });
 });
