@@ -168,7 +168,7 @@ function archiveDatePassed(event){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(event.da
 async function archivePastEvents(events){const past=events.filter(e=>archiveDatePassed(e)&&validEventId(e.id));if(!past.length)return;for(const e of past){const ref=archiveCollection.doc(e.id);await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!existing.exists)tx.create(ref,{event:e,archivedAt:admin.firestore.FieldValue.serverTimestamp()});});}}
 // Evaluation is stored separately so that reopening never changes the original archive snapshot.
 const evaluationCollection=db.collection("arrangementEvaluations");
-function evaluationDeadline(event){if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(event.date||"")))return null;const d=new Date(event.date+"T12:00:00+02:00");if(Number.isNaN(d.getTime()))return null;return d.getTime()+14*86400000;}
+function evaluationDeadline(event){const raw=String(event.date||"");if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return null;const end=Date.parse(raw+"T23:59:59+01:00");return Number.isFinite(end)?end+14*86400000:null;}
 function evaluationIsOpen(event,settings){const end=evaluationDeadline(event);if(end===null)return false;const now=Date.now();return now<=end||(settings?.reopenUntil?.toMillis?.()||0)>now;}
 exports.arrangementEvaluation=onCall({region:"europe-west1"},async request=>{
  const slot=request.data?.slot,action=request.data?.action;
