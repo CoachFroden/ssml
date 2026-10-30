@@ -204,7 +204,7 @@ export async function renderArchivedFiles(slot,container){
    const info=el("div","ssml-file-info");info.append(el("div","ssml-file-name",file.name));row.append(info);
    const actions=el("div","ssml-file-actions");
    const open=el("button","ssml-file-download-btn","Opne / last ned");open.type="button";
-   open.addEventListener("click",async()=>{open.disabled=true;try{const {url}=await invoke({slot,action:"url",key:file.key});window.open(url,"_blank","noopener,noreferrer");}catch(err){alert("Kunne ikkje opne arkivfila: "+err.message);}finally{open.disabled=false;}});
+   open.addEventListener("click",async()=>{open.disabled=true;try{const {url}=await invoke({slot,action:"url",key:file.key});window.location.assign(url);}catch(err){alert("Kunne ikkje opne arkivfila: "+err.message);}finally{open.disabled=false;}});
    actions.append(open);row.append(actions);container.append(row);
   }
  }catch(err){container.textContent="Kunne ikkje hente filarkivet: "+(err.message||err);}
