@@ -54,8 +54,8 @@ $("#login").addEventListener("submit",async e=>{
  try{await loginCommittee(slot,$("#password").value);currentUid=auth.currentUser?.uid||"";$("#password").value="";$("#gate").hidden=true;$("#portal").hidden=false;showView("tasks");await refresh();clearInterval(poll);poll=setInterval(refresh,15000);}
  catch(err){error(err);}finally{$("#enter").disabled=false;}
 });
-document.querySelectorAll("[data-channel]").forEach(button=>button.addEventListener("click",()=>{channel=button.dataset.channel;$("#recipient").value=channel;document.querySelectorAll("[data-channel]").forEach(b=>b.classList.toggle("selected",b===button));refresh();}));
-$("#recipient").addEventListener("change",()=>{channel=$("#recipient").value;document.querySelectorAll("[data-channel]").forEach(b=>b.classList.toggle("selected",b.dataset.channel===channel));refresh();});
+document.querySelectorAll("[data-channel]").forEach(button=>button.addEventListener("click",()=>{channel=button.dataset.channel;document.querySelectorAll("[data-channel]").forEach(b=>b.classList.toggle("selected",b===button));refresh();}));
+
 $("#add-task").addEventListener("submit",async e=>{e.preventDefault();const button=e.currentTarget.querySelector("button");button.disabled=true;try{await call("arrangementCommitteeUpdate",{slot,action:"task-add",sender:$("#task-author").value.trim(),text:$("#task-text").value.trim()});$("#task-text").value="";await refresh();}catch(err){error(err);}finally{button.disabled=false;}});
 $("#tasks").addEventListener("click",async e=>{const button=e.target.closest("[data-delete]");if(!button||!confirm("Slette di eiga oppgåve?"))return;button.disabled=true;try{await call("arrangementCommitteeUpdate",{slot,action:"task-delete",taskId:button.dataset.delete});await refresh();}catch(err){error(err);await refresh();}});
 $("#tasks").addEventListener("change",async e=>{
@@ -65,7 +65,7 @@ $("#tasks").addEventListener("change",async e=>{
 });
 $("#send").addEventListener("submit",async e=>{
  e.preventDefault();
- try{await call("arrangementCommitteeUpdate",{slot,action:"message",recipient:$("#recipient").value,sender:$("#sender").value.trim(),text:$("#message").value.trim()});$("#message").value="";await refresh();}
+ try{await call("arrangementCommitteeUpdate",{slot,action:"message",recipient:channel,sender:$("#sender").value.trim(),text:$("#message").value.trim()});$("#message").value="";await refresh();}
  catch(err){error(err);}
 });
 function resetNotebookForm(){ $("#committee-note-id").value="";$("#committee-note-title").value="";$("#committee-note-text").value="";$("#committee-note-form-heading").textContent="Nytt notat";$("#committee-note-submit").textContent="Lagre notat";$("#committee-note-cancel").hidden=true;}
