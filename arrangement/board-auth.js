@@ -3,7 +3,7 @@ import {onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.14.1/fir
 const $=s=>document.querySelector(s);
 let verified=false,stop=null,adminMode=false;
 function lock(){verified=false;adminMode=false;if(window.adminResetButton)window.adminResetButton.hidden=true;if($("#share-board"))$("#share-board").hidden=true;document.body.classList.add("locked");$("#access-gate").hidden=false;}
-function unlock(){verified=true;document.body.classList.remove("locked");$("#access-gate").hidden=true;loadFirebaseEvents();if(new URLSearchParams(location.search).get("styret")==="1")window.ssmlOpenBoardLanding?.();}
+function unlock(){verified=true;document.body.classList.remove("locked");$("#access-gate").hidden=true;loadFirebaseEvents();}
 async function verify(){
   if(!auth.currentUser||auth.currentUser.getIdTokenResult===undefined){lock();return;}
   const claims=(await auth.currentUser.getIdTokenResult()).claims;
