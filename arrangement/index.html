@@ -296,6 +296,40 @@ dialog.committee-password-dialog{box-sizing:border-box;width:min(92vw,390px);max
 #home .next-open{background:#d8f1e5;color:#146444}#home .next-closed{background:#f9e0db;color:#914d47}
 #home .next-open-button,#home .next-all{display:block;width:100%;margin-top:23px;padding:13px;border-radius:12px;border:1px solid #f3db9e;background:linear-gradient(110deg,#f7e5b8,#d6b66f);color:#123d4a;font-size:15px;font-weight:800;cursor:pointer}
 #home .next-empty p{color:#d4e4e6;line-height:1.5}
+</style><style id="ssml-unified-design">
+/* Shared SSML teal-and-gold visual language */
+:root{--ssml-deep:#073e49;--ssml-teal:#0c6876;--ssml-gold:#dfbd76;--ssml-cream:#fff0ce}
+#events>.panel{background:linear-gradient(155deg,rgba(3,50,61,.97),rgba(8,87,94,.96) 65%,rgba(4,52,66,.97));border:1px solid rgba(231,195,116,.7);border-radius:22px;box-shadow:0 14px 30px #001f2b6e;padding:19px 13px 17px}
+#events .events-heading h2{font:700 30px/1.12 Georgia,"Palatino Linotype",serif;color:var(--ssml-cream);text-shadow:0 2px 4px #001d2b}
+#events .events-heading p{color:#d9e8e9;font-size:13px}
+#events .events-heading:after{content:"◇";display:block;margin:8px auto 0;color:var(--ssml-gold);font-size:17px}
+#events .events-actions{margin-bottom:17px}
+#events #new-event{background:linear-gradient(120deg,#f9e7b6,#d4b06b);color:#173c48;border:1px solid #ffe3a0;box-shadow:0 5px 12px #002b3880;padding:12px 20px}
+#events #share-board{background:#104c5a;color:#f9e7bc;border-color:#d6b574}
+#events #event-grid{gap:10px}
+#events #event-grid .event{min-height:132px;padding:14px 12px;background:linear-gradient(145deg,rgba(248,251,247,.96),rgba(231,242,237,.94));border:1px solid rgba(241,207,139,.75);box-shadow:0 6px 12px #002b3a52;border-radius:16px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start}
+#events #event-grid .event h3{font:700 17px/1.2 Georgia,"Palatino Linotype",serif;color:#133f50;margin:8px 0 4px}
+#events #event-grid .event p{color:#55717b;margin:2px 0 10px}
+#events #event-grid .event .pill{background:#d9e9e9;color:#25546a}
+#events #event-grid .event .access-status{margin-top:auto}
+dialog.committee-password-dialog,dialog#editor{background:linear-gradient(145deg,#073b48,#0a6068 64%,#073e4b);color:#fff0cf;border:1px solid #dfbd76;box-shadow:0 25px 65px #001b2ba6;border-radius:21px}
+dialog.committee-password-dialog::backdrop,dialog#editor::backdrop{background:rgba(0,26,37,.73);backdrop-filter:blur(5px)}
+dialog.committee-password-dialog{width:min(92vw,410px);max-width:410px;padding:20px 18px;max-height:calc(100dvh - 26px)}
+.committee-password-dialog h2,dialog#editor h2{font:700 23px/1.2 Georgia,"Palatino Linotype",serif;color:#fff0cc;text-align:center;margin:0 0 14px}
+.committee-password-dialog #password-link{color:#cce4e5;font-size:12px;overflow-wrap:anywhere;padding:10px 11px;border:1px solid #bca66e80;background:#ffffff12;border-radius:10px}
+.committee-password-dialog label,dialog#editor label{color:#f4e9ce;font-weight:650;font-size:13px}
+.committee-password-dialog select,.committee-password-dialog input,dialog#editor input,dialog#editor select,dialog#editor textarea{background:#f6faf8;color:#153f4e;border:1px solid #d7c18b;border-radius:10px;min-height:42px}
+.committee-password-dialog input:focus-visible,.committee-password-dialog select:focus-visible,dialog#editor input:focus-visible{outline:2px solid #f6d68a;outline-offset:2px}
+.committee-password-dialog #open-share-committee,.committee-password-dialog button[type="submit"],dialog#editor button[type="submit"]{background:linear-gradient(115deg,#f9e6b2,#d5b06b);border:1px solid #ffe6aa;color:#123c48;font-weight:800}
+.committee-password-dialog #copy-committee-link,.committee-password-dialog #password-cancel,dialog#editor #cancel-editor{background:#ffffff0d;border:1px solid #d9bd7d;color:#fff3d7}
+.committee-password-dialog #password-form{gap:10px}
+.committee-password-dialog .stack{display:flex;gap:9px}
+.committee-password-dialog .stack button{flex:1;min-width:0}
+dialog#editor{width:min(92vw,440px);padding:22px 19px;max-height:calc(100dvh - 28px);overflow:auto}
+dialog#editor #editor-form{gap:13px}
+dialog#editor .stack{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+dialog#editor .stack button{min-width:0}
+@media(max-width:420px){#events #event-grid .event{min-height:128px;padding:12px 9px}#events #event-grid .event h3{font-size:15px}dialog.committee-password-dialog{padding:17px 15px}}
 </style></head><body class="locked"><div id="access-gate"><form class="gate-card" id="access-form"><img class="gate-logo" src="./ssml-logo.png" alt="Samnanger Skulemusikklag"><h2>SSML Arrangement</h2><p>Skriv inn tilgangskoden for å opne portalen.</p><input id="access-code" type="password" autocomplete="off" placeholder="Tilgangskode" required><p id="access-error" aria-live="polite"></p><button class="primary" type="submit">Opne portalen</button></form></div>
 <header class="hero"><div class="hero-inner"><div class="brand">♫ SSML · SAMNANGER SKULEMUSIKKLAG</div><h1>Arrangement</h1><p>God planlegging, tydelege oppgåver og godt samarbeid – for alle komiteane våre.</p></div></header>
 <div class="ssml-app-logo"><img src="./ssml-logo.png" alt="Samnanger Skulemusikklag"></div>
