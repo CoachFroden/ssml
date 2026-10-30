@@ -76,18 +76,18 @@ resetButton.onclick=()=>{
  dialog.showModal();
 };
 window.adminResetButton=resetButton;
-$("#home .panel").appendChild(resetButton);
+$("#home").appendChild(resetButton);
 
 let revision=0,writeQueue=Promise.resolve(),loading=false,pendingWrites=0;
 const syncMessage=document.createElement("p");
 syncMessage.className="muted small";
 syncMessage.textContent="Firebase: ventar på tilkopling";
-$("#home .panel").appendChild(syncMessage);
+$("#home").appendChild(syncMessage);
 const migrationButton=document.createElement("button");
 migrationButton.className="secondary";
 migrationButton.textContent="Overfør eksisterande arrangement til Firebase";
 migrationButton.hidden=true;
-$("#home .panel").appendChild(migrationButton);
+$("#home").appendChild(migrationButton);
 const invoke=async(name,data)=>{
  const {getFunctions,httpsCallable}=await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js");
  return (await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
