@@ -164,7 +164,7 @@ exports.arrangementPublicName=onCall({region:"europe-west1"},async request=>{
 });
 // Permanent, read-only snapshots of completed arrangements. Archive is created on first board read after the date passes.
 const archiveCollection=db.collection("arrangementHistory");
-function archiveDatePassed(event){if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(event.date||"")))return false;const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Oslo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());return event.date<today;}
+function archiveDatePassed(event){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(event.date||"")))return false;const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Oslo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());return event.date<today;}
 async function archivePastEvents(events){const past=events.filter(e=>archiveDatePassed(e)&&validEventId(e.id));if(!past.length)return;for(const e of past){const ref=archiveCollection.doc(e.id);await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!existing.exists)tx.create(ref,{event:e,archivedAt:admin.firestore.FieldValue.serverTimestamp()});});}}
 // Evaluation is stored separately so that reopening never changes the original archive snapshot.
 const evaluationCollection=db.collection("arrangementEvaluations");
