@@ -82,7 +82,7 @@ let revision=0,writeQueue=Promise.resolve(),loading=false,pendingWrites=0;
 const syncMessage=document.createElement("p");
 syncMessage.className="muted small";
 syncMessage.textContent="Firebase: ventar på tilkopling";
-$("#home").appendChild(syncMessage);
+// Sync status is kept for diagnostics but not displayed on the home screen.
 const migrationButton=document.createElement("button");
 migrationButton.className="secondary";
 migrationButton.textContent="Overfør eksisterande arrangement til Firebase";
