@@ -33,6 +33,12 @@ function installStyles(){
 .ssml-files-shell{display:grid;gap:13px;margin:12px 0}
 .ssml-files-theme{background:linear-gradient(145deg,#063a43,#07505b 65%,#073c48)!important;color:#f4faf8!important;border:1px solid #286e77!important;border-radius:18px!important;padding:16px!important;box-shadow:0 10px 25px #002f3630!important}
 .ssml-files-theme h2,.ssml-files-theme .ssml-files-heading strong,.ssml-files-theme label{color:#fff!important}
+.ssml-files-theme>h2,.ssml-files-theme>p{color:#fff!important}
+.ssml-files-theme>p.muted{color:#c4dce0!important}
+.ssml-files-theme .ssml-files-heading{border-top:1px solid #2d7780;padding-top:12px}
+.ssml-files-theme .ssml-file-dropzone{margin-top:8px!important}
+.ssml-files-theme .ssml-file-row{margin:0}
+
 .ssml-files-theme p,.ssml-files-theme .muted{color:#b8d4d6!important}
 .ssml-files-theme .ssml-files-count{background:#155b65;color:#e8faf8}
 .ssml-files-theme .ssml-file-row{background:#0b4b55;border:1px solid #347782;box-shadow:none}
@@ -114,6 +120,8 @@ export function mountSharedFiles({slot,listId,formId,inputId,statusId}){
   list.classList.add("ssml-files-list");
   const panel=list.closest('[data-detail-pane="files"],[data-panel="files"]')||list.parentElement;
   panel.classList.add("ssml-files-theme");
+  panel.style.setProperty("background","linear-gradient(145deg,#063a43,#07505b 65%,#073c48)","important");
+  panel.style.setProperty("color","#f4faf8","important");
   const oldLabel=input.closest("label");
   const drop=el("div","ssml-file-dropzone");
   const dropIcon=el("div","ssml-file-drop-icon","☁️");
