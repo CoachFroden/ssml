@@ -18,7 +18,7 @@ async function loadPublicEventName(){
  }
 }
 loadPublicEventName();
-let poll=null,channel="board",view="tasks",latestMessages=[];
+let poll=null,channel="board",view="tasks",latestMessages=[],evaluationOnly=false;
 let currentUid="";let notebookEntries=[];
 const seenKey="ssml-committee-seen-v1:"+slot;
 let seenIds=new Set();
@@ -46,6 +46,7 @@ function draw(e,boardMembers=[]){
  $("#messages").innerHTML=e.messages.filter(m=>channel==="committee"?m.recipient==="committee":m.recipient!=="committee").map(m=>'<article class="'+(m.role==='committee'?'from-committee':'from-board')+'"><strong>'+esc(m.sender)+'</strong><span class="source">'+(m.role==='committee'?'Komité':'Styret')+'</span> <small>'+esc(m.date)+'</small><p>'+esc(m.text)+'</p></article>').join("")||"Ingen meldingar enno.";
 }
 function setEvaluationOnly(active){
+ evaluationOnly=active;
  document.getElementById("portal").classList.toggle("evaluation-only",active);
  if(active){showView("evaluation");clearInterval(poll);poll=null;}
 }
@@ -55,7 +56,7 @@ async function refresh(){
 }
 $("#login").addEventListener("submit",async e=>{
  e.preventDefault();$("#status").textContent="Kontrollerer passord …";$("#enter").disabled=true;
- try{await loginCommittee(slot,$("#password").value);currentUid=auth.currentUser?.uid||"";$("#password").value="";$("#gate").hidden=true;$("#portal").hidden=false;showView("tasks");await refresh();clearInterval(poll);poll=setInterval(refresh,15000);}
+ try{await loginCommittee(slot,$("#password").value);currentUid=auth.currentUser?.uid||"";$("#password").value="";$("#gate").hidden=true;$("#portal").hidden=false;showView("tasks");await refresh();clearInterval(poll);if(!evaluationOnly)poll=setInterval(refresh,15000);}
  catch(err){error(err);}finally{$("#enter").disabled=false;}
 });
 document.querySelectorAll("[data-channel]").forEach(button=>button.addEventListener("click",()=>{channel=button.dataset.channel;document.querySelectorAll("[data-channel]").forEach(b=>b.classList.toggle("selected",b===button));refresh();}));
