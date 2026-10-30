@@ -4,7 +4,7 @@ import {initializeApp,getApps,getApp} from "https://www.gstatic.com/firebasejs/1
 import {getAuth,signInWithCustomToken,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {getFunctions,httpsCallable} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js";
 import {getFirestore,collection,doc,onSnapshot,getDoc,setDoc,updateDoc,addDoc,deleteDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-import {firebaseConfig} from "../firebase-core.js";
+import {firebaseConfig} from "./firebase-config.js";
 const app=getApps().length?getApp():initializeApp(firebaseConfig);
 export const auth=getAuth(app);
 export const db=getFirestore(app);
