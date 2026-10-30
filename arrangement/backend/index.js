@@ -162,6 +162,11 @@ exports.arrangementPublicName=onCall({region:"europe-west1"},async request=>{
  if(!event)return {name:null};
  return {name:String(event.name||"").slice(0,150)};
 });
+// Permanent, read-only snapshots of completed arrangements. Archive is created on first board read after the date passes.
+const archiveCollection=db.collection("arrangementHistory");
+function archiveDatePassed(event){if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(event.date||"")))return false;const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Oslo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());return event.date<today;}
+async function archivePastEvents(events){const past=events.filter(e=>archiveDatePassed(e)&&validEventId(e.id));if(!past.length)return;for(const e of past){const ref=archiveCollection.doc(e.id);await db.runTransaction(async tx=>{const existing=await tx.get(ref);if(!existing.exists)tx.create(ref,{event:e,archivedAt:admin.firestore.FieldValue.serverTimestamp()});});}}
+exports.arrangementHistoryRead=onCall({region:"europe-west1"},async request=>{await requireBoard(request);const current=await arrangementStore.get();await archivePastEvents(current.data()?.events||[]);const snap=await archiveCollection.limit(100).get();return {events:snap.docs.map(d=>d.data().event)};});
 exports.arrangementReadAll=onCall({region:"europe-west1"},async request=>{
  await requireBoard(request);
  const snap=await arrangementStore.get();
@@ -172,6 +177,8 @@ exports.arrangementWriteAll=onCall({region:"europe-west1"},async request=>{
  const events=request.data?.events,revision=request.data?.revision;
  if(!Array.isArray(events)||events.length>100||!Number.isInteger(revision)||JSON.stringify(events).length>800000)throw new HttpsError("invalid-argument","Ugyldige arrangementsdata");
  for(const e of events){if(!e||typeof e.id!=="string"||typeof e.name!=="string"||!Array.isArray(e.tasks)||!Array.isArray(e.people)||!Array.isArray(e.messages))throw new HttpsError("invalid-argument","Ugyldig arrangement");}
+ const previous=await arrangementStore.get();
+ await archivePastEvents(previous.data()?.events||[]);
  return db.runTransaction(async tx=>{
   const old=await tx.get(arrangementStore);
   const current=old.exists?old.data().revision:0;
