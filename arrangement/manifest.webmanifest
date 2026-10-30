@@ -1,6 +1,6 @@
 {
-  "name": "SSML – Styreportal",
-  "short_name": "SSML Styret",
+  "name": "SSML – Arrangement",
+  "short_name": "SSML Arrangement",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
