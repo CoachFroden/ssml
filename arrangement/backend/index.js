@@ -282,7 +282,7 @@ exports.arrangementCommitteeRead=onCall({region:"europe-west1"},async request=>{
  const index=findCommitteeEvent(events,slot);
  if(index<0)throw new HttpsError("not-found","Arrangementet finst ikkje");
  const event=events[index];
- if(event.open!==true){
+ if(event.open!==true||evaluationHasEnded(event)){
   if(!evaluationHasEnded(event))throw new HttpsError("permission-denied","Komiteen er stengd");
   return {event:{id:event.id,name:event.name,date:event.date,year:event.year},evaluationOnly:true};
  }
@@ -303,7 +303,7 @@ exports.arrangementCommitteeUpdate=onCall({region:"europe-west1"},async request=
   const snap=await tx.get(arrangementStore);
   if(!snap.exists)throw new HttpsError("not-found","Ingen arrangement");
   const events=snap.data().events,index=findCommitteeEvent(events,slot);
-  if(index<0||events[index].open!==true)throw new HttpsError("permission-denied","Komiteen er stengd");
+  if(index<0||events[index].open!==true||evaluationHasEnded(events[index]))throw new HttpsError("permission-denied","Komiteen er stengd");
   const event=events[index];
   if(action==="task"){
    const task=event.tasks.find(t=>t.id===taskId);
