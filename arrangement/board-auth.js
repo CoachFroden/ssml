@@ -27,11 +27,11 @@ dialog.setAttribute("aria-label","Passord og komitétilgang");
 document.body.appendChild(dialog);
 $("#copy-committee-link").onclick=async()=>{const url=$("#copy-committee-link").dataset.url;if(!url)return;try{await navigator.clipboard.writeText(url);$("#copy-committee-link").textContent="✓ Lenka er kopiert";}catch{const field=document.createElement("textarea");field.value=url;document.body.appendChild(field);field.select();const copied=document.execCommand("copy");field.remove();$("#copy-committee-link").textContent=copied?"✓ Lenka er kopiert":"Kunne ikkje kopiere";}};
 const shareDialog=document.createElement("dialog");
-shareDialog.style.cssText="width:min(94vw,510px);border:1px solid #d2e5e8;border-radius:18px;padding:22px;background:#f7fbfc;box-shadow:0 20px 60px #12374c55;color:#153e54";
+shareDialog.className="committee-share-dialog";
 shareDialog.innerHTML='<form id="share-committee-form" class="fields"><h2 style="margin:0 0 6px">Del med komiteen</h2><p style="margin:0 0 12px;color:#536f7b">Ferdig melding med lenkje og passord.</p><label>Komitépassord (skriv inn det gjeldande)<input id="share-password" type="text" required autocomplete="off" spellcheck="false" placeholder="Passordet de har valt"></label><label>Melding<textarea id="share-message" rows="8" readonly style="width:100%;min-height:165px"></textarea></label><p id="share-status" role="status" style="font-size:12px;color:#526f7b"></p><div class="stack"><button type="button" class="primary" id="share-native">Del melding</button><button type="button" class="secondary" id="share-copy">Kopier heile meldinga</button><button type="button" class="secondary" id="share-close">Lukk</button></div></form>';
 document.body.appendChild(shareDialog);
 let shareEventName="",shareUrl="";
-function shareText(){const pw=$("#share-password").value.trim();return "Hei!\\n\\nDu er invitert til komitéarbeidet for "+shareEventName+" i Samnanger Skulemusikklag.\\n\\nOpne komitésida her:\\n"+shareUrl+"\\n\\nPassord: "+(pw||"[skriv inn passord]")+"\\n\\nHelsing styret i Samnanger Skulemusikklag";}
+function shareText(){const pw=$("#share-password").value.trim();return "Hei!\n\nDu er invitert til komitéarbeidet for "+shareEventName+" i Samnanger Skulemusikklag.\n\nOpne komitésida her:\n"+shareUrl+"\n\nPassord: "+(pw||"[skriv inn passord]")+"\n\nHelsing styret i Samnanger Skulemusikklag";}
 function updateShareText(){$("#share-message").value=shareText();$("#share-status").textContent="";}
 $("#share-password").addEventListener("input",updateShareText);
 $("#share-close").onclick=()=>shareDialog.close();
