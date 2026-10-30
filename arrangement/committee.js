@@ -45,8 +45,12 @@ function draw(e,boardMembers=[]){
  $("#board-members").innerHTML=boardMembers.map(p=>'<div class="contact-card"><strong>'+esc(p.name)+'</strong><span class="contact-role">'+esc(p.role||"Styremedlem")+'</span>'+contactLinks(p)+'</div>').join("")||"Ingen styremedlemmer registrerte enno.";
  $("#messages").innerHTML=e.messages.filter(m=>channel==="committee"?m.recipient==="committee":m.recipient!=="committee").map(m=>'<article class="'+(m.role==='committee'?'from-committee':'from-board')+'"><strong>'+esc(m.sender)+'</strong><span class="source">'+(m.role==='committee'?'Komité':'Styret')+'</span> <small>'+esc(m.date)+'</small><p>'+esc(m.text)+'</p></article>').join("")||"Ingen meldingar enno.";
 }
+function setEvaluationOnly(active){
+ document.getElementById("portal").classList.toggle("evaluation-only",active);
+ if(active){showView("evaluation");clearInterval(poll);poll=null;}
+}
 async function refresh(){
- try{const data=await call("arrangementCommitteeRead",{slot});draw(data.event,data.boardMembers||[]);$("#status").textContent="";}
+ try{const data=await call("arrangementCommitteeRead",{slot});if(data.evaluationOnly){$("#title").textContent=data.event.name||"Arrangement";$("#date").textContent=[data.event.date,data.event.year].filter(Boolean).join(" · ");setEvaluationOnly(true);$("#status").textContent="";return;}setEvaluationOnly(false);draw(data.event,data.boardMembers||[]);$("#status").textContent="";}
  catch(err){error(err);if(err.code==="functions/permission-denied"){clearInterval(poll);poll=null;$("#portal").hidden=true;$("#gate").hidden=false;}}
 }
 $("#login").addEventListener("submit",async e=>{
