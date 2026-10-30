@@ -94,6 +94,7 @@ const invoke=async(name,data)=>{
  const {getFunctions,httpsCallable}=await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js");
  return (await httpsCallable(getFunctions(auth.app,"europe-west1"),name)(data)).data;
 };
+window.ssmlLoadHistory=async()=>{const data=await invoke("arrangementHistoryRead",{});return data.events||[];};
 async function loadFirebaseEvents(){
  if(loading||pendingWrites)return;
  loading=true;
