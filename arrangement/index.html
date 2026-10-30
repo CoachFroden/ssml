@@ -327,8 +327,7 @@ function renderEvents(){
  const days=Math.round((new Date(day.getFullYear(),day.getMonth(),day.getDate())-today)/86400000);
  const dateText=new Intl.DateTimeFormat('nn-NO',{day:'numeric',month:'long',year:'numeric'}).format(day);
  const countdown=days===0?'I dag':days===1?'I morgon':days+' dagar igjen';
- const done=(e.tasks||[]).filter(t=>t.done).length;
- box.innerHTML='<article class="next-card"><div class="next-kicker">✦ KOMANDE ARRANGEMENT ✦</div><div class="next-date">'+esc(dateText)+'</div><h3>'+esc(e.name)+'</h3><div class="next-countdown">'+esc(countdown)+'</div><div class="next-divider"></div><p class="next-progress">'+done+' av '+(e.tasks||[]).length+' oppgåver fullførte</p><span class="next-status '+(e.open?'next-open':'next-closed')+'">'+(e.open?'● Open for komité':'● Ikkje opna for komité')+'</span><button type="button" class="next-open-button" data-event="'+esc(e.id)+'">Opne arrangementet →</button></article>';
+ box.innerHTML='<article class="next-card"><div class="next-kicker">✦ KOMANDE ARRANGEMENT ✦</div><div class="next-date">'+esc(dateText)+'</div><h3>'+esc(e.name)+'</h3><div class="next-countdown">'+esc(countdown)+'</div><div class="next-divider"></div><span class="next-status '+(e.open?'next-open':'next-closed')+'">'+(e.open?'● Open for komité':'● Ikkje opna for komité')+'</span><button type="button" class="next-open-button" data-event="'+esc(e.id)+'">Opne arrangementet →</button></article>';
 }
 let childrenRegistry=[];
 const childApi=(action,extra={})=>window.ssmlChildren(action,extra);
