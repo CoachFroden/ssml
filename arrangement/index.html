@@ -567,18 +567,19 @@ $('#import-history-tasks').onclick=async()=>{
  try{
   if(!window.ssmlLoadHistory)throw Error('Historikken er ikkje klar. Prøv igjen.');
   const archive=await window.ssmlLoadHistory();
-  const sources=new Map(archive.filter(e=>e.id!==current()?.id&&Array.isArray(e.tasks)&&e.tasks.length).map(e=>[e.id,e]));
+  const sources=new Map(archive.filter(e=>e.id!==current()?.id).map(e=>[e.id,e]));
   // Use the latest task lists for completed arrangements, including tasks registered after archiving.
-  for(const e of events){if(e.id!==current()?.id&&isPastEvent(e)&&Array.isArray(e.tasks)&&e.tasks.length)sources.set(e.id,e);}
+  for(const e of events){if(e.id!==current()?.id&&isPastEvent(e))sources.set(e.id,e);}
   historyTaskSources=[...sources.values()].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-  for(let i=0;i<historyTaskSources.length;i++){const e=historyTaskSources[i];const option=document.createElement('option');option.value=String(i);option.textContent=(e.name||'Arrangement')+' · '+(e.date||e.year||'')+' ('+e.tasks.length+' oppgåver)';historyTaskSelect.append(option);}
-  historyTaskStatus.textContent=historyTaskSources.length?'Vel arrangementet du vil hente frå.':'Ingen tidlegare arrangement med oppgåver vart funne.';
+  for(let i=0;i<historyTaskSources.length;i++){const e=historyTaskSources[i];const option=document.createElement('option');option.value=String(i);option.textContent=(e.name||'Arrangement')+' · '+(e.date||e.year||'')+' ('+(e.tasks?.length||0)+' oppgåver)';historyTaskSelect.append(option);}
+  historyTaskStatus.textContent=historyTaskSources.length?'Vel arrangementet du vil hente frå.':'Ingen tidlegare arrangement vart funne.';
   historyTaskConfirm.disabled=!historyTaskSources.length;
  }catch(err){historyTaskStatus.textContent='Kunne ikkje hente historikk: '+(err.message||err);}
 };
 historyTaskConfirm.onclick=async()=>{
  const source=historyTaskSources[Number(historyTaskSelect.value)],target=current();
  if(!source||!target)return;
+ if(!Array.isArray(source.tasks)||!source.tasks.length){historyTaskStatus.textContent='Dette arrangementet har ingen lagra oppgåver å kopiere.';return;}
  if(!confirm('Kopiere alle '+source.tasks.length+' oppgåvene frå '+source.name+' til '+target.name+'? Oppgåvene blir lagde til dei som finst frå før.'))return;
  const oldTasks=target.tasks.slice();
  const imported=source.tasks.map(t=>({id:uid(),text:String(t.text||t.title||t.name||'Oppgåve'),done:false}));
