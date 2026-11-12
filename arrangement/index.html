@@ -567,7 +567,10 @@ $('#import-history-tasks').onclick=async()=>{
  try{
   if(!window.ssmlLoadHistory)throw Error('Historikken er ikkje klar. Prøv igjen.');
   const archive=await window.ssmlLoadHistory();
-  historyTaskSources=archive.filter(e=>e.id!==current()?.id&&Array.isArray(e.tasks)&&e.tasks.length).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const sources=new Map(archive.filter(e=>e.id!==current()?.id&&Array.isArray(e.tasks)&&e.tasks.length).map(e=>[e.id,e]));
+  // Completed arrangements remain in the main event store; their current task lists may be newer than the archival snapshot.
+  for(const e of events){if(e.id!==current()?.id&&isPastEvent(e)&&Array.isArray(e.tasks)&&e.tasks.length)sources.set(e.id,e);}
+  historyTaskSources=[...sources.values()].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   for(let i=0;i<historyTaskSources.length;i++){const e=historyTaskSources[i];const option=document.createElement('option');option.value=String(i);option.textContent=(e.name||'Arrangement')+' · '+(e.date||e.year||'')+' ('+e.tasks.length+' oppgåver)';historyTaskSelect.append(option);}
   historyTaskStatus.textContent=historyTaskSources.length?'Vel arrangementet du vil hente frå.':'Ingen tidlegare arrangement med oppgåver vart funne.';
   historyTaskConfirm.disabled=!historyTaskSources.length;
